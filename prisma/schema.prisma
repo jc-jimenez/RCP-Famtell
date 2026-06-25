@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                     String   @id @default(uuid())
+  email                  String   @unique
+  planId                 String
+  creditsTotal           Int      @default(0)
+  creditsUsed            Int      @default(0)
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  status                 String   @default("active")
+  cases                  Case[]   @relation("AccountCases")
+  createdAt              DateTime @default(now())
+}
+
+model Case {
+  id            String        @id @default(uuid())
+  account       Account       @relation(fields: [accountId], references: [id], name: "AccountCases")
+  accountId     String
+  companyName   String
+  industry      String?
+  description   String?
+  status        String        @default("active")
+  creditsPool   Int           @default(120)
+  creditsUsed   Int           @default(0)
+  createdAt     DateTime      @default(now())
+  completedAt   DateTime?
+  caseUsers     CaseUser[]    @relation("CaseUsers")
+  modules       Module[]      @relation("CaseModules")
+  sessions      Session[]     @relation("CaseSessions")
+  agendaSignals AgendaSignal[]
+  documents     Document[]
+  briefs        Brief[]
+  notifications Notification[]
+}
+
+model CaseUser {
+  id                  String   @id @default(uuid())
+  case                Case     @relation(fields: [caseId], references: [id], name: "CaseUsers")
+  caseId              String
+  userId              String
+  role                String
+  jobTitle            String?
+  jobDescriptionText  String?
+  jobDescriptionUrl   String?
+  permissionsJson     Json?
+  activatedAt         DateTime?
+  lastSeenAt          DateTime?
+}
+
+model Module {
+  id               String    @id @default(uuid())
+  case             Case      @relation(fields: [caseId], references: [id], name: "CaseModules")
+  caseId           String
+  moduleNumber     Int
+  moduleCode       String
+  status           String    @default("locked")
+  creditsConsumed  Int       @default(0)
+  assignedTo       String[]  @default([])
+  unlockedAt       DateTime?
+  submittedAt      DateTime?
+  submittedBy      String?
+  sessions         Session[]
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  module           Module    @relation(fields: [moduleId], references: [id])
+  moduleId         String
+  case             Case      @relation(fields: [caseId], references: [id], name: "CaseSessions")
+  caseId           String
+  userId           String
+  messagesJson     Json
+  filesUploadedJson Json?
+  tokensUsed       Int       @default(0)
+  durationSeconds  Int       @default(0)
+  status           String    @default("active")
+  startedAt        DateTime  @default(now())
+  lastActivityAt   DateTime?
+}
+
+model AgendaSignal {
+  id             String   @id @default(uuid())
+  case           Case     @relation(fields: [caseId], references: [id])
+  caseId         String
+  module         Module   @relation(fields: [moduleId], references: [id])
+  moduleId       String
+  session        Session  @relation(fields: [sessionId], references: [id])
+  sessionId      String
+  signalType     String
+  rawText        String
+  consultantNote String?
+  detectedAt     DateTime @default(now())
+}
+
+model ConsultantNote {
+  id        String   @id @default(uuid())
+  case      Case     @relation(fields: [caseId], references: [id])
+  caseId    String
+  module    Module   @relation(fields: [moduleId], references: [id])
+  moduleId  String
+  noteText  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id                 String   @id @default(uuid())
+  case               Case     @relation(fields: [caseId], references: [id])
+  caseId             String
+  module             Module?  @relation(fields: [moduleId], references: [id])
+  moduleId           String?
+  session            Session? @relation(fields: [sessionId], references: [id])
+  sessionId          String?
+  fileName           String
+  fileUrl            String
+  fileType           String
+  mimeType           String?
+  extractedDataJson  Json?
+  processingStatus   String   @default("pending")
+  processedAt        DateTime?
+}
+
+model Contact {
+  id                  String   @id @default(uuid())
+  case                Case     @relation(fields: [caseId], references: [id])
+  caseId              String
+  companyName         String?
+  contactName         String?
+  jobTitle            String?
+  email               String?
+  phone               String?
+  type                String?
+  industry            String?
+  potentialValueMonthly Float?
+  closeProbability    String?
+  priority            Int?
+  lastContactDate     DateTime?
+  source              String?
+  aiSuggestedAction   String?
+  createdAt           DateTime @default(now())
+}
+
+model PremiumModule {
+  id               String   @id @default(uuid())
+  case             Case     @relation(fields: [caseId], references: [id])
+  caseId           String
+  moduleCode       String
+  activatedBy      String?
+  activatedAt      DateTime @default(now())
+  visibleToRoles   String[]
+  visibleToUsers   String[]
+  resultsJson      Json?
+  creditsConsumed  Int      @default(0)
+  generatedAt      DateTime?
+}
+
+model Brief {
+  id          String   @id @default(uuid())
+  case        Case     @relation(fields: [caseId], references: [id])
+  caseId      String
+  version     Int      @default(1)
+  contentJson Json
+  pdfUrl      String?
+  docxUrl     String?
+  modelUsed   String?
+  tokensUsed  Int?
+  generatedAt DateTime @default(now())
+  generatedBy String?
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  userId       String
+  case         Case     @relation(fields: [caseId], references: [id])
+  caseId       String
+  type         String
+  channel      String
+  status       String   @default("pending")
+  sentAt       DateTime?
+  metadataJson Json?
+}
