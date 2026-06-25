@@ -1,143 +1,125 @@
-import { cookies, headers } from 'next/headers';
-import { createServerComponentSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { Database } from '@/types/database';
-import CasesPanel from '@/components/dashboard/CasesPanel';
-import AssignedUsersPanel from '@/components/dashboard/AssignedUsersPanel';
+export const dynamic = 'force-dynamic'
+
+import { redirect } from 'next/navigation'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import AppShell from '@/components/shared/AppShell'
+import CreditsBadge from '@/components/shared/CreditsBadge'
+import CasesPanel from '@/components/dashboard/CasesPanel'
+import Link from 'next/link'
 
 export default async function DashboardPage() {
-  const supabase = createServerComponentSupabaseClient<Database>({ cookies, headers: () => headers() });
-  const { data } = await supabase.auth.getSession();
+  const supabase = await createSupabaseServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (!data.session) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-        <div className="mx-auto max-w-4xl rounded-3xl border border-slate-800 bg-slate-900/80 p-8">
-          <h1 className="text-3xl font-semibold">Acceso necesario</h1>
-          <p className="mt-4 text-slate-400">Debes iniciar sesión para ver el dashboard.</p>
-          <a href="/login" className="mt-6 inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-slate-950">Ir a login</a>
-        </div>
-      </div>
-    );
-  }
+  if (!session) redirect('/login')
+
+  const db = supabase as any
+
+  // Datos del consultor
+  const { data: account } = await db
+    .from('accounts')
+    .select('id, credits_total, credits_used, plan_id, status')
+    .eq('email', session.user.email)
+    .maybeSingle()
+
+  if (!account) redirect('/login')
+
+  // Casos del consultor
+  const { data: cases } = await db
+    .from('cases')
+    .select('id, company_name, industry, status, created_at, credits_used')
+    .eq('account_id', account.id)
+    .order('created_at', { ascending: false })
+
+  const activeCases = cases?.filter((c: any) => c.status === 'active') ?? []
+  const allCases = cases ?? []
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8">
-          <h1 className="text-4xl font-semibold">Dashboard</h1>
-          <p className="mt-2 text-slate-400">Bienvenido, {data.session.user.email}</p>
-        </header>
-        <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-          <div className="space-y-6">
-            <CasesPanel />
-            <AssignedUsersPanel />
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">Resumen de créditos</div>
+    <AppShell role="consultant" email={session.user.email!}>
+      <div className="max-w-5xl mx-auto space-y-6">
+
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Mis casos</h1>
+            <p className="text-slate-400 text-sm mt-1">
+              {activeCases.length} activo{activeCases.length !== 1 ? 's' : ''} · {allCases.length} en total
+            </p>
           </div>
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-semibold">Crear caso</h2>
-              <div className="mt-4">
-                <form action="/api/cases" className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Nombre del caso</label>
-                    <input
-                      name="companyName"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="Empresa Ejemplo S.A."
-                      required
-                    />
-                  </div>
+          <Link
+            href="/dashboard/nuevo-caso"
+            className="rounded-xl bg-role-consultor hover:opacity-90 transition-opacity px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            + Nuevo caso
+          </Link>
+        </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Industria</label>
-                    <input
-                      name="industry"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="Logística / 3PL"
-                    />
-                  </div>
+        {/* Créditos */}
+        <CreditsBadge
+          total={account.credits_total}
+          used={account.credits_used}
+        />
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Descripción</label>
-                    <textarea
-                      name="description"
-                      rows={3}
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="Breve descripción del caso"
-                    />
-                  </div>
-
-                  <button type="submit" className="inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400">
-                    Crear caso
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-              <h2 className="text-xl font-semibold">Asignar usuario</h2>
-              <div className="mt-4">
-                <form action="/api/case-users" className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">ID del caso</label>
-                    <input
-                      name="caseId"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="UUID del caso"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">ID del usuario</label>
-                    <input
-                      name="userId"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="UUID del usuario"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Rol</label>
-                    <select
-                      name="role"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                    >
-                      <option value="consultant">Consultor</option>
-                      <option value="director">Directivo</option>
-                      <option value="collaborator">Colaborador</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Título del puesto</label>
-                    <input
-                      name="jobTitle"
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="Director Comercial"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300">Descriptivo de puesto</label>
-                    <textarea
-                      name="jobDescriptionText"
-                      rows={3}
-                      className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500"
-                      placeholder="Responsable de ventas, clientes clave y estrategia comercial"
-                    />
-                  </div>
-
-                  <button type="submit" className="inline-flex rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400">
-                    Asignar usuario
-                  </button>
-                </form>
-              </div>
-            </div>
+        {/* Lista de casos */}
+        {allCases.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-12 text-center">
+            <p className="text-slate-400 font-medium mb-2">Aún no tienes casos</p>
+            <p className="text-slate-600 text-sm mb-6">Crea tu primer caso de diagnóstico para comenzar</p>
+            <Link
+              href="/dashboard/nuevo-caso"
+              className="inline-flex rounded-xl bg-role-consultor hover:opacity-90 transition-opacity px-6 py-2.5 text-sm font-semibold text-white"
+            >
+              Crear primer caso
+            </Link>
           </div>
-        </section>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {allCases.map((caso: any) => (
+              <Link
+                key={caso.id}
+                href={`/dashboard/caso/${caso.id}`}
+                className="rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-slate-600 hover:bg-slate-900 transition-all p-5 group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-white group-hover:text-sky-300 transition-colors truncate">
+                      {caso.company_name}
+                    </h3>
+                    {caso.industry && (
+                      <p className="text-slate-500 text-xs mt-0.5">{caso.industry}</p>
+                    )}
+                  </div>
+                  <StatusBadge status={caso.status} />
+                </div>
+                <div className="flex items-center gap-4 mt-4 text-xs text-slate-600">
+                  <span>{new Date(caso.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  {caso.credits_used > 0 && (
+                    <span>{caso.credits_used} créditos usados</span>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    </AppShell>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    active:    'bg-emerald-950/60 text-emerald-400 border-emerald-900/50',
+    completed: 'bg-blue-950/60 text-blue-400 border-blue-900/50',
+    archived:  'bg-slate-800 text-slate-500 border-slate-700',
+  }
+  const labels: Record<string, string> = {
+    active:    'Activo',
+    completed: 'Completado',
+    archived:  'Archivado',
+  }
+  return (
+    <span className={`inline-flex text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${styles[status] ?? styles.archived}`}>
+      {labels[status] ?? status}
+    </span>
+  )
 }

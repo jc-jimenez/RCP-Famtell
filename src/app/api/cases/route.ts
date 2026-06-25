@@ -1,34 +1,30 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import { cookies, headers } from 'next/headers';
-import type { Database } from '@/types/database';
+import { createSupabaseServerClient } from '@/lib/supabaseServer';
 
 export async function GET() {
-  const supabase = createRouteHandlerSupabaseClient<any>({ headers, cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  if (sessionError || !session || !session.user.email) {
+  if (sessionError || !session?.user.email) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const userEmail = session.user.email;
-  const accountResult: any = await supabase
+  const db = supabase as any;
+
+  const { data: account, error: accountError } = await db
     .from('accounts')
     .select('id')
-    .eq('email', userEmail)
+    .eq('email', session.user.email)
     .single();
-
-  const account = accountResult.data as { id: string } | null;
-  const accountError = accountResult.error;
 
   if (accountError || !account) {
     return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 403 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('cases')
     .select('id,company_name,industry,status,created_at')
-    .eq('account_id', accountResult.data.id)
+    .eq('account_id', account.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -39,40 +35,36 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerSupabaseClient<any>({ headers, cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  if (sessionError || !session || !session.user.email) {
+  if (sessionError || !session?.user.email) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const { companyName, industry, description } = await request.json();
+  const { companyName, industry, description, strategicIntent } = await request.json();
 
   if (!companyName) {
     return NextResponse.json({ error: 'companyName es requerido' }, { status: 400 });
   }
 
-  if (!session.user.email) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
+  const db = supabase as any;
 
-  const userEmail = session.user.email;
-  const accountResult: any = await supabase
+  const { data: account, error: accountError } = await db
     .from('accounts')
     .select('id')
-    .eq('email', userEmail)
+    .eq('email', session.user.email)
     .single();
 
-  if (accountResult.error || !accountResult.data) {
+  if (accountError || !account) {
     return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 403 });
   }
 
-  const { data, error } = await supabase.from('cases').insert({
-    account_id: accountResult.data.id,
-    company_name: companyName,
-    industry,
-    description
-  }).select().single();
+  const { data, error } = await db
+    .from('cases')
+    .insert({ account_id: account.id, company_name: companyName, industry, description, strategic_intent: strategicIntent ?? 'mixed' })
+    .select()
+    .single();
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? 'Error al crear el caso' }, { status: 500 });

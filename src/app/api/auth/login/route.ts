@@ -8,11 +8,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Email y password son requeridos' }, { status: 400 });
   }
 
-  const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.session) {
     return NextResponse.json({ error: error?.message ?? 'Error al iniciar sesión' }, { status: 401 });

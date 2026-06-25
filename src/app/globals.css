@@ -13,3 +13,25 @@ body {
 * {
   box-sizing: border-box;
 }
+
+@layer components {
+  .label-text {
+    @apply block text-sm font-medium text-slate-300 mb-1.5;
+  }
+  .input-field {
+    @apply w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white
+           placeholder-slate-600 outline-none focus:border-sky-500 transition-colors
+           disabled:opacity-50 text-sm;
+  }
+  .btn-primary {
+    @apply rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed
+           px-4 py-3 text-sm font-semibold text-slate-950 transition-colors;
+  }
+  .btn-secondary {
+    @apply rounded-xl border border-slate-700 hover:border-slate-500 px-4 py-3
+           text-sm font-medium text-slate-400 hover:text-white transition-colors;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-800 bg-slate-900/60;
+  }
+}

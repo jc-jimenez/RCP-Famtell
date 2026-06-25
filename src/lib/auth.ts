@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import type { Database } from '@/types/database';
 
 export type TenantContext = {
   session: any;
@@ -11,47 +10,31 @@ export type TenantContext = {
 };
 
 export async function getSupabaseSession() {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
+  const supabase = await createSupabaseServerClient();
+  const { data: { session } } = await supabase.auth.getSession();
   return session;
 }
 
 export async function requireSupabaseSession() {
   const session = await getSupabaseSession();
-
-  if (!session) {
-    redirect('/login');
-  }
-
+  if (!session) redirect('/login');
   return session;
 }
 
 export async function getTenantContext(): Promise<TenantContext | null> {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
+  const supabase = await createSupabaseServerClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
-  const userId = session.user.id;
-  const caseUserResult: any = await supabase
+  const db = supabase as any;
+  const { data: caseUser, error } = await db
     .from('case_users')
     .select('role,case_id,job_title,permissions_json')
-    .eq('user_id', userId)
+    .eq('user_id', session.user.id)
     .maybeSingle();
 
-  const caseUser = caseUserResult.data;
-  const error = caseUserResult.error;
-
-  if (error) {
-    console.error('Error fetching tenant context:', error.message);
-  }
+  if (error) console.error('Error fetching tenant context:', error.message);
 
   return {
     session,
@@ -64,10 +47,6 @@ export async function getTenantContext(): Promise<TenantContext | null> {
 
 export async function requireTenantContext() {
   const context = await getTenantContext();
-
-  if (!context?.session) {
-    redirect('/login');
-  }
-
+  if (!context?.session) redirect('/login');
   return context;
 }

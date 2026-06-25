@@ -1,58 +1,51 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import { cookies, headers } from 'next/headers';
-import type { Database } from '@/types/database';
+import { createSupabaseServerClient } from '@/lib/supabaseServer';
 
 export async function GET(request: Request) {
-  const supabase = createRouteHandlerSupabaseClient<any>({ headers, cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  if (sessionError || !session || !session.user.email) {
+  if (sessionError || !session?.user.email) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const userEmail = session.user.email;
-  const accountResult: any = await supabase
+  const db = supabase as any;
+
+  const { data: account, error: accountError } = await db
     .from('accounts')
     .select('id')
-    .eq('email', userEmail)
+    .eq('email', session.user.email)
     .single();
-
-  const account = accountResult.data as { id: string } | null;
-  const accountError = accountResult.error;
 
   if (accountError || !account) {
     return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 403 });
   }
 
-  const caseListResult: any = await supabase
+  const { data: caseList, error: caseError } = await db
     .from('cases')
     .select('id')
     .eq('account_id', account.id);
-
-  const caseList = caseListResult.data as Array<{ id: string }> | null;
-  const caseError = caseListResult.error;
 
   if (caseError) {
     return NextResponse.json({ error: caseError.message }, { status: 500 });
   }
 
-  const caseIds = caseList?.map((caseItem) => caseItem.id) ?? [];
+  const caseIds = (caseList ?? []).map((c: any) => c.id);
 
   if (caseIds.length === 0) {
     return NextResponse.json({ assignments: [] });
   }
 
-  const query = supabase.from('case_users').select(
-    'id,case_id,user_id,role,job_title,job_description_text,activated_at,last_seen_at'
+  const { searchParams } = new URL(request.url);
+  const caseId = searchParams.get('caseId');
+
+  const query = db
+    .from('case_users')
+    .select('id,case_id,user_id,role,job_title,job_description_text,activated_at,last_seen_at');
+
+  const { data: assignments, error: assignmentError } = await (
+    caseId ? query.eq('case_id', caseId) : query.in('case_id', caseIds)
   );
-
-  const { caseId } = Object.fromEntries(new URL(request.url).searchParams.entries()) as {
-    caseId?: string;
-  };
-
-  const requestQuery = caseId ? query.eq('case_id', caseId) : query.in('case_id', caseIds);
-  const { data: assignments, error: assignmentError } = await requestQuery;
 
   if (assignmentError) {
     return NextResponse.json({ error: assignmentError.message }, { status: 500 });
@@ -62,10 +55,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerSupabaseClient<any>({ headers, cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  if (sessionError || !session || !session.user.email) {
+  if (sessionError || !session?.user.email) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -75,46 +68,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'caseId, userId y role son requeridos' }, { status: 400 });
   }
 
-  const userEmail = session.user.email;
-  const accountResult: any = await supabase
+  const db = supabase as any;
+
+  const { data: account } = await db
     .from('accounts')
     .select('id')
-    .eq('email', userEmail)
+    .eq('email', session.user.email)
     .single();
-
-  const account = accountResult.data as { id: string } | null;
 
   if (!account) {
     return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 403 });
   }
 
-  const caseRowResult: any = await supabase
+  const { data: caseRow, error: caseError } = await db
     .from('cases')
-    .select('id, account_id')
+    .select('id,account_id')
     .eq('id', caseId)
     .single();
-
-  const caseRow = caseRowResult.data as { id: string; account_id: string } | null;
-  const caseError = caseRowResult.error;
 
   if (caseError || !caseRow || caseRow.account_id !== account.id) {
     return NextResponse.json({ error: 'Caso no encontrado o no pertenece a la cuenta' }, { status: 403 });
   }
 
-  const insertResult: any = await (supabase.from('case_users') as any)
-    .insert({
-      case_id: caseId,
-      user_id: userId,
-      role,
-      job_title: jobTitle,
-      job_description_text: jobDescriptionText,
-      permissions_json: permissionsJson
-    })
+  const { data, error } = await db
+    .from('case_users')
+    .insert({ case_id: caseId, user_id: userId, role, job_title: jobTitle, job_description_text: jobDescriptionText, permissions_json: permissionsJson })
     .select()
     .single();
-
-  const data = insertResult.data;
-  const error = insertResult.error;
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? 'Error al crear case user' }, { status: 500 });
