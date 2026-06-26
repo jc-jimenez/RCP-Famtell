@@ -71,35 +71,43 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-white">{caseData.company_name}</h1>
+          <h1 className="text-xl font-bold text-ink">Plan RCP · {caseData.company_name}</h1>
           {caseData.industry && (
-            <p className="text-slate-400 text-sm mt-1">{caseData.industry}</p>
+            <p className="text-muted text-sm mt-1">{caseData.industry}</p>
           )}
           {caseUser.job_title && (
-            <p className="text-xs text-slate-500 mt-0.5">{caseUser.job_title}</p>
+            <p className="text-xs text-faint mt-0.5">{caseUser.job_title}</p>
           )}
         </div>
 
-        {/* Progreso general */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-slate-300">Progreso del diagnóstico</p>
-            <p className="text-sm font-bold text-white">{completedCount} / 7 módulos</p>
+        {/* Progreso general — círculos numerados */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-ink">Avance del diagnóstico</p>
+            <p className="text-sm font-bold text-ink">{completedCount} / 7 módulos</p>
           </div>
-          <div className="flex gap-1.5">
-            {MODULE_ORDER.map((code) => {
+          <div className="flex items-center">
+            {MODULE_ORDER.map((code, i) => {
               const mod = moduleMap[code]
-              const status = mod?.status ?? 'locked'
+              const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
+              const done = status === 'completed'
+              const active = status === 'active'
               return (
-                <div
-                  key={code}
-                  className={`flex-1 h-2 rounded-full transition-colors ${
-                    status === 'completed' ? 'bg-module-completed' :
-                    status === 'active'    ? 'bg-module-active animate-pulse' :
-                    'bg-module-locked'
-                  }`}
-                  title={`${MODULE_INFO[code].label}: ${status}`}
-                />
+                <div key={code} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                      done ? 'bg-module-completed border-module-completed text-white' :
+                      active ? 'bg-surface border-module-active text-module-active' :
+                      'bg-surface border-subtle text-faint'
+                    }`}>
+                      {done ? '✓' : i + 1}
+                    </div>
+                    <span className={`text-[10px] font-medium ${active ? 'text-ink' : 'text-faint'}`}>{code}</span>
+                  </div>
+                  {i < MODULE_ORDER.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-1 -mt-4 ${done ? 'bg-module-completed' : 'bg-subtle'}`} />
+                  )}
+                </div>
               )
             })}
           </div>
@@ -118,41 +126,41 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             return (
               <div
                 key={code}
-                className={`rounded-2xl border transition-all ${
-                  isCompleted ? 'border-emerald-900/50 bg-emerald-950/20' :
-                  isActive    ? 'border-blue-800/60 bg-blue-950/20' :
-                  'border-slate-800 bg-slate-900/40 opacity-50'
+                className={`card transition-all ${
+                  isCompleted ? 'border-emerald-200 bg-emerald-50/40' :
+                  isActive    ? 'border-accent/30' :
+                  'opacity-60'
                 }`}
               >
                 <div className="flex items-center gap-4 p-4">
                   {/* Número / estado */}
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                    isCompleted ? 'bg-emerald-800 text-emerald-300' :
-                    isActive    ? 'bg-blue-800 text-blue-300' :
-                    'bg-slate-800 text-slate-600'
+                    isCompleted ? 'bg-emerald-100 text-emerald-700' :
+                    isActive    ? 'bg-accent-soft text-accent' :
+                    'bg-surface-2 text-faint'
                   }`}>
                     {isCompleted ? '✓' : i + 1}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${isLocked ? 'text-slate-600' : 'text-white'}`}>
+                    <p className={`text-sm font-semibold ${isLocked ? 'text-faint' : 'text-ink'}`}>
                       {info.label}
                     </p>
-                    <p className="text-xs text-slate-500 mt-0.5">{info.desc}</p>
+                    <p className="text-xs text-muted mt-0.5">{info.desc}</p>
                   </div>
 
                   <div className="flex-shrink-0">
                     {isCompleted ? (
-                      <span className="text-xs text-emerald-500 font-medium">Completado</span>
+                      <span className="badge badge-success">Completado</span>
                     ) : isActive ? (
                       <Link
                         href={`/caso/${id}/modulo/${code}` as any}
-                        className="rounded-xl bg-role-directivo hover:opacity-90 transition-opacity px-4 py-2 text-xs font-semibold text-white"
+                        className="btn-primary text-xs px-4 py-2"
                       >
                         Iniciar →
                       </Link>
                     ) : (
-                      <span className="text-xs text-slate-600">Bloqueado</span>
+                      <span className="text-xs text-faint">Se desbloquea al terminar</span>
                     )}
                   </div>
                 </div>

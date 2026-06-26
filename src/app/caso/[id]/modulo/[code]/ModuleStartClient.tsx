@@ -62,18 +62,18 @@ export default function ModuleStartClient({
     return (
       <AppShell role="director" email={userEmail} caseCompanyName="">
         <div className="max-w-lg mx-auto text-center py-16 space-y-6">
-          <div className="w-16 h-16 rounded-full bg-emerald-900/40 border border-emerald-700/50 flex items-center justify-center text-3xl mx-auto">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-3xl text-emerald-600 mx-auto">
             ✓
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">{label} completado</h1>
-            <p className="text-slate-400 text-sm mt-2">
+            <h1 className="text-xl font-bold text-ink">{label} completado</h1>
+            <p className="text-muted text-sm mt-2">
               La información fue guardada. Tu consultor ya puede ver los resultados.
             </p>
           </div>
           <button
             onClick={() => router.push(`/caso/${caseId}` as any)}
-            className="rounded-xl bg-role-directivo hover:opacity-90 transition-opacity px-6 py-3 text-sm font-semibold text-white"
+            className="btn-primary px-6 py-3"
           >
             Volver a mi caso →
           </button>
@@ -85,16 +85,16 @@ export default function ModuleStartClient({
   // ── Vista: chat con Nova ──
   if (view === 'chat' && sessionId) {
     return (
-      <div className="flex flex-col min-h-screen bg-slate-950">
+      <div className="flex flex-col min-h-screen bg-canvas">
         {/* Topbar minimal durante el chat */}
-        <header className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
+        <header className="flex items-center justify-between px-5 py-3 border-b border-subtle bg-surface flex-shrink-0">
           <button
             onClick={() => router.push(`/caso/${caseId}` as any)}
-            className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            className="text-xs text-muted hover:text-ink transition-colors"
           >
             ← Volver
           </button>
-          <span className="text-sm font-medium text-slate-400">{label}</span>
+          <span className="text-sm font-medium text-ink">{label}</span>
           <div className="w-16" />
         </header>
 
@@ -118,29 +118,29 @@ export default function ModuleStartClient({
 
         {/* Número de módulo */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-role-directivo/20 border border-role-directivo/40 flex items-center justify-center text-sm font-bold text-role-directivo">
+          <div className="w-10 h-10 rounded-full bg-accent-soft border border-accent/20 flex items-center justify-center text-sm font-bold text-accent">
             {moduleCode}
           </div>
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Diagnóstico empresarial</p>
-            <h1 className="text-xl font-bold text-white">{label}</h1>
+            <p className="section-label">Diagnóstico empresarial</p>
+            <h1 className="text-xl font-bold text-ink">{label}</h1>
           </div>
         </div>
 
         {/* Descripción */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-          <p className="text-slate-300 text-sm leading-relaxed">{description}</p>
+        <div className="card p-6 space-y-4">
+          <p className="text-ink text-sm leading-relaxed">{description}</p>
 
           <div className="flex items-center gap-6 pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2 text-xs text-muted">
               <span>⏱</span>
               <span>{duration}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2 text-xs text-muted">
               <span>💬</span>
               <span>Una pregunta a la vez</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2 text-xs text-muted">
               <span>🔒</span>
               <span>Guardado automático</span>
             </div>
@@ -148,12 +148,12 @@ export default function ModuleStartClient({
         </div>
 
         {/* Tips */}
-        <div className="rounded-2xl border border-slate-800/50 bg-slate-900/30 p-5">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Antes de empezar</p>
-          <ul className="space-y-2 text-sm text-slate-400">
-            <li className="flex gap-2"><span className="text-slate-600">·</span>Responde con la mayor honestidad posible — el diagnóstico es tan bueno como la información que compartes</li>
-            <li className="flex gap-2"><span className="text-slate-600">·</span>Puedes pausar y continuar en cualquier momento, tu progreso se guarda automáticamente</li>
-            <li className="flex gap-2"><span className="text-slate-600">·</span>Nova es confidencial — solo tú y tu consultor ven las respuestas</li>
+        <div className="panel p-5">
+          <p className="section-label mb-3">Antes de empezar</p>
+          <ul className="space-y-2 text-sm text-muted">
+            <li className="flex gap-2"><span className="text-faint">·</span>Responde con la mayor honestidad posible — el diagnóstico es tan bueno como la información que compartes</li>
+            <li className="flex gap-2"><span className="text-faint">·</span>Puedes pausar y continuar en cualquier momento, tu progreso se guarda automáticamente</li>
+            <li className="flex gap-2"><span className="text-faint">·</span>Nova es confidencial — solo tú y tu consultor ven las respuestas</li>
           </ul>
         </div>
 
@@ -161,7 +161,7 @@ export default function ModuleStartClient({
         <button
           onClick={handleStart}
           disabled={starting}
-          className="w-full rounded-xl bg-role-directivo hover:opacity-90 disabled:opacity-50 transition-opacity px-6 py-4 text-sm font-semibold text-white"
+          className="btn-primary w-full px-6 py-4"
         >
           {starting ? 'Iniciando…' : `Comenzar ${label}`}
         </button>

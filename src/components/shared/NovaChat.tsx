@@ -85,18 +85,18 @@ export default function NovaChat({
     <div className="flex flex-col h-full min-h-0">
 
       {/* Header de Nova */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800 bg-slate-900/60 flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-subtle bg-surface flex-shrink-0">
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
           N
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">Nova</p>
-          <p className="text-xs text-slate-500">{MODULE_LABELS[moduleCode]}</p>
+          <p className="text-sm font-semibold text-ink">Nova</p>
+          <p className="text-xs text-muted">{MODULE_LABELS[moduleCode]}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {streaming && (
-            <span className="flex items-center gap-1.5 text-xs text-sky-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <span className="flex items-center gap-1.5 text-xs text-accent">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
               Escribiendo…
             </span>
           )}
@@ -115,7 +115,7 @@ export default function NovaChat({
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5">
               N
             </div>
-            <div className="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
+            <div className="bg-accent-soft rounded-2xl rounded-tl-sm px-4 py-3">
               <TypingDots />
             </div>
           </div>
@@ -126,13 +126,13 @@ export default function NovaChat({
 
       {/* Error */}
       {error && (
-        <div className="px-5 py-2 bg-red-950/40 border-t border-red-900/30">
-          <p className="text-xs text-red-400">{error}</p>
+        <div className="px-5 py-2 bg-red-50 border-t border-red-100">
+          <p className="text-xs text-red-700">{error}</p>
         </div>
       )}
 
       {/* Input */}
-      <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/60 px-4 py-3">
+      <div className="flex-shrink-0 border-t border-subtle bg-surface px-4 py-3">
         <div className="flex gap-3 items-end">
           <textarea
             ref={inputRef}
@@ -142,7 +142,7 @@ export default function NovaChat({
             disabled={streaming}
             rows={1}
             placeholder="Escribe tu respuesta… (Enter para enviar)"
-            className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:border-sky-500 transition-colors disabled:opacity-50 min-h-[44px] max-h-32"
+            className="flex-1 resize-none rounded-xl border border-subtle bg-surface px-4 py-3 text-sm text-ink placeholder-faint outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors disabled:opacity-50 min-h-[44px] max-h-32"
             style={{ height: 'auto' }}
             onInput={(e) => {
               const t = e.currentTarget
@@ -153,7 +153,7 @@ export default function NovaChat({
           <button
             onClick={handleSend}
             disabled={streaming || !input.trim()}
-            className="rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-3 text-slate-950 transition-colors flex-shrink-0"
+            className="rounded-xl bg-brand hover:bg-brand-hover disabled:opacity-40 disabled:cursor-not-allowed px-4 py-3 text-white transition-colors flex-shrink-0"
             aria-label="Enviar"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -168,7 +168,7 @@ export default function NovaChat({
             <button
               onClick={handleComplete}
               disabled={completing}
-              className="text-xs font-medium text-slate-400 hover:text-emerald-400 transition-colors disabled:opacity-50 border border-slate-700 hover:border-emerald-700 rounded-lg px-3 py-1.5"
+              className="text-xs font-medium text-muted hover:text-emerald-700 transition-colors disabled:opacity-50 border border-subtle hover:border-emerald-300 rounded-lg px-3 py-1.5"
             >
               {completing ? 'Completando…' : '✓ Marcar módulo como completado'}
             </button>
@@ -194,8 +194,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
           isNova
-            ? 'bg-slate-800 text-slate-100 rounded-tl-sm'
-            : 'bg-role-directivo text-white rounded-tr-sm'
+            ? 'bg-accent-soft text-ink rounded-tl-sm'
+            : 'bg-brand text-white rounded-tr-sm'
         }`}
       >
         {message.content}
@@ -210,7 +210,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce"
+          className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce"
           style={{ animationDelay: `${i * 0.15}s` }}
         />
       ))}

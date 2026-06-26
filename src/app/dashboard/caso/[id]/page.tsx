@@ -80,15 +80,15 @@ export default async function CasoDetallePage({
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <Link href="/dashboard" className="text-xs text-slate-500 hover:text-slate-300 mb-2 inline-block">
+            <Link href="/dashboard" className="text-xs text-muted hover:text-ink mb-2 inline-block">
               ← Mis casos
             </Link>
-            <h1 className="text-2xl font-bold text-white">{caseData.company_name}</h1>
-            {caseData.industry && <p className="text-slate-400 text-sm mt-0.5">{caseData.industry}</p>}
+            <h1 className="text-xl font-bold text-ink">{caseData.company_name}</h1>
+            {caseData.industry && <p className="text-muted text-sm mt-0.5">{caseData.industry}</p>}
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-500">Progreso</p>
-            <p className="text-2xl font-bold text-white">{completedCount}<span className="text-slate-600 text-lg">/7</span></p>
+            <p className="text-xs text-faint">Progreso</p>
+            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-faint text-lg">/7</span></p>
           </div>
         </div>
 
@@ -96,29 +96,29 @@ export default async function CasoDetallePage({
           <div className="space-y-4">
 
             {/* Módulos */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-              <h2 className="text-sm font-semibold text-slate-300 mb-4">Módulos de diagnóstico</h2>
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-ink mb-4">Módulos de diagnóstico</h2>
               <div className="space-y-2">
                 {MODULE_ORDER.map((code) => {
                   const m = moduleMap[code]
                   const status = m?.status ?? 'locked'
                   return (
-                    <div key={code} className={`flex items-center gap-3 p-3 rounded-xl ${
-                      status === 'completed' ? 'bg-emerald-950/30 border border-emerald-900/40' :
-                      status === 'active'    ? 'bg-blue-950/30 border border-blue-900/40' :
-                      'bg-slate-800/30 border border-slate-800'
+                    <div key={code} className={`flex items-center gap-3 p-3 rounded-xl border ${
+                      status === 'completed' ? 'bg-emerald-50/50 border-emerald-100' :
+                      status === 'active'    ? 'bg-accent-soft border-accent/20' :
+                      'bg-surface-2 border-subtle'
                     }`}>
                       <span className={`text-xs font-bold w-7 text-center ${
-                        status === 'completed' ? 'text-emerald-400' :
-                        status === 'active'    ? 'text-blue-400' :
-                        'text-slate-600'
+                        status === 'completed' ? 'text-emerald-600' :
+                        status === 'active'    ? 'text-accent' :
+                        'text-faint'
                       }`}>
                         {status === 'completed' ? '✓' : code}
                       </span>
-                      <span className={`text-sm flex-1 ${status === 'locked' ? 'text-slate-600' : 'text-slate-200'}`}>
+                      <span className={`text-sm flex-1 ${status === 'locked' ? 'text-faint' : 'text-ink'}`}>
                         {MODULE_LABELS[code]}
                       </span>
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-faint">
                         {status === 'completed' ? (m.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '') :
                          status === 'active' ? 'En progreso' : 'Pendiente'}
                       </span>
@@ -129,30 +129,30 @@ export default async function CasoDetallePage({
             </div>
 
             {/* Participantes */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-300">Participantes</h2>
+                <h2 className="text-sm font-semibold text-ink">Participantes</h2>
                 <Link
                   href={`/dashboard/caso/${id}/invitar` as any}
-                  className="text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                  className="text-xs text-accent hover:underline"
                 >
                   + Invitar
                 </Link>
               </div>
               {(!participants || participants.length === 0) ? (
-                <p className="text-xs text-slate-600">No hay participantes invitados aún</p>
+                <p className="text-xs text-faint">No hay participantes invitados aún</p>
               ) : (
                 <div className="space-y-2">
                   {participants.map((p: any) => (
                     <div key={p.id} className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                      <div className="w-7 h-7 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted">
                         {p.role === 'director' ? 'D' : 'C'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-200 truncate">{p.invitation_email ?? '—'}</p>
-                        <p className="text-xs text-slate-500">{p.job_title ?? p.role}</p>
+                        <p className="text-sm text-ink truncate">{p.invitation_email ?? '—'}</p>
+                        <p className="text-xs text-faint">{p.job_title ?? p.role}</p>
                       </div>
-                      <span className={`text-xs font-medium ${p.activated_at ? 'text-emerald-500' : 'text-amber-500'}`}>
+                      <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
                         {p.activated_at ? 'Activo' : 'Pendiente'}
                       </span>
                     </div>

@@ -41,15 +41,12 @@ export default async function DashboardPage() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Mis casos</h1>
-            <p className="text-slate-400 text-sm mt-1">
+            <h1 className="text-xl font-bold text-ink">Mis casos activos</h1>
+            <p className="text-muted text-sm mt-1">
               {activeCases.length} activo{activeCases.length !== 1 ? 's' : ''} · {allCases.length} en total
             </p>
           </div>
-          <Link
-            href="/dashboard/nuevo-caso"
-            className="rounded-xl bg-role-consultor hover:opacity-90 transition-opacity px-5 py-2.5 text-sm font-semibold text-white"
-          >
+          <Link href="/dashboard/nuevo-caso" className="btn-primary text-sm">
             + Nuevo caso
           </Link>
         </div>
@@ -62,13 +59,10 @@ export default async function DashboardPage() {
 
         {/* Lista de casos */}
         {allCases.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-12 text-center">
-            <p className="text-slate-400 font-medium mb-2">Aún no tienes casos</p>
-            <p className="text-slate-600 text-sm mb-6">Crea tu primer caso de diagnóstico para comenzar</p>
-            <Link
-              href="/dashboard/nuevo-caso"
-              className="inline-flex rounded-xl bg-role-consultor hover:opacity-90 transition-opacity px-6 py-2.5 text-sm font-semibold text-white"
-            >
+          <div className="rounded-2xl border border-dashed border-subtle bg-surface-2 p-12 text-center">
+            <p className="text-ink font-medium mb-2">Aún no tienes casos</p>
+            <p className="text-faint text-sm mb-6">Crea tu primer caso de diagnóstico para comenzar</p>
+            <Link href="/dashboard/nuevo-caso" className="btn-primary inline-flex text-sm">
               Crear primer caso
             </Link>
           </div>
@@ -78,20 +72,20 @@ export default async function DashboardPage() {
               <Link
                 key={caso.id}
                 href={`/dashboard/caso/${caso.id}`}
-                className="rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-slate-600 hover:bg-slate-900 transition-all p-5 group"
+                className="card p-5 hover:shadow-card-hover transition-shadow group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-white group-hover:text-sky-300 transition-colors truncate">
+                    <h3 className="font-semibold text-ink group-hover:text-accent transition-colors truncate">
                       {caso.company_name}
                     </h3>
                     {caso.industry && (
-                      <p className="text-slate-500 text-xs mt-0.5">{caso.industry}</p>
+                      <p className="text-faint text-xs mt-0.5">{caso.industry}</p>
                     )}
                   </div>
                   <StatusBadge status={caso.status} />
                 </div>
-                <div className="flex items-center gap-4 mt-4 text-xs text-slate-600">
+                <div className="flex items-center gap-4 mt-4 text-xs text-faint">
                   <span>{new Date(caso.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   {caso.credits_used > 0 && (
                     <span>{caso.credits_used} créditos usados</span>
@@ -108,9 +102,9 @@ export default async function DashboardPage() {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    active:    'bg-emerald-950/60 text-emerald-400 border-emerald-900/50',
-    completed: 'bg-blue-950/60 text-blue-400 border-blue-900/50',
-    archived:  'bg-slate-800 text-slate-500 border-slate-700',
+    active:    'badge-success',
+    completed: 'badge-info',
+    archived:  'badge-neutral',
   }
   const labels: Record<string, string> = {
     active:    'Activo',
@@ -118,7 +112,7 @@ function StatusBadge({ status }: { status: string }) {
     archived:  'Archivado',
   }
   return (
-    <span className={`inline-flex text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${styles[status] ?? styles.archived}`}>
+    <span className={`badge ${styles[status] ?? styles.archived}`}>
       {labels[status] ?? status}
     </span>
   )
