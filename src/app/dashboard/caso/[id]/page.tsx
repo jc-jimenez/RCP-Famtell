@@ -130,6 +130,28 @@ export default async function CasoDetallePage({
             </div>
 
             <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} />
+
+            {/* Suite de Ejecución M8 */}
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-ink mb-3">Suite de Ejecución</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'CRM Ligero',      href: `/caso/${id}/crm`,     icon: '◎' },
+                  { label: 'KPIs',            href: `/caso/${id}/kpis`,    icon: '▤' },
+                  { label: 'Check-in',        href: `/caso/${id}/checkin`, icon: '✓' },
+                  { label: 'Brief M7',        href: `/caso/${id}/brief`,   icon: '📋' },
+                ].map(item => (
+                  <Link
+                    key={item.href}
+                    href={item.href as any}
+                    className="flex items-center gap-2 rounded-xl border border-subtle bg-surface-2 px-3 py-2.5 hover:border-accent/30 hover:bg-accent-soft transition-colors group"
+                  >
+                    <span className="text-sm">{item.icon}</span>
+                    <span className="text-xs font-medium text-ink group-hover:text-accent">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Agenda Oculta */}
