@@ -121,7 +121,7 @@ export default function AgendaPanel({ signals }: { signals: Signal[] }) {
                   <div key={i} className="flex gap-2 text-xs">
                     <span className="flex-shrink-0 mt-0.5">{cfg.emoji}</span>
                     <div className="min-w-0">
-                      <p className="text-slate-400 leading-snug line-clamp-2">"{s.signal_text}"</p>
+                      <p className="text-slate-400 leading-snug line-clamp-2">&ldquo;{s.signal_text}&rdquo;</p>
                       <p className="text-slate-600 mt-0.5">{s.module_code}</p>
                     </div>
                   </div>

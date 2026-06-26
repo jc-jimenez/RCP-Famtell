@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     // Recarga COMPLETA a la raíz (no client-side) para que el navegador
     // envíe la cookie de sesión recién escrita y el middleware detecte el rol.
-    window.location.href = '/'
+    window.location.assign('/')
   }
 
   return (

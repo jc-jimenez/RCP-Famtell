@@ -58,7 +58,7 @@ export default function CreditosClient({ account }: { account: Account }) {
     })
     const data = await res.json()
     setLoading(null)
-    if (data.url) window.location.href = data.url
+    if (data.url) window.location.assign(data.url)
   }
 
   return (
