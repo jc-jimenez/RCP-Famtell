@@ -136,10 +136,11 @@ export default async function CasoDetallePage({
               <h2 className="text-sm font-semibold text-ink mb-3">Suite de Ejecución</h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: 'CRM Ligero',      href: `/caso/${id}/crm`,     icon: '◎' },
-                  { label: 'KPIs',            href: `/caso/${id}/kpis`,    icon: '▤' },
-                  { label: 'Check-in',        href: `/caso/${id}/checkin`, icon: '✓' },
-                  { label: 'Brief M7',        href: `/caso/${id}/brief`,   icon: '📋' },
+                  { label: 'CRM Ligero',      href: `/caso/${id}/crm`,         icon: '◎' },
+                  { label: 'Propuestas IA',   href: `/caso/${id}/propuestas`,  icon: '✦' },
+                  { label: 'KPIs',            href: `/caso/${id}/kpis`,        icon: '▤' },
+                  { label: 'Check-in',        href: `/caso/${id}/checkin`,     icon: '✓' },
+                  { label: 'Brief M7',        href: `/caso/${id}/brief`,       icon: '📋' },
                 ].map(item => (
                   <Link
                     key={item.href}
