@@ -13,10 +13,11 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { sessionId, message, moduleCode } = await request.json() as {
+  const { sessionId, message, moduleCode, attachment } = await request.json() as {
     sessionId: string
     message: string
     moduleCode: ModuleCode
+    attachment?: { base64: string; mimeType: string; fileName: string } | null
   }
 
   if (!sessionId || !message || !moduleCode) {
@@ -102,10 +103,66 @@ export async function POST(request: Request) {
   }
   // ────────────────────────────────────────────────────────────────────────
 
-  // Si es inicio automático, se envía como instrucción en lugar de mensaje usuario
-  const messagesForClaude: { role: 'user' | 'assistant'; content: string }[] = isStartTrigger
-    ? [{ role: 'user', content: 'Inicia la sesión presentándote y comenzando con la primera pregunta del guion.' }]
-    : updatedHistory.map(({ role, content }) => ({ role, content }))
+  // Construir mensajes para Claude (con soporte de archivos adjuntos)
+  const historyForClaude = updatedHistory.map(({ role, content }) => ({ role, content }))
+
+  type ClaudeMessage = {
+    role: 'user' | 'assistant'
+    content: string | { type: string; [key: string]: unknown }[]
+  }
+
+  let messagesForClaude: ClaudeMessage[]
+
+  if (isStartTrigger) {
+    messagesForClaude = [{ role: 'user', content: 'Inicia la sesión presentándote y comenzando con la primera pregunta del guion.' }]
+  } else if (attachment) {
+    // El último mensaje del usuario se reemplaza con un mensaje multimodal
+    const prevMessages = historyForClaude.slice(0, -1)
+    const userText = message.trim()
+
+    const contentBlocks: { type: string; [key: string]: unknown }[] = []
+
+    // Bloque de documento/imagen
+    if (attachment.mimeType === 'application/pdf') {
+      contentBlocks.push({
+        type: 'document',
+        source: {
+          type: 'base64',
+          media_type: 'application/pdf',
+          data: attachment.base64,
+        },
+        title: attachment.fileName,
+        context: 'Documento adjuntado por el usuario en el contexto del diagnóstico empresarial.',
+      })
+    } else if (attachment.mimeType.startsWith('image/')) {
+      contentBlocks.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: attachment.mimeType,
+          data: attachment.base64,
+        },
+      })
+    } else {
+      // Texto plano, CSV, etc. — incluir como texto
+      const textContent = Buffer.from(attachment.base64, 'base64').toString('utf-8')
+      contentBlocks.push({
+        type: 'text',
+        text: `Archivo adjunto: ${attachment.fileName}\n\n${textContent}`,
+      })
+    }
+
+    if (userText) {
+      contentBlocks.push({ type: 'text', text: userText })
+    }
+
+    messagesForClaude = [
+      ...prevMessages,
+      { role: 'user', content: contentBlocks },
+    ]
+  } else {
+    messagesForClaude = historyForClaude
+  }
 
   const stream = anthropic.messages.stream({
     model: NOVA_MODEL,

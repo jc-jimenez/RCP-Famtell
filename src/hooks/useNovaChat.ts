@@ -3,6 +3,12 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ChatMessage, ModuleCode } from '@/types'
 
+export interface FileAttachment {
+  base64: string
+  mimeType: string
+  fileName: string
+}
+
 interface UseNovaChatOptions {
   sessionId: string
   moduleCode: ModuleCode
@@ -21,27 +27,33 @@ export function useNovaChat({
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const sendMessage = useCallback(async (text: string) => {
-    if (streaming || !text.trim()) return
+  const sendMessage = useCallback(async (text: string, attachment?: FileAttachment) => {
+    const isStartTrigger = text === '__NOVA_START__'
+    if (streaming || (!text.trim() && !isStartTrigger)) return
 
     setError(null)
     setStreaming(true)
 
-    // Agregar mensaje del usuario inmediatamente
-    const userMsg: ChatMessage = {
-      role: 'user',
-      content: text.trim(),
-      timestamp: new Date().toISOString(),
+    // Mostrar mensaje del usuario en UI (con nombre de archivo si hay adjunto)
+    if (!isStartTrigger) {
+      const displayContent = attachment
+        ? `${text.trim()}${text.trim() ? '\n' : ''}📎 ${attachment.fileName}`
+        : text.trim()
+      const userMsg: ChatMessage = {
+        role: 'user',
+        content: displayContent,
+        timestamp: new Date().toISOString(),
+      }
+      setMessages(prev => [...prev, userMsg])
     }
-    setMessages((prev) => [...prev, userMsg])
 
-    // Placeholder de respuesta de Nova (se va llenando con streaming)
+    // Placeholder respuesta Nova
     const novaPlaceholder: ChatMessage = {
       role: 'assistant',
       content: '',
       timestamp: new Date().toISOString(),
     }
-    setMessages((prev) => [...prev, novaPlaceholder])
+    setMessages(prev => [...prev, novaPlaceholder])
 
     try {
       abortRef.current = new AbortController()
@@ -49,7 +61,12 @@ export function useNovaChat({
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message: text.trim(), moduleCode }),
+        body: JSON.stringify({
+          sessionId,
+          message: isStartTrigger ? text : text.trim(),
+          moduleCode,
+          attachment: attachment ?? null,
+        }),
         signal: abortRef.current.signal,
       })
 
@@ -75,7 +92,7 @@ export function useNovaChat({
             const payload = JSON.parse(line.slice(6))
 
             if (payload.token) {
-              setMessages((prev) => {
+              setMessages(prev => {
                 const next = [...prev]
                 const last = next[next.length - 1]
                 if (last?.role === 'assistant') {
@@ -90,7 +107,7 @@ export function useNovaChat({
               if (onComplete) onComplete()
             }
           } catch {
-            // línea incompleta o no JSON — ignorar
+            // línea incompleta — ignorar
           }
         }
       }
@@ -98,8 +115,7 @@ export function useNovaChat({
       if (err instanceof Error && err.name !== 'AbortError') {
         setError('Error de conexión. Intenta de nuevo.')
       }
-      // Quitar el placeholder vacío si hubo error
-      setMessages((prev) => {
+      setMessages(prev => {
         if (prev[prev.length - 1]?.content === '') return prev.slice(0, -1)
         return prev
       })
