@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { UserRole } from '@/types'
@@ -73,7 +73,6 @@ export default function AppShell({
   modulesCompleted = 0,
 }: AppShellProps) {
   const pathname = usePathname()
-  const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const navItems = NAV_BY_ROLE[role]
   const showSidebar = navItems.length > 0
@@ -82,7 +81,8 @@ export default function AppShell({
     setLoggingOut(true)
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    // Recarga completa para que el middleware vea la sesión ya limpia
+    window.location.assign('/login')
   }
 
   const initials = (email?.[0] ?? '?').toUpperCase()
@@ -173,15 +173,13 @@ export default function AppShell({
             <div className="w-8 h-8 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-semibold text-muted">
               {initials}
             </div>
-            {!showSidebar && (
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="text-xs text-faint hover:text-ink transition-colors"
-              >
-                {loggingOut ? 'Saliendo…' : 'Salir'}
-              </button>
-            )}
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-50"
+            >
+              {loggingOut ? 'Saliendo…' : 'Salir'}
+            </button>
           </div>
         </header>
 
