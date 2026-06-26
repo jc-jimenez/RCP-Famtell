@@ -24,6 +24,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   consultant: [
     { label: 'Mis casos',      href: '/dashboard',            icon: '▤' },
     { label: 'Nuevo caso',     href: '/dashboard/nuevo-caso', icon: '＋' },
+    { label: 'Premium',        href: '/premium',              icon: '✦' },
     { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
   ],
   director: [],
