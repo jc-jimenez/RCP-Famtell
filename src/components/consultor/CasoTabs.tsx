@@ -11,13 +11,14 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
+  { id: 'plan',         label: 'Plan',        external: true },
   { id: 'agenda',       label: 'Agenda Oculta' },
-  { id: 'crm',         label: 'CRM',        external: true },
-  { id: 'propuestas',  label: 'Propuestas',  external: true },
-  { id: 'tarifas',     label: 'Tarifas',     external: true },
-  { id: 'kpis',        label: 'KPIs',        external: true },
-  { id: 'checkin',     label: 'Check-in',    external: true },
-  { id: 'brief',       label: 'Brief M7',    external: true },
+  { id: 'crm',         label: 'CRM',          external: true },
+  { id: 'propuestas',  label: 'Propuestas',   external: true },
+  { id: 'tarifas',     label: 'Tarifas',      external: true },
+  { id: 'kpis',        label: 'KPIs',         external: true },
+  { id: 'checkin',     label: 'Check-in',     external: true },
+  { id: 'brief',       label: 'Brief M7',     external: true },
 ]
 
 interface Props {
@@ -31,9 +32,11 @@ export default function CasoTabs({ caseId, activeTab }: Props) {
       <nav className="flex gap-0 min-w-max">
         {TABS.map(tab => {
           const isActive = tab.id === activeTab
-          const href = tab.external
-            ? `/caso/${caseId}/${tab.id}`
-            : `/dashboard/caso/${caseId}?tab=${tab.id}`
+          const href = tab.id === 'plan'
+            ? `/dashboard/caso/${caseId}/plan`
+            : tab.external
+              ? `/caso/${caseId}/${tab.id}`
+              : `/dashboard/caso/${caseId}?tab=${tab.id}`
 
           return (
             <Link

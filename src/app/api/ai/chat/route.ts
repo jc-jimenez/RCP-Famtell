@@ -87,12 +87,30 @@ export async function POST(request: Request) {
 
     if (!sectionsRaw || sectionsRaw.length === 0) throw new Error('sin secciones')
 
-    // Ordenar preguntas dentro de cada sección
+    // 4. Cargar overrides del consultor para este caso
+    const { data: overridesRaw } = await db
+      .from('case_question_overrides')
+      .select('question_id, is_active, custom_text')
+      .eq('case_id', sessionData.case_id)
+
+    const overridesMap: Record<string, { is_active: boolean; custom_text: string | null }> = {}
+    ;(overridesRaw ?? []).forEach((o: any) => {
+      overridesMap[o.question_id] = { is_active: o.is_active, custom_text: o.custom_text }
+    })
+
+    // Ordenar preguntas y aplicar overrides (texto personalizado + activación)
     const sections = sectionsRaw.map((s: any) => ({
       ...s,
       questions: (s.questions ?? [])
-        .filter((q: any) => q.is_active)
-        .sort((a: any, b: any) => a.sort_order - b.sort_order),
+        .filter((q: any) => {
+          const ov = overridesMap[q.id]
+          return ov !== undefined ? ov.is_active : q.is_active
+        })
+        .sort((a: any, b: any) => a.sort_order - b.sort_order)
+        .map((q: any) => {
+          const ov = overridesMap[q.id]
+          return ov?.custom_text ? { ...q, text: ov.custom_text } : q
+        }),
     }))
 
     systemPrompt = buildModulePromptFromCatalog(moduleTemplate, sections, userRole)

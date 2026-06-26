@@ -20,6 +20,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Créditos',       href: '/admin/creditos',       icon: '◍' },
     { label: 'Facturación',    href: '/admin/facturacion',    icon: '▧' },
     { label: 'Premium',        href: '/admin/premium',        icon: '✦' },
+    { label: 'Catálogo',       href: '/admin/catalogo',       icon: '📋' },
   ],
   consultant: [
     { label: 'Mis casos',      href: '/dashboard',            icon: '▤' },
