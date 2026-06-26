@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,10 +23,9 @@ export default function LoginPage() {
       return
     }
 
-    // El middleware detecta el rol y redirige automáticamente.
-    // Recargamos a la raíz para que el middleware tome el control.
-    router.push('/')
-    router.refresh()
+    // Recarga COMPLETA a la raíz (no client-side) para que el navegador
+    // envíe la cookie de sesión recién escrita y el middleware detecte el rol.
+    window.location.href = '/'
   }
 
   return (
