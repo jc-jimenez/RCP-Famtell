@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { UserRole, TenantContext, PermissionsMap } from '@/types'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function detectUserRole(
   supabase: SupabaseClient,
@@ -19,8 +20,13 @@ export async function detectUserRole(
     }
   }
 
+  // Resolver rol/tenant es una operación de sistema → usar admin (bypass RLS).
+  // En el Edge runtime del middleware el contexto de auth no aplica RLS de
+  // forma fiable, lo que provocaba que no se detectara el rol del consultor.
+  const db = (getSupabaseAdmin() ?? supabase) as any
+
   // 2. ¿Consultor? → tiene registro en accounts
-  const { data: account } = await supabase
+  const { data: account } = await db
     .from('accounts')
     .select('id')
     .eq('email', email)
@@ -39,7 +45,7 @@ export async function detectUserRole(
   }
 
   // 3. ¿Directivo o Colaborador? → tiene registro en case_users
-  const { data: caseUser } = await supabase
+  const { data: caseUser } = await db
     .from('case_users')
     .select('role, case_id, job_title, permissions_json')
     .eq('user_id', userId)
