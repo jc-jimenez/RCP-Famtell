@@ -14,40 +14,42 @@ interface NavItem {
 
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   super_admin: [
-    { label: 'Panel global',     href: '/admin',                icon: '◈' },
-    { label: 'Consultores',      href: '/admin/consultores',    icon: '◉' },
-    { label: 'Casos',            href: '/admin/casos',          icon: '◆' },
-    { label: 'Créditos',         href: '/admin/creditos',       icon: '◎' },
-    { label: 'Facturación',      href: '/admin/facturacion',    icon: '◇' },
-    { label: 'Premium',          href: '/admin/premium',        icon: '◈' },
+    { label: 'Panel',          href: '/admin',                icon: '▦' },
+    { label: 'Consultores',    href: '/admin/consultores',    icon: '◎' },
+    { label: 'Casos',          href: '/admin/casos',          icon: '▣' },
+    { label: 'Créditos',       href: '/admin/creditos',       icon: '◍' },
+    { label: 'Facturación',    href: '/admin/facturacion',    icon: '▧' },
+    { label: 'Premium',        href: '/admin/premium',        icon: '✦' },
   ],
   consultant: [
-    { label: 'Mis casos',        href: '/dashboard',            icon: '◆' },
-    { label: 'Nuevo caso',       href: '/dashboard/nuevo-caso', icon: '+' },
-    { label: 'Créditos',         href: '/dashboard/creditos',   icon: '◎' },
+    { label: 'Mis casos',      href: '/dashboard',            icon: '▤' },
+    { label: 'Nuevo caso',     href: '/dashboard/nuevo-caso', icon: '＋' },
+    { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
   ],
   director: [],
   collaborator: [
-    { label: 'Mis módulos',      href: '/mis-modulos',          icon: '◆' },
+    { label: 'Mis módulos',    href: '/mis-modulos',          icon: '▤' },
   ],
 }
 
-const ROLE_COLOR: Record<UserRole, string> = {
-  super_admin:  'text-role-admin   border-role-admin',
-  consultant:   'text-role-consultor border-role-consultor',
-  director:     'text-role-directivo border-role-directivo',
-  collaborator: 'text-role-colaborador border-role-colaborador',
+// Pill de rol (texto + fondo) — tema claro
+const ROLE_PILL: Record<UserRole, string> = {
+  super_admin:  'bg-amber-50 text-role-admin',
+  consultant:   'bg-accent-soft text-role-consultor',
+  director:     'bg-accent-soft text-role-directivo',
+  collaborator: 'bg-emerald-50 text-role-colaborador',
 }
 
-const ROLE_BG: Record<UserRole, string> = {
-  super_admin:  'bg-red-950/40',
-  consultant:   'bg-purple-950/40',
-  director:     'bg-blue-950/40',
-  collaborator: 'bg-emerald-950/40',
+// Color del punto del logo según rol
+const ROLE_DOT: Record<UserRole, string> = {
+  super_admin:  'text-role-admin',
+  consultant:   'text-role-consultor',
+  director:     'text-role-directivo',
+  collaborator: 'text-role-colaborador',
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  super_admin:  'Super Admin',
+  super_admin:  'Admin',
   consultant:   'Consultor',
   director:     'Directivo',
   collaborator: 'Colaborador',
@@ -83,22 +85,20 @@ export default function AppShell({
     router.push('/login')
   }
 
+  const initials = (email?.[0] ?? '?').toUpperCase()
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <div className="min-h-screen bg-canvas text-ink flex">
 
       {/* ── Sidebar (SA, Consultor, Colaborador) ── */}
       {showSidebar && (
-        <aside className={`w-56 flex-shrink-0 flex flex-col border-r border-slate-800 ${ROLE_BG[role]}`}>
+        <aside className="w-56 flex-shrink-0 flex flex-col border-r border-subtle bg-surface">
           {/* Logo / marca */}
-          <div className="px-5 py-5 border-b border-slate-800">
-            <span className="text-lg font-bold tracking-tight text-white">RCP<span className={ROLE_COLOR[role].split(' ')[0]}>.ai</span></span>
-          </div>
-
-          {/* Rol badge */}
-          <div className="px-5 py-3">
-            <span className={`text-[10px] font-bold uppercase tracking-widest border-b pb-0.5 ${ROLE_COLOR[role]}`}>
-              {ROLE_LABEL[role]}
+          <div className="px-5 py-5 flex items-center gap-2">
+            <span className="text-lg font-bold tracking-tight text-ink">
+              RCP<span className={ROLE_DOT[role]}>.ai</span>
             </span>
+            <span className={`badge ${ROLE_PILL[role]} ml-auto`}>{ROLE_LABEL[role]}</span>
           </div>
 
           {/* Nav */}
@@ -111,11 +111,11 @@ export default function AppShell({
                   href={item.href as any}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
                     ${active
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      ? 'bg-accent-soft text-accent'
+                      : 'text-muted hover:text-ink hover:bg-surface-2'
                     }`}
                 >
-                  <span className="text-base leading-none">{item.icon}</span>
+                  <span className="text-base leading-none w-4 text-center">{item.icon}</span>
                   {item.label}
                 </Link>
               )
@@ -123,12 +123,12 @@ export default function AppShell({
           </nav>
 
           {/* Footer con email + logout */}
-          <div className="px-4 py-4 border-t border-slate-800">
-            <p className="text-xs text-slate-500 truncate mb-2">{email}</p>
+          <div className="px-4 py-4 border-t border-subtle">
+            <p className="text-xs text-muted truncate mb-2">{email}</p>
             <button
               onClick={handleLogout}
               disabled={loggingOut}
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+              className="text-xs text-faint hover:text-ink transition-colors disabled:opacity-50"
             >
               {loggingOut ? 'Saliendo…' : 'Cerrar sesión'}
             </button>
@@ -139,41 +139,45 @@ export default function AppShell({
       {/* ── Layout principal ── */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Topbar (siempre visible) */}
-        <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-10">
+        {/* Topbar */}
+        <header className="flex items-center justify-between px-6 py-3 border-b border-subtle bg-surface sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            {/* En móvil o sin sidebar: muestra logo */}
             {!showSidebar && (
-              <span className="text-base font-bold">RCP<span className={ROLE_COLOR[role].split(' ')[0]}>.ai</span></span>
+              <span className="text-base font-bold text-ink">
+                RCP<span className={ROLE_DOT[role]}>.ai</span>
+              </span>
             )}
             {caseCompanyName && (
-              <span className="text-sm text-slate-400 font-medium">{caseCompanyName}</span>
+              <>
+                <span className="text-faint">·</span>
+                <span className="text-sm text-ink font-semibold">{caseCompanyName}</span>
+              </>
             )}
-            {/* Barra de progreso para directivos */}
             {role === 'director' && (
               <div className="flex items-center gap-1.5 ml-4">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div
                     key={i}
                     className={`w-5 h-1.5 rounded-full transition-colors ${
-                      i < modulesCompleted ? 'bg-role-directivo' : 'bg-slate-700'
+                      i < modulesCompleted ? 'bg-module-active' : 'bg-module-locked'
                     }`}
                   />
                 ))}
-                <span className="text-xs text-slate-500 ml-1">{modulesCompleted}/7</span>
+                <span className="text-xs text-muted ml-1">{modulesCompleted}/7</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className={`text-xs font-semibold uppercase tracking-wider ${ROLE_COLOR[role].split(' ')[0]}`}>
-              {ROLE_LABEL[role]}
-            </span>
+          <div className="flex items-center gap-3">
+            <span className={`badge ${ROLE_PILL[role]}`}>{ROLE_LABEL[role]}</span>
+            <div className="w-8 h-8 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-semibold text-muted">
+              {initials}
+            </div>
             {!showSidebar && (
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                className="text-xs text-faint hover:text-ink transition-colors"
               >
                 {loggingOut ? 'Saliendo…' : 'Salir'}
               </button>

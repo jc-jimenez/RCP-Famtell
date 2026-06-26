@@ -29,42 +29,38 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
       <div className="w-full max-w-md">
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            RCP<span className="text-sky-400">.ai</span>
+          <h1 className="text-3xl font-bold text-ink">
+            RCP<span className="text-accent">.ai</span>
           </h1>
-          <p className="mt-2 text-slate-400 text-sm">Diagnóstico empresarial con inteligencia artificial</p>
+          <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl shadow-black/40">
-          <h2 className="text-xl font-semibold text-white mb-6">Iniciar sesión</h2>
+        <div className="card p-8">
+          <h2 className="text-xl font-semibold text-ink mb-6">Iniciar sesión</h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1.5">
-                Correo electrónico
-              </label>
+              <label htmlFor="email" className="label-text">Correo electrónico</label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@empresa.com"
+                placeholder="consultor@empresa.com"
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-sky-500 transition-colors"
+                className="input-field"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-sm font-medium text-slate-300">
-                  Contraseña
-                </label>
-                <a href="/recuperar" className="text-xs text-sky-400 hover:text-sky-300 transition-colors">
+                <label htmlFor="password" className="text-sm font-medium text-ink">Contraseña</label>
+                <a href="/recuperar" className="text-xs text-accent hover:underline">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -74,29 +70,28 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500 transition-colors"
+                className="input-field"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-3 text-sm font-semibold text-slate-950 transition-colors"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Verificando…' : 'Entrar'}
             </button>
           </form>
-        </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
-          ¿No tienes cuenta? Accede con el enlace de invitación que recibiste por correo.
-        </p>
+          <div className="mt-5 pt-5 border-t border-subtle text-center">
+            <p className="text-xs text-muted">
+              ¿Tienes un link de invitación?{' '}
+              <a href="/recuperar" className="text-accent font-medium hover:underline">Úsalo aquí</a>
+            </p>
+          </div>
+        </div>
       </div>
     </main>
   )
