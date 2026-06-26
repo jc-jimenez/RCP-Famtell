@@ -85,20 +85,21 @@ export default function ModuleStartClient({
   // ── Vista: chat con Nova ──
   if (view === 'chat' && sessionId) {
     return (
-      <div className="flex flex-col min-h-screen bg-canvas">
-        {/* Topbar minimal durante el chat */}
-        <header className="flex items-center justify-between px-5 py-3 border-b border-subtle bg-surface flex-shrink-0">
+      <div className="h-screen bg-canvas flex flex-col items-center px-4 py-4 overflow-hidden">
+        {/* Encabezado del módulo */}
+        <div className="w-full max-w-2xl flex items-center justify-between mb-3 flex-shrink-0">
           <button
             onClick={() => router.push(`/caso/${caseId}` as any)}
             className="text-xs text-muted hover:text-ink transition-colors"
           >
-            ← Volver
+            ← Volver al caso
           </button>
-          <span className="text-sm font-medium text-ink">{label}</span>
-          <div className="w-16" />
-        </header>
+          <span className="text-sm font-semibold text-ink">{label}</span>
+          <div className="w-20" />
+        </div>
 
-        <div className="flex-1 min-h-0">
+        {/* Ventana de chat acotada y centrada (tipo WhatsApp) */}
+        <div className="w-full max-w-2xl flex-1 min-h-0 card overflow-hidden">
           <NovaChat
             sessionId={sessionId}
             moduleCode={moduleCode}
