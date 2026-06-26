@@ -37,14 +37,8 @@ export default function ActivatePage() {
 
   async function handleActivate(e: React.FormEvent) {
     e.preventDefault()
-    if (password !== passwordConfirm) {
-      setError('Las contraseñas no coinciden')
-      return
-    }
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres')
-      return
-    }
+    if (password !== passwordConfirm) { setError('Las contraseñas no coinciden'); return }
+    if (password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres'); return }
 
     setLoading(true)
     setError(null)
@@ -62,12 +56,8 @@ export default function ActivatePage() {
       return
     }
 
-    // Auto-login
     const supabase = createSupabaseBrowserClient()
-    await supabase.auth.signInWithPassword({
-      email: invitation!.email,
-      password,
-    })
+    await supabase.auth.signInWithPassword({ email: invitation!.email, password })
 
     setStep('success')
     setTimeout(() => router.push('/mis-modulos'), 2000)
@@ -75,10 +65,10 @@ export default function ActivatePage() {
 
   if (step === 'validating') {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <main className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400 text-sm">Validando enlace de invitación…</p>
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted text-sm">Validando enlace de invitación…</p>
         </div>
       </main>
     )
@@ -86,12 +76,12 @@ export default function ActivatePage() {
 
   if (step === 'error') {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-3xl border border-red-900/50 bg-red-950/20 p-8 text-center">
+      <main className="min-h-screen bg-surface flex items-center justify-center p-6">
+        <div className="card w-full max-w-md p-8 text-center">
           <p className="text-3xl mb-4">⚠️</p>
-          <h1 className="text-xl font-semibold text-white mb-2">Enlace inválido</h1>
-          <p className="text-slate-400 text-sm">{error}</p>
-          <a href="/login" className="inline-block mt-6 text-sky-400 text-sm hover:text-sky-300">
+          <h1 className="text-xl font-semibold text-ink mb-2">Enlace inválido</h1>
+          <p className="text-muted text-sm">{error}</p>
+          <a href="/login" className="inline-block mt-6 text-accent text-sm hover:underline">
             Ir al login →
           </a>
         </div>
@@ -101,11 +91,11 @@ export default function ActivatePage() {
 
   if (step === 'success') {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-3xl border border-emerald-900/50 bg-emerald-950/20 p-8 text-center">
+      <main className="min-h-screen bg-surface flex items-center justify-center p-6">
+        <div className="card w-full max-w-md p-8 text-center border-emerald-200 bg-emerald-50/50">
           <p className="text-4xl mb-4">✓</p>
-          <h1 className="text-xl font-semibold text-white mb-2">¡Cuenta activada!</h1>
-          <p className="text-slate-400 text-sm">Entrando a la plataforma…</p>
+          <h1 className="text-xl font-semibold text-ink mb-2">¡Cuenta activada!</h1>
+          <p className="text-muted text-sm">Entrando a la plataforma…</p>
         </div>
       </main>
     )
@@ -114,61 +104,53 @@ export default function ActivatePage() {
   const roleLabel = invitation?.role === 'director' ? 'Directivo' : 'Colaborador'
 
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <main className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">RCP<span className="text-sky-400">.ai</span></h1>
+          <h1 className="text-3xl font-bold text-ink">RCP<span className="text-accent">.ai</span></h1>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-8">
+        <div className="card p-8">
           <div className="mb-6">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">{roleLabel}</span>
-            <h2 className="text-xl font-semibold text-white mt-1">Activar tu cuenta</h2>
-            <p className="text-slate-400 text-sm mt-1">
-              Caso: <span className="text-slate-200 font-medium">{invitation?.caseCompanyName}</span>
+            <span className="text-xs font-bold text-accent uppercase tracking-wider">{roleLabel}</span>
+            <h2 className="text-xl font-semibold text-ink mt-1">Activar tu cuenta</h2>
+            <p className="text-muted text-sm mt-1">
+              Caso: <span className="text-ink font-medium">{invitation?.caseCompanyName}</span>
             </p>
-            <p className="text-slate-500 text-sm">{invitation?.email}</p>
+            <p className="text-faint text-sm">{invitation?.email}</p>
           </div>
 
           <form onSubmit={handleActivate} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                Crea tu contraseña
-              </label>
+              <label className="label-text">Crea tu contraseña</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mínimo 8 caracteres"
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white placeholder-slate-600 outline-none focus:border-sky-500 transition-colors"
+                className="input-field"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                Confirma tu contraseña
-              </label>
+              <label className="label-text">Confirma tu contraseña</label>
               <input
                 type="password"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 required
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-500 transition-colors"
+                className="input-field"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-3 text-sm font-semibold text-slate-950 transition-colors"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
               {loading ? 'Activando…' : 'Activar cuenta'}
             </button>
           </form>

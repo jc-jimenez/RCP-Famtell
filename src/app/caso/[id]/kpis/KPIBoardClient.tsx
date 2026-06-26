@@ -33,8 +33,8 @@ function trafficLight(actual: number, target: number) {
   return 'red'
 }
 
-const TL_COLORS = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400', gray: 'text-slate-500' }
-const TL_BG    = { green: 'bg-emerald-950/40 border-emerald-900/40', yellow: 'bg-amber-950/40 border-amber-900/40', red: 'bg-red-950/40 border-red-900/40', gray: 'bg-slate-800/40 border-slate-700' }
+const TL_COLORS = { green: 'text-emerald-600', yellow: 'text-amber-600', red: 'text-red-600', gray: 'text-faint' }
+const TL_BG    = { green: 'bg-emerald-50 border-emerald-100', yellow: 'bg-amber-50 border-amber-100', red: 'bg-red-50 border-red-100', gray: 'bg-surface-2 border-subtle' }
 
 export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) {
   const [kpis, setKPIs] = useState<KPI[]>(initialKPIs)
@@ -45,12 +45,12 @@ export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) 
   const latestKPI = kpis[kpis.length - 1]
 
   const metricCards = latestKPI ? [
-    { label: 'Ingresos',        actual: latestKPI.revenue_actual,   target: latestKPI.revenue_target,          fmt: (v: number) => `$${(v/1000).toFixed(0)}k` },
-    { label: 'Clientes activos', actual: latestKPI.active_clients, target: latestKPI.active_clients_target,    fmt: (v: number) => String(v) },
-    { label: 'Clientes nuevos',  actual: latestKPI.new_clients,    target: 1,                                 fmt: (v: number) => String(v) },
-    { label: 'Ocupación almacén',actual: latestKPI.warehouse_occupancy, target: 80,                            fmt: (v: number) => `${v}%` },
-    { label: 'Contactos',        actual: latestKPI.commercial_contacts, target: 20,                           fmt: (v: number) => String(v) },
-    { label: 'Tasa de cierre',   actual: latestKPI.close_rate,     target: 20,                                fmt: (v: number) => `${v}%` },
+    { label: 'Ingresos',         actual: latestKPI.revenue_actual,        target: latestKPI.revenue_target,       fmt: (v: number) => `$${(v/1000).toFixed(0)}k` },
+    { label: 'Clientes activos', actual: latestKPI.active_clients,        target: latestKPI.active_clients_target,fmt: (v: number) => String(v) },
+    { label: 'Clientes nuevos',  actual: latestKPI.new_clients,           target: 1,                              fmt: (v: number) => String(v) },
+    { label: 'Ocupación almacén',actual: latestKPI.warehouse_occupancy,   target: 80,                             fmt: (v: number) => `${v}%` },
+    { label: 'Contactos',        actual: latestKPI.commercial_contacts,   target: 20,                             fmt: (v: number) => String(v) },
+    { label: 'Tasa de cierre',   actual: latestKPI.close_rate,            target: 20,                             fmt: (v: number) => `${v}%` },
   ] : []
 
   async function handleSaveKPI() {
@@ -77,11 +77,11 @@ export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Tablero KPIs</h1>
+        <h1 className="text-xl font-bold text-ink">Tablero KPIs</h1>
         {canEdit && (
           <button
             onClick={() => { setSelectedWeek((kpis.length + 1)); setForm({}) }}
-            className="text-sm font-medium bg-role-directivo hover:opacity-90 rounded-xl px-4 py-2 text-white transition-opacity"
+            className="btn-primary text-sm"
           >
             + Semana {kpis.length + 1}
           </button>
@@ -90,56 +90,53 @@ export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) 
 
       {kpis.length === 0 ? (
         <div className="card p-12 text-center">
-          <p className="text-slate-400 font-medium">No hay datos de KPIs aún</p>
-          <p className="text-slate-600 text-sm mt-1">Los datos aparecerán cuando el directivo registre la primera semana</p>
+          <p className="text-muted font-medium">No hay datos de KPIs aún</p>
+          <p className="text-faint text-sm mt-1">Los datos aparecerán cuando el directivo registre la primera semana</p>
         </div>
       ) : (
         <>
-          {/* Semáforo de métricas actuales */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {metricCards.map((m) => {
               const tl = trafficLight(m.actual, m.target)
               return (
                 <div key={m.label} className={`card border p-4 ${TL_BG[tl]}`}>
-                  <p className="text-xs text-slate-500 font-medium">{m.label}</p>
+                  <p className="text-xs text-muted font-medium">{m.label}</p>
                   <p className={`text-xl font-bold mt-1 ${TL_COLORS[tl]}`}>{m.fmt(m.actual)}</p>
-                  <p className="text-xs text-slate-600">meta: {m.fmt(m.target)}</p>
+                  <p className="text-xs text-faint">meta: {m.fmt(m.target)}</p>
                 </div>
               )
             })}
           </div>
 
-          {/* Gráfica de ingresos */}
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 mb-4">Ingresos — 12 semanas</h2>
+            <h2 className="text-sm font-semibold text-ink mb-4">Ingresos — 12 semanas</h2>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={kpis} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `S${v}`} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="week" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `S${v}`} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip
-                  contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8 }}
-                  labelStyle={{ color: '#94a3b8' }}
+                  contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8 }}
+                  labelStyle={{ color: '#64748b' }}
                   labelFormatter={v => `Semana ${v}`}
                   formatter={(v: unknown, name: unknown) => [`$${((Number(v) || 0)/1000).toFixed(1)}k`, name === 'revenue_actual' ? 'Real' : 'Meta'] as [string, string]}
                 />
                 <Legend formatter={v => v === 'revenue_actual' ? 'Real' : 'Meta'} />
-                <Line type="monotone" dataKey="revenue_target" stroke="#334155" strokeDasharray="4 2" dot={false} />
+                <Line type="monotone" dataKey="revenue_target" stroke="#cbd5e1" strokeDasharray="4 2" dot={false} />
                 <Line type="monotone" dataKey="revenue_actual" stroke="#185FA5" strokeWidth={2} dot={{ fill: '#185FA5', r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Gráfica de ocupación */}
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-slate-300 mb-4">Ocupación almacén</h2>
+            <h2 className="text-sm font-semibold text-ink mb-4">Ocupación almacén</h2>
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={kpis} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="week" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `S${v}`} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => `${v}%`} domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="week" tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `S${v}`} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={v => `${v}%`} domain={[0, 100]} />
                 <Tooltip
-                  contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8 }}
+                  contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8 }}
                   formatter={(v: unknown) => [`${Number(v) || 0}%`, 'Ocupación']}
                   labelFormatter={v => `Semana ${v}`}
                 />
@@ -150,12 +147,10 @@ export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) 
         </>
       )}
 
-      {/* Modal registro de KPI */}
       {canEdit && selectedWeek !== null && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-md p-6 space-y-4">
-            <h3 className="text-base font-bold text-white">Semana {selectedWeek}</h3>
-
+            <h3 className="text-base font-bold text-ink">Semana {selectedWeek}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'revenue_actual',       label: 'Ingresos reales ($)' },
@@ -179,10 +174,9 @@ export default function KPIBoardClient({ caseId, initialKPIs, canEdit }: Props) 
                 </div>
               ))}
             </div>
-
             <div className="flex gap-3 pt-2">
               <button onClick={() => { setSelectedWeek(null); setForm({}) }} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={handleSaveKPI} disabled={saving} className="btn-primary flex-1 bg-role-directivo">
+              <button onClick={handleSaveKPI} disabled={saving} className="btn-primary flex-1 disabled:opacity-50">
                 {saving ? 'Guardando…' : 'Guardar semana'}
               </button>
             </div>

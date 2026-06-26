@@ -31,7 +31,6 @@ export default function CheckinPage() {
     e.preventDefault()
     setSaving(true)
     setError(null)
-
     const res = await fetch('/api/checkins', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,20 +46,20 @@ export default function CheckinPage() {
     return (
       <AppShell role="director" email={email ?? ''}>
         <div className="max-w-lg mx-auto py-12 space-y-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-900/40 border border-emerald-700/50 flex items-center justify-center text-2xl mx-auto">✓</div>
-          <h1 className="text-xl font-bold text-white">Check-in semana {form.weekNumber} registrado</h1>
+          <div className="w-14 h-14 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-2xl mx-auto">✓</div>
+          <h1 className="text-xl font-bold text-ink">Check-in semana {form.weekNumber} registrado</h1>
 
           {result.aiAnalysis && (
             <div className="card p-5 text-left">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">N</div>
-                <span className="text-sm font-semibold text-sky-400">Análisis de Nova</span>
+                <span className="text-sm font-semibold text-accent">Análisis de Nova</span>
               </div>
-              <p className="text-sm text-slate-300 leading-relaxed">{result.aiAnalysis}</p>
+              <p className="text-sm text-ink leading-relaxed">{result.aiAnalysis}</p>
             </div>
           )}
 
-          <button onClick={() => router.push(`/caso/${caseId}` as any)} className="rounded-xl bg-role-directivo hover:opacity-90 px-6 py-3 text-sm font-semibold text-white transition-opacity">
+          <button onClick={() => router.push(`/caso/${caseId}` as any)} className="btn-primary px-6">
             Volver a mi caso
           </button>
         </div>
@@ -72,8 +71,8 @@ export default function CheckinPage() {
     <AppShell role="director" email={email ?? ''}>
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto py-6 space-y-5">
         <div>
-          <h1 className="text-xl font-bold text-white">Check-in semanal</h1>
-          <p className="text-slate-400 text-sm mt-1">Registra el avance de esta semana. Nova analizará los resultados.</p>
+          <h1 className="text-xl font-bold text-ink">Check-in semanal</h1>
+          <p className="text-muted text-sm mt-1">Registra el avance de esta semana. Nova analizará los resultados.</p>
         </div>
 
         <div className="card p-5 space-y-4">
@@ -96,7 +95,7 @@ export default function CheckinPage() {
               {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
                 <button key={l} type="button" onClick={() => set('newClients', v)}
                   className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                    form.newClients === v ? 'border-role-directivo bg-blue-950/40 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                    form.newClients === v ? 'border-accent bg-accent-soft text-ink' : 'border-subtle text-muted hover:border-accent/30'
                   }`}>{l}</button>
               ))}
             </div>
@@ -121,20 +120,19 @@ export default function CheckinPage() {
             <div>
               <label className="label-text">Tu progreso esta semana</label>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-slate-500">1</span>
+                <span className="text-xs text-faint">1</span>
                 <input type="range" min={1} max={10} value={form.progressScore}
-                  onChange={e => set('progressScore', Number(e.target.value))} className="flex-1" />
-                <span className="text-xs text-slate-500">10</span>
-                <span className="text-sm font-bold text-white w-5 text-center">{form.progressScore}</span>
+                  onChange={e => set('progressScore', Number(e.target.value))} className="flex-1 accent-accent" />
+                <span className="text-xs text-faint">10</span>
+                <span className="text-sm font-bold text-ink w-5 text-center">{form.progressScore}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
-        <button type="submit" disabled={saving}
-          className="w-full rounded-xl bg-role-directivo hover:opacity-90 disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-opacity">
+        <button type="submit" disabled={saving} className="btn-primary w-full disabled:opacity-50">
           {saving ? (
             <span className="flex items-center justify-center gap-2">
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

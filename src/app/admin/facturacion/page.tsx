@@ -19,15 +19,15 @@ export default async function AdminFacturacionPage() {
     <AppShell role="super_admin" email={session.user.email!}>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <Link href={'/admin' as any} className="text-xs text-slate-500 hover:text-slate-300">← Panel</Link>
-          <h1 className="text-2xl font-bold text-white mt-1">Facturación</h1>
+          <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
+          <h1 className="text-xl font-bold text-ink mt-1">Facturación</h1>
         </div>
 
         {!stripeConfigured && (
-          <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 p-5">
-            <p className="text-sm font-semibold text-amber-300 mb-2">Stripe no configurado</p>
-            <p className="text-xs text-amber-200/70 mb-3">Para activar pagos, agrega las siguientes variables en .env.local:</p>
-            <pre className="text-xs bg-slate-900 rounded-lg p-3 text-slate-300 overflow-x-auto">{`STRIPE_SECRET_KEY=sk_live_...
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <p className="text-sm font-semibold text-amber-700 mb-2">Stripe no configurado</p>
+            <p className="text-xs text-amber-600 mb-3">Para activar pagos, agrega las siguientes variables en .env.local:</p>
+            <pre className="text-xs bg-surface-2 rounded-lg p-3 text-ink overflow-x-auto border border-subtle">{`STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_STARTER=price_...
 STRIPE_PRICE_PRO=price_...
@@ -37,7 +37,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...`}</pre>
 
         {stripeConfigured && (
           <div className="card p-6 text-center space-y-3">
-            <p className="text-slate-300 text-sm">Accede al dashboard de Stripe para ver pagos, suscripciones y facturas.</p>
+            <p className="text-muted text-sm">Accede al dashboard de Stripe para ver pagos, suscripciones y facturas.</p>
             <a
               href="https://dashboard.stripe.com"
               target="_blank"
@@ -50,19 +50,19 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...`}</pre>
         )}
 
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-3">Configuración de precios</h2>
-          <div className="space-y-2 text-xs text-slate-400">
+          <h2 className="text-sm font-semibold text-ink mb-3">Configuración de precios</h2>
+          <div className="space-y-2 text-xs text-muted">
             <div className="flex justify-between">
               <span>Plan Starter</span>
-              <span className="text-slate-300">$299/mes · 100 créditos</span>
+              <span className="text-ink font-medium">$299/mes · 100 créditos</span>
             </div>
             <div className="flex justify-between">
               <span>Plan Pro</span>
-              <span className="text-slate-300">$699/mes · 500 créditos</span>
+              <span className="text-ink font-medium">$699/mes · 500 créditos</span>
             </div>
             <div className="flex justify-between">
               <span>Plan Enterprise</span>
-              <span className="text-slate-300">Contactar · 2000 créditos</span>
+              <span className="text-ink font-medium">Contactar · 2000 créditos</span>
             </div>
           </div>
         </div>

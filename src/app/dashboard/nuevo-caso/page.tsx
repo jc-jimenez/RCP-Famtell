@@ -104,16 +104,16 @@ export default function NuevoCasoPage() {
           {[1, 2].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                step === s ? 'bg-role-consultor text-white' :
-                step > s   ? 'bg-emerald-700 text-white' :
-                'bg-slate-800 text-slate-500'
+                step === s ? 'bg-accent text-white' :
+                step > s   ? 'bg-emerald-500 text-white' :
+                'bg-surface-2 text-faint'
               }`}>
                 {step > s ? '✓' : s}
               </div>
-              <span className={`text-xs font-medium ${step === s ? 'text-white' : 'text-slate-500'}`}>
+              <span className={`text-xs font-medium ${step === s ? 'text-ink' : 'text-faint'}`}>
                 {s === 1 ? 'Datos del caso' : 'Invitar directivo'}
               </span>
-              {s < 2 && <div className="w-8 h-px bg-slate-800" />}
+              {s < 2 && <div className="w-8 h-px bg-subtle" />}
             </div>
           ))}
         </div>
@@ -121,8 +121,8 @@ export default function NuevoCasoPage() {
         {/* PASO 1 */}
         {step === 1 && (
           <form onSubmit={handleCreateCase} className="space-y-5">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-5">
-              <h1 className="text-lg font-bold text-white">Datos de la empresa</h1>
+            <div className="card p-6 space-y-5">
+              <h1 className="text-lg font-bold text-ink">Datos de la empresa</h1>
 
               <div>
                 <label className="label-text">Nombre de la empresa *</label>
@@ -164,24 +164,24 @@ export default function NuevoCasoPage() {
                       onClick={() => set('intent', intent.value)}
                       className={`text-left rounded-xl border p-3 transition-all ${
                         form.intent === intent.value
-                          ? 'border-role-consultor bg-purple-950/40'
-                          : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'
+                          ? 'border-accent bg-accent-soft'
+                          : 'border-subtle bg-surface-2 hover:border-accent/30'
                       }`}
                     >
-                      <p className="text-xs font-semibold text-white">{intent.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{intent.desc}</p>
+                      <p className="text-xs font-semibold text-ink">{intent.label}</p>
+                      <p className="text-xs text-faint mt-0.5">{intent.desc}</p>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">{error}</p>}
+            {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
             <button
               type="submit"
               disabled={loading || !form.companyName.trim()}
-              className="w-full rounded-xl bg-role-consultor hover:opacity-90 disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-opacity"
+              className="btn-primary w-full disabled:opacity-50"
             >
               {loading ? 'Creando caso…' : 'Crear caso →'}
             </button>
@@ -191,17 +191,17 @@ export default function NuevoCasoPage() {
         {/* PASO 2 */}
         {step === 2 && (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-4 flex items-center gap-3">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center gap-3">
               <span className="text-xl">✓</span>
               <div>
-                <p className="text-sm font-semibold text-white">Caso creado exitosamente</p>
-                <p className="text-xs text-slate-400">Ahora invita al directivo para comenzar el diagnóstico</p>
+                <p className="text-sm font-semibold text-ink">Caso creado exitosamente</p>
+                <p className="text-xs text-muted">Ahora invita al directivo para comenzar el diagnóstico</p>
               </div>
             </div>
 
-            <form onSubmit={handleInviteDirector} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-5">
-              <h2 className="text-base font-bold text-white">Invitar al Directivo</h2>
-              <p className="text-xs text-slate-400 -mt-3">
+            <form onSubmit={handleInviteDirector} className="card p-6 space-y-5">
+              <h2 className="text-base font-bold text-ink">Invitar al Directivo</h2>
+              <p className="text-xs text-muted -mt-3">
                 Recibirá un email con un enlace de activación. Caduca en 48 horas.
               </p>
 
@@ -227,20 +227,16 @@ export default function NuevoCasoPage() {
                 />
               </div>
 
-              {error && <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-xl px-4 py-3">{error}</p>}
+              {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
               <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleSkipInvite}
-                  className="flex-1 rounded-xl border border-slate-700 hover:border-slate-500 px-4 py-3 text-sm font-medium text-slate-400 hover:text-white transition-colors"
-                >
+                <button type="button" onClick={handleSkipInvite} className="btn-secondary flex-1">
                   Hacer después
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !form.directorEmail.trim()}
-                  className="flex-1 rounded-xl bg-role-consultor hover:opacity-90 disabled:opacity-50 px-4 py-3 text-sm font-semibold text-white transition-opacity"
+                  className="btn-primary flex-1 disabled:opacity-50"
                 >
                   {loading ? 'Enviando…' : 'Enviar invitación ✉️'}
                 </button>

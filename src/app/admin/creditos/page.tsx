@@ -33,31 +33,31 @@ export default async function AdminCreditosPage() {
     <AppShell role="super_admin" email={session.user.email!}>
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <Link href={'/admin' as any} className="text-xs text-slate-500 hover:text-slate-300">← Panel</Link>
-          <h1 className="text-2xl font-bold text-white mt-1">Monitor de créditos</h1>
+          <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
+          <h1 className="text-xl font-bold text-ink mt-1">Monitor de créditos</h1>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div className="card p-5">
-            <p className="text-3xl font-bold text-white">{totalCredits}</p>
-            <p className="text-sm text-slate-400 mt-1">Créditos totales activos</p>
+            <p className="text-3xl font-bold text-ink">{totalCredits}</p>
+            <p className="text-sm text-muted mt-1">Créditos totales activos</p>
           </div>
           <div className="card p-5">
-            <p className="text-3xl font-bold text-amber-400">{lowCredit.length}</p>
-            <p className="text-sm text-slate-400 mt-1">Cuentas con &lt;20 créditos</p>
+            <p className="text-3xl font-bold text-amber-500">{lowCredit.length}</p>
+            <p className="text-sm text-muted mt-1">Cuentas con &lt;20 créditos</p>
           </div>
           <div className="card p-5">
-            <p className="text-3xl font-bold text-white">{(accounts ?? []).length}</p>
-            <p className="text-sm text-slate-400 mt-1">Consultores totales</p>
+            <p className="text-3xl font-bold text-ink">{(accounts ?? []).length}</p>
+            <p className="text-sm text-muted mt-1">Consultores totales</p>
           </div>
         </div>
 
         {lowCredit.length > 0 && (
-          <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4">
-            <p className="text-sm font-semibold text-amber-300 mb-2">Alertas de créditos bajos</p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-semibold text-amber-700 mb-2">Alertas de créditos bajos</p>
             <div className="space-y-1">
               {lowCredit.map((a: any) => (
-                <p key={a.id} className="text-xs text-amber-200/70">{a.company_name} ({a.email}) — {a.credits_balance} créditos</p>
+                <p key={a.id} className="text-xs text-amber-600">{a.company_name} ({a.email}) — {a.credits_balance} créditos</p>
               ))}
             </div>
           </div>
@@ -66,25 +66,25 @@ export default async function AdminCreditosPage() {
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
+              <tr className="border-b border-subtle text-xs text-faint uppercase tracking-wider">
                 <th className="px-4 py-3 text-left">Consultor</th>
                 <th className="px-4 py-3 text-left">Plan</th>
                 <th className="px-4 py-3 text-right">Créditos</th>
                 <th className="px-4 py-3 text-center">Alerta</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-subtle">
               {(accounts ?? []).map((a: any) => (
-                <tr key={a.id} className="hover:bg-slate-800/30">
+                <tr key={a.id} className="hover:bg-surface-2 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-white">{a.company_name}</p>
-                    <p className="text-xs text-slate-500">{a.email}</p>
+                    <p className="font-medium text-ink">{a.company_name}</p>
+                    <p className="text-xs text-faint">{a.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 capitalize">{a.subscription_plan}</td>
+                  <td className="px-4 py-3 text-muted capitalize">{a.subscription_plan}</td>
                   <td className={`px-4 py-3 text-right font-mono font-bold ${
-                    (a.credits_balance ?? 0) < 10 ? 'text-red-400'
-                    : (a.credits_balance ?? 0) < 20 ? 'text-amber-400'
-                    : 'text-white'
+                    (a.credits_balance ?? 0) < 10 ? 'text-red-600'
+                    : (a.credits_balance ?? 0) < 20 ? 'text-amber-600'
+                    : 'text-ink'
                   }`}>{a.credits_balance}</td>
                   <td className="px-4 py-3 text-center">
                     {(a.credits_balance ?? 0) < 10 ? '🔴' : (a.credits_balance ?? 0) < 20 ? '🟡' : '🟢'}

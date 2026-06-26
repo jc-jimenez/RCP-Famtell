@@ -29,7 +29,6 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
   async function toggleModule(code: string) {
     if (!selectedAccount) return
     setActivating(code)
-
     const isActive = accountModules.has(code)
     const res = await fetch('/api/admin/premium', {
       method: isActive ? 'DELETE' : 'POST',
@@ -38,7 +37,6 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
     })
     const data = await res.json()
     setActivating(null)
-
     if (res.ok) {
       if (isActive) {
         setModules(prev => prev.filter(m => !(m.account_id === selectedAccount && m.module_code === code)))
@@ -53,12 +51,11 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <Link href={'/admin' as any} className="text-xs text-slate-500 hover:text-slate-300">← Panel</Link>
-        <h1 className="text-2xl font-bold text-white mt-1">Módulos Premium</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Activa módulos A-G por cuenta de consultor</p>
+        <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
+        <h1 className="text-xl font-bold text-ink mt-1">Módulos Premium</h1>
+        <p className="text-muted text-sm mt-0.5">Activa módulos A-G por cuenta de consultor</p>
       </div>
 
-      {/* Selector de consultor */}
       <div className="card p-4">
         <label className="label-text mb-2 block">Seleccionar consultor</label>
         <select value={selectedAccount} onChange={e => setSelectedAccount(e.target.value)} className="input-field">
@@ -68,11 +65,10 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
           ))}
         </select>
         {selectedAcc && (
-          <p className="text-xs text-slate-500 mt-2">Plan: <span className="text-slate-300 capitalize">{selectedAcc.subscription_plan}</span></p>
+          <p className="text-xs text-faint mt-2">Plan: <span className="text-ink capitalize">{selectedAcc.subscription_plan}</span></p>
         )}
       </div>
 
-      {/* Grid de módulos */}
       {selectedAccount && (
         <div className="grid sm:grid-cols-2 gap-3">
           {PREMIUM_MODULES.map((m) => {
@@ -80,25 +76,23 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
             const loading = activating === m.code
             return (
               <div key={m.code} className={`card p-4 border transition-colors ${
-                active ? 'border-purple-700/60 bg-purple-950/20' : 'border-slate-800'
+                active ? 'border-accent/30 bg-accent-soft' : 'border-subtle'
               }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold w-6 h-6 rounded flex items-center justify-center ${
-                        active ? 'bg-purple-800 text-purple-200' : 'bg-slate-800 text-slate-400'
+                        active ? 'bg-accent text-white' : 'bg-surface-2 text-muted'
                       }`}>{m.code}</span>
-                      <p className={`text-sm font-semibold ${active ? 'text-white' : 'text-slate-300'}`}>{m.name}</p>
+                      <p className={`text-sm font-semibold ${active ? 'text-ink' : 'text-muted'}`}>{m.name}</p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 ml-8">{m.desc}</p>
+                    <p className="text-xs text-faint mt-1 ml-8">{m.desc}</p>
                   </div>
                   <button
                     onClick={() => toggleModule(m.code)}
                     disabled={loading}
                     className={`flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-                      active
-                        ? 'border-red-800/60 text-red-300 hover:bg-red-950/40'
-                        : 'border-purple-700/60 text-purple-300 hover:bg-purple-950/40'
+                      active ? 'border-red-200 text-red-600 hover:bg-red-50' : 'btn-primary'
                     }`}
                   >
                     {loading ? '…' : active ? 'Desactivar' : 'Activar'}
@@ -112,7 +106,7 @@ export default function PremiumModulesClient({ accounts, premiumModules: initial
 
       {!selectedAccount && (
         <div className="card p-12 text-center">
-          <p className="text-slate-500">Selecciona un consultor para gestionar sus módulos premium</p>
+          <p className="text-faint">Selecciona un consultor para gestionar sus módulos premium</p>
         </div>
       )}
     </div>

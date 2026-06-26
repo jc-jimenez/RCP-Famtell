@@ -30,9 +30,9 @@ export default async function AdminCasosPage() {
   for (const a of accounts ?? []) accountMap[a.id] = a
 
   const STATUS_COLORS: Record<string, string> = {
-    active: 'text-emerald-300 bg-emerald-950/40 border-emerald-900/40',
-    completed: 'text-slate-400 bg-slate-800 border-slate-700',
-    pending: 'text-amber-300 bg-amber-950/40 border-amber-900/40',
+    active: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+    completed: 'text-faint bg-surface-2 border-subtle',
+    pending: 'text-amber-700 bg-amber-50 border-amber-200',
   }
 
   const INTENT_ICON: Record<string, string> = { growth: '🔵', restructure: '🟡', exit: '🔴', mixed: '⚪' }
@@ -41,15 +41,15 @@ export default async function AdminCasosPage() {
     <AppShell role="super_admin" email={session.user.email!}>
       <div className="max-w-5xl mx-auto space-y-6">
         <div>
-          <Link href={'/admin' as any} className="text-xs text-slate-500 hover:text-slate-300">← Panel</Link>
-          <h1 className="text-2xl font-bold text-white mt-1">Casos globales</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{(cases ?? []).length} casos en la plataforma</p>
+          <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
+          <h1 className="text-xl font-bold text-ink mt-1">Casos globales</h1>
+          <p className="text-muted text-sm mt-0.5">{(cases ?? []).length} casos en la plataforma</p>
         </div>
 
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-xs text-slate-500 uppercase tracking-wider">
+              <tr className="border-b border-subtle text-xs text-faint uppercase tracking-wider">
                 <th className="px-4 py-3 text-left">Empresa</th>
                 <th className="px-4 py-3 text-left">Industria</th>
                 <th className="px-4 py-3 text-left">Consultor</th>
@@ -58,23 +58,23 @@ export default async function AdminCasosPage() {
                 <th className="px-4 py-3 text-right">Fecha</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-subtle">
               {(cases ?? []).length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Sin casos aún</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-faint">Sin casos aún</td></tr>
               )}
               {(cases ?? []).map((c: any) => {
                 const acc = accountMap[c.account_id]
                 return (
-                  <tr key={c.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-white">{c.company_name}</td>
-                    <td className="px-4 py-3 text-slate-400">{c.industry ?? '—'}</td>
+                  <tr key={c.id} className="hover:bg-surface-2 transition-colors">
+                    <td className="px-4 py-3 font-medium text-ink">{c.company_name}</td>
+                    <td className="px-4 py-3 text-muted">{c.industry ?? '—'}</td>
                     <td className="px-4 py-3">
                       {acc ? (
                         <>
-                          <p className="text-white text-xs">{acc.company_name}</p>
-                          <p className="text-slate-500 text-xs">{acc.email}</p>
+                          <p className="text-ink text-xs">{acc.company_name}</p>
+                          <p className="text-faint text-xs">{acc.email}</p>
                         </>
-                      ) : <span className="text-slate-600">—</span>}
+                      ) : <span className="text-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-center text-base" title={c.strategic_intent ?? 'mixed'}>
                       {INTENT_ICON[c.strategic_intent ?? 'mixed']}
@@ -84,7 +84,7 @@ export default async function AdminCasosPage() {
                         {c.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-500 text-xs">
+                    <td className="px-4 py-3 text-right text-faint text-xs">
                       {new Date(c.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </td>
                   </tr>
