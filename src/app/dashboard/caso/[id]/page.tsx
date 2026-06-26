@@ -138,6 +138,7 @@ export default async function CasoDetallePage({
                 {[
                   { label: 'CRM Ligero',      href: `/caso/${id}/crm`,         icon: '◎' },
                   { label: 'Propuestas IA',   href: `/caso/${id}/propuestas`,  icon: '✦' },
+                  { label: 'Tarifas',         href: `/caso/${id}/tarifas`,     icon: '₿' },
                   { label: 'KPIs',            href: `/caso/${id}/kpis`,        icon: '▤' },
                   { label: 'Check-in',        href: `/caso/${id}/checkin`,     icon: '✓' },
                   { label: 'Brief M7',        href: `/caso/${id}/brief`,       icon: '📋' },
