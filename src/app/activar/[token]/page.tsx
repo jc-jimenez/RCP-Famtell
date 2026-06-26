@@ -70,7 +70,7 @@ export default function ActivatePage() {
     })
 
     setStep('success')
-    setTimeout(() => router.push('/'), 2000)
+    setTimeout(() => router.push('/mis-modulos'), 2000)
   }
 
   if (step === 'validating') {

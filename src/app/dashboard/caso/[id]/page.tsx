@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import AgendaPanel from '@/components/consultor/AgendaPanel'
+import ParticipantesPanel from '@/components/consultor/ParticipantesPanel'
 import type { ModuleCode } from '@/types'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
@@ -63,7 +64,7 @@ export default async function CasoDetallePage({
   // Participantes
   const { data: participants } = await db
     .from('case_users')
-    .select('id, role, job_title, invitation_email, activated_at, last_seen_at')
+    .select('id, role, job_title, invitation_email, permissions_json, activated_at')
     .eq('case_id', id)
 
   // Señales de agenda
@@ -128,38 +129,7 @@ export default async function CasoDetallePage({
               </div>
             </div>
 
-            {/* Participantes */}
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-ink">Participantes</h2>
-                <Link
-                  href={`/dashboard/caso/${id}/invitar` as any}
-                  className="text-xs text-accent hover:underline"
-                >
-                  + Invitar
-                </Link>
-              </div>
-              {(!participants || participants.length === 0) ? (
-                <p className="text-xs text-faint">No hay participantes invitados aún</p>
-              ) : (
-                <div className="space-y-2">
-                  {participants.map((p: any) => (
-                    <div key={p.id} className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted">
-                        {p.role === 'director' ? 'D' : 'C'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-ink truncate">{p.invitation_email ?? '—'}</p>
-                        <p className="text-xs text-faint">{p.job_title ?? p.role}</p>
-                      </div>
-                      <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
-                        {p.activated_at ? 'Activo' : 'Pendiente'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} />
           </div>
 
           {/* Agenda Oculta */}

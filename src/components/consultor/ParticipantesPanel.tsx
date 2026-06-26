@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 
 const MODULES = [
   { code: 'M1', label: 'Radiografía Comercial' },
@@ -19,29 +18,22 @@ interface Participant {
   role: string
   job_title: string | null
   invitation_email: string | null
-  invitation_token: string | null
   permissions_json: { modules?: string[] } | null
   activated_at: string | null
-  last_seen_at: string | null
 }
 
 interface Props {
   caseId: string
-  companyName: string
   initialParticipants: Participant[]
-  appUrl: string
 }
-
-type Tab = 'todos' | 'activos' | 'pendientes'
 
 function assignedModules(p: Participant): string[] {
   if (p.role === 'director') return ALL_CODES
   return p.permissions_json?.modules ?? []
 }
 
-export default function InvitarClient({ caseId, companyName, initialParticipants, appUrl }: Props) {
+export default function ParticipantesPanel({ caseId, initialParticipants }: Props) {
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants)
-  const [tab, setTab] = useState<Tab>('todos')
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,12 +44,6 @@ export default function InvitarClient({ caseId, companyName, initialParticipants
     role: 'collaborator' as 'director' | 'collaborator',
     jobTitle: '',
     modules: [] as string[],
-  })
-
-  const filtered = participants.filter(p => {
-    if (tab === 'activos') return !!p.activated_at
-    if (tab === 'pendientes') return !p.activated_at
-    return true
   })
 
   function toggleModule(code: string) {
@@ -92,10 +78,8 @@ export default function InvitarClient({ caseId, companyName, initialParticipants
       role: cu.role,
       job_title: cu.job_title,
       invitation_email: cu.invitation_email,
-      invitation_token: cu.invitation_token,
       permissions_json: cu.permissions_json,
       activated_at: null,
-      last_seen_at: null,
     }])
     setLastInviteUrl(data.activationUrl ?? null)
     setShowModal(false)
@@ -103,84 +87,55 @@ export default function InvitarClient({ caseId, companyName, initialParticipants
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-2 inline-block">
-            ← {companyName}
-          </Link>
-          <h1 className="text-xl font-bold text-ink">Participantes</h1>
-          <p className="text-muted text-sm mt-0.5">Invita usuarios y asigna qué módulos responde cada uno</p>
-        </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary text-sm">+ Invitar</button>
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-ink">Participantes</h2>
+        <button onClick={() => setShowModal(true)} className="text-xs text-accent hover:underline">
+          + Invitar
+        </button>
       </div>
 
-      {/* URL de activación tras invitar (Resend puede no estar activo) */}
       {lastInviteUrl && (
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-800 mb-1">Invitación creada</p>
-          <p className="text-xs text-amber-700 mb-2">Comparte este enlace con la persona (válido 48h):</p>
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 mb-4">
+          <p className="text-xs font-semibold text-amber-800 mb-1">Enlace de activación (válido 48h)</p>
           <div className="flex gap-2">
             <input readOnly value={lastInviteUrl} className="input-field text-xs flex-1" onFocus={e => e.target.select()} />
-            <button
-              onClick={() => navigator.clipboard.writeText(lastInviteUrl)}
-              className="btn-secondary text-xs whitespace-nowrap"
-            >
+            <button onClick={() => navigator.clipboard.writeText(lastInviteUrl)} className="btn-secondary text-xs whitespace-nowrap">
               Copiar
             </button>
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="card p-5">
-        <div className="flex gap-1 mb-4 bg-surface-2 rounded-xl p-1 w-fit">
-          {(['todos', 'activos', 'pendientes'] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`text-xs font-medium px-4 py-1.5 rounded-lg capitalize transition-colors ${
-                tab === t ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0 ? (
-          <p className="text-sm text-faint py-6 text-center">Sin participantes en esta vista</p>
-        ) : (
-          <div className="divide-y divide-subtle">
-            {filtered.map(p => {
-              const mods = assignedModules(p)
-              const name = p.invitation_email ?? '—'
-              const initials = (name[0] ?? '?').toUpperCase()
-              return (
-                <div key={p.id} className="flex items-center gap-3 py-3">
-                  <div className="w-9 h-9 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-ink truncate">{name}</p>
-                    <p className="text-xs text-muted">
-                      {p.role === 'director' ? 'Directivo' : 'Colaborador'}
-                      {' · '}
-                      {p.role === 'director' ? 'Módulos 1-7' : `Módulos ${mods.map(m => m.replace('M', '')).join(', ') || '—'}`}
-                    </p>
-                  </div>
-                  <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
-                    {p.activated_at ? 'Activo' : 'Pendiente'}
-                  </span>
+      {participants.length === 0 ? (
+        <p className="text-xs text-faint">No hay participantes invitados aún</p>
+      ) : (
+        <div className="space-y-2">
+          {participants.map(p => {
+            const mods = assignedModules(p)
+            return (
+              <div key={p.id} className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted">
+                  {p.role === 'director' ? 'D' : 'C'}
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-ink truncate">{p.invitation_email ?? '—'}</p>
+                  <p className="text-xs text-faint">
+                    {p.role === 'director' ? 'Directivo' : 'Colaborador'}
+                    {' · '}
+                    {p.role === 'director' ? 'Módulos 1-7' : `Módulos ${mods.map(m => m.replace('M', '')).join(', ') || '—'}`}
+                  </p>
+                </div>
+                <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
+                  {p.activated_at ? 'Activo' : 'Pendiente'}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-      {/* Modal invitar */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-md p-6 space-y-4">
@@ -207,7 +162,6 @@ export default function InvitarClient({ caseId, companyName, initialParticipants
               </div>
             </div>
 
-            {/* Asignación de módulos */}
             <div>
               <label className="label-text">
                 Módulos asignados
@@ -219,12 +173,7 @@ export default function InvitarClient({ caseId, companyName, initialParticipants
                 <div className="grid grid-cols-1 gap-1.5 mt-1">
                   {MODULES.map(m => (
                     <label key={m.code} className="flex items-center gap-2 text-sm text-ink cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
-                      <input
-                        type="checkbox"
-                        checked={form.modules.includes(m.code)}
-                        onChange={() => toggleModule(m.code)}
-                        className="accent-brand"
-                      />
+                      <input type="checkbox" checked={form.modules.includes(m.code)} onChange={() => toggleModule(m.code)} className="accent-brand" />
                       <span className="font-medium text-xs w-6">{m.code}</span>
                       <span className="text-muted text-xs">{m.label}</span>
                     </label>

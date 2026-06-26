@@ -22,13 +22,10 @@ export default async function MisModulosPage() {
   if (!caseUser) redirect('/login')
   if (caseUser.role !== 'collaborator') redirect('/login')
 
-  const permissions: Record<string, string> = (caseUser.permissions_json as any) ?? {}
+  const permissions = caseUser.permissions_json as { modules?: string[] } | null
   const caseData = caseUser.cases as any
 
-  // Solo instrumentos con permiso 'respond' o 'view'
-  const assignedInstruments = Object.entries(permissions)
-    .filter(([, perm]) => perm === 'respond')
-    .map(([code]) => code)
+  const assignedInstruments: string[] = permissions?.modules ?? []
 
   // Cargar sesiones existentes del colaborador en este caso
   const { data: sessions } = await db
