@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { accountToUI } from '@/lib/accounts'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,21 +30,21 @@ export async function GET() {
   ] = await Promise.all([
     db.from('accounts').select('*', { count: 'exact', head: true }),
     db.from('cases').select('*', { count: 'exact', head: true }),
-    db.from('accounts').select('id,email,company_name,credits_balance,subscription_plan,status,created_at').order('created_at', { ascending: false }),
+    db.from('accounts').select('id,email,company_name,credits_total,credits_used,plan_id,status,created_at').order('created_at', { ascending: false }),
     db.from('cases').select('id,company_name,status,created_at,account_id').order('created_at', { ascending: false }).limit(10),
   ])
 
   // Sum credits consumed (rough MRR proxy)
-  const totalCreditsConsumed = (accounts ?? []).reduce((acc: number, a: any) => {
-    const initial = a.subscription_plan === 'pro' ? 500 : 100
-    return acc + Math.max(0, initial - (a.credits_balance ?? 0))
-  }, 0)
+  const totalCreditsConsumed = (accounts ?? []).reduce(
+    (acc: number, a: any) => acc + (a.credits_used ?? 0),
+    0,
+  )
 
   return NextResponse.json({
     totalConsultants: totalConsultants ?? 0,
     totalCases: totalCases ?? 0,
     totalCreditsConsumed,
-    accounts: accounts ?? [],
+    accounts: (accounts ?? []).map(accountToUI),
     recentCases: recentCases ?? [],
   })
 }

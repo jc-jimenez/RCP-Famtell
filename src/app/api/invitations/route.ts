@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     .from('case_users')
     .insert({
       case_id: caseId,
-      user_id: '00000000-0000-0000-0000-000000000000', // placeholder hasta activación
+      user_id: null, // se asigna al activar la invitación
       role,
       job_title: jobTitle ?? null,
       permissions_json: permissions ?? null,

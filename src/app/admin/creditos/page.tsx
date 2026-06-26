@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import AppShell from '@/components/shared/AppShell'
 import Link from 'next/link'
+import { accountToUI } from '@/lib/accounts'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,10 +18,13 @@ export default async function AdminCreditosPage() {
   const admin = getSupabaseAdmin()
   const db = admin as any
 
-  const { data: accounts } = await db
+  const { data: rawAccounts } = await db
     .from('accounts')
-    .select('id,email,company_name,credits_balance,subscription_plan,status')
-    .order('credits_balance', { ascending: true })
+    .select('id,email,company_name,credits_total,credits_used,plan_id,status,created_at')
+
+  const accounts = (rawAccounts ?? [])
+    .map(accountToUI)
+    .sort((a: any, b: any) => a.credits_balance - b.credits_balance)
 
   const totalCredits = (accounts ?? []).reduce((s: number, a: any) => s + (a.credits_balance ?? 0), 0)
   const lowCredit = (accounts ?? []).filter((a: any) => (a.credits_balance ?? 0) < 20)

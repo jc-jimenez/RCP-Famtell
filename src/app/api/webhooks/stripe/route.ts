@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       if (email) {
         await db
           .from('accounts')
-          .update({ subscription_plan: plan, credits_balance: credits, status: 'active' })
+          .update({ plan_id: plan, credits_total: credits, credits_used: 0, status: 'active' })
           .eq('email', email)
       }
       break
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       const plan = sub.metadata?.plan ?? 'starter'
 
       if (email && priceId) {
-        const updates: Record<string, unknown> = { subscription_plan: plan }
+        const updates: Record<string, unknown> = { plan_id: plan }
         if (sub.status === 'active') updates.status = 'active'
         if (sub.status === 'canceled' || sub.status === 'unpaid') updates.status = 'suspended'
         await db.from('accounts').update(updates).eq('email', email)
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       if (customer.email) {
         await db
           .from('accounts')
-          .update({ subscription_plan: 'starter', status: 'suspended' })
+          .update({ plan_id: 'starter', status: 'suspended' })
           .eq('email', customer.email)
       }
       break
@@ -82,14 +82,14 @@ export async function POST(req: Request) {
       if (customer.email) {
         const { data: account } = await db
           .from('accounts')
-          .select('subscription_plan')
+          .select('plan_id')
           .eq('email', customer.email)
           .single()
         if (account) {
-          const credits = PLAN_CREDITS[account.subscription_plan] ?? 100
+          const credits = PLAN_CREDITS[account.plan_id] ?? 100
           await db
             .from('accounts')
-            .update({ credits_balance: credits })
+            .update({ credits_total: credits, credits_used: 0 })
             .eq('email', customer.email)
         }
       }

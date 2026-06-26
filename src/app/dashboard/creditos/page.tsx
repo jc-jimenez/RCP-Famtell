@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import CreditosClient from './CreditosClient'
+import { ACCOUNT_COLUMNS, accountToUI } from '@/lib/accounts'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +16,7 @@ export default async function CreditosPage() {
 
   const { data: account } = await db
     .from('accounts')
-    .select('id,company_name,credits_balance,subscription_plan,status')
+    .select(ACCOUNT_COLUMNS)
     .eq('email', session.user.email)
     .single()
 
@@ -23,7 +24,7 @@ export default async function CreditosPage() {
 
   return (
     <AppShell role="consultant" email={session.user.email}>
-      <CreditosClient account={account} />
+      <CreditosClient account={accountToUI(account)} />
     </AppShell>
   )
 }

@@ -17,11 +17,17 @@ export default async function AdminPremiumPage() {
   const admin = getSupabaseAdmin()
   const db = admin as any
 
-  const { data: accounts } = await db
+  const { data: rawAccounts } = await db
     .from('accounts')
-    .select('id,email,company_name,subscription_plan')
+    .select('id,email,company_name,plan_id')
     .eq('status', 'active')
-    .order('company_name')
+
+  const accounts = (rawAccounts ?? []).map((a: any) => ({
+    id: a.id,
+    email: a.email,
+    company_name: a.company_name ?? '',
+    subscription_plan: a.plan_id ?? 'starter',
+  }))
 
   const { data: premiumModules } = await db
     .from('premium_modules')

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import AppShell from '@/components/shared/AppShell'
 import ConsultoresClient from './ConsultoresClient'
+import { ACCOUNT_COLUMNS, accountToUI } from '@/lib/accounts'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,12 +18,12 @@ export default async function ConsultoresPage() {
   const admin = getSupabaseAdmin()
   const { data: consultores } = await (admin as any)
     .from('accounts')
-    .select('id,email,company_name,credits_balance,subscription_plan,status,created_at')
+    .select(ACCOUNT_COLUMNS)
     .order('created_at', { ascending: false })
 
   return (
     <AppShell role="super_admin" email={session.user.email!}>
-      <ConsultoresClient consultores={consultores ?? []} />
+      <ConsultoresClient consultores={(consultores ?? []).map(accountToUI)} />
     </AppShell>
   )
 }

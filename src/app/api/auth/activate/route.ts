@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     .from('case_users')
     .select('id, role, case_id, cases(company_name), user_email:invitation_email')
     .eq('invitation_token', token)
-    .eq('activated_at', null)
+    .is('activated_at', null)
     .maybeSingle()
 
   if (error || !caseUser) {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     .from('case_users')
     .select('id, role, case_id, invitation_email, invitation_expires_at')
     .eq('invitation_token', token)
-    .eq('activated_at', null)
+    .is('activated_at', null)
     .maybeSingle()
 
   if (fetchError || !caseUser) {
