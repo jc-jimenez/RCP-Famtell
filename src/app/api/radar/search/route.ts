@@ -1,58 +1,49 @@
-export const runtime = 'edge'
-
 import { NextResponse } from 'next/server'
-
-const DENUE_BASE = 'https://www.inegi.org.mx/app/api/denue/v1/consulta'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
 
 export async function GET(request: Request) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
-  const mode     = searchParams.get('mode') ?? 'scian'   // 'scian' | 'nombre'
-  const cveAct   = searchParams.get('cveAct') ?? ''      // código SCIAN (modo scian)
-  const keyword  = searchParams.get('keyword') ?? ''     // nombre empresa (modo nombre)
-  const entidad  = searchParams.get('entidad') ?? '00'
-  const estrato  = searchParams.get('estrato') ?? '0'    // 0=todos,1=micro,2=peq,3=med,4=grande
-  const inicio   = searchParams.get('inicio')  ?? '1'
-  const fin      = searchParams.get('fin')     ?? '50'
+  const keyword  = searchParams.get('keyword') ?? ''
+  const entidad  = searchParams.get('entidad') ?? '00'    // '00' = todo México
+  const estrato  = searchParams.get('estrato') ?? '0'     // '0' = todos
+  const keywords = searchParams.getAll('kw')              // múltiples keywords para modo SCIAN
+  const limit    = Math.min(parseInt(searchParams.get('limit') ?? '200'), 500)
 
-  const token = process.env.NEXT_PUBLIC_DENUE_TOKEN ?? process.env.DENUE_TOKEN
-  if (!token) return NextResponse.json({ error: 'DENUE_TOKEN no configurado' }, { status: 503 })
+  const db = supabase as any
 
-  let url: string
+  let query = db
+    .from('denue_empresas')
+    .select('id, nombre, razon_social, clase_actividad, codigo_actividad, estrato, nombre_vialidad, numero_exterior, nombre_asentamiento, municipio, entidad, codigo_postal, telefono, correo_e, latitud, longitud')
+    .limit(limit)
 
-  if (mode === 'nombre') {
-    if (!keyword.trim()) return NextResponse.json({ results: [] })
-    url = `${DENUE_BASE}/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/${inicio}/${fin}/${token}`
+  // Filtro por estado
+  if (entidad !== '00') query = query.eq('estado_code', entidad.padStart(2, '0'))
+
+  // Filtro por tamaño
+  if (estrato !== '0') query = query.eq('estrato', estrato)
+
+  // Búsqueda por texto
+  if (keywords.length > 0) {
+    // Modo SCIAN: buscar múltiples keywords con OR
+    const searchTerm = keywords.join(' | ')
+    query = query.textSearch('nombre', searchTerm, { type: 'websearch', config: 'spanish' })
+  } else if (keyword.trim()) {
+    // Modo nombre: búsqueda simple
+    query = query.or(`nombre.ilike.%${keyword}%,razon_social.ilike.%${keyword}%`)
   } else {
-    if (!cveAct.trim()) return NextResponse.json({ results: [] })
-    // BuscarAreaActEcon/{cve_act}/{entidad}/{estrato}/{inicio}/{fin}/{token}
-    // estrato: 0=todos, 1=micro, 2=pequeña, 3=mediana, 4=grande
-    url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${estrato}/${inicio}/${fin}/${token}`
+    return NextResponse.json({ results: [] })
   }
 
-  console.log('[radar] GET', url.replace(token, 'TOKEN'))
+  const { data, error } = await query
 
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; RCPai/1.0)',
-      },
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      return NextResponse.json({ error: `DENUE respondió ${res.status}: ${text.slice(0, 100)}`, results: [] }, { status: 502 })
-    }
-    const text = await res.text()
-    let data: any
-    try { data = JSON.parse(text) } catch {
-      // DENUE a veces devuelve texto plano en errores
-      return NextResponse.json({ error: `DENUE respuesta no JSON: ${text.slice(0, 150)}`, results: [] }, { status: 502 })
-    }
-    return NextResponse.json({ results: Array.isArray(data) ? data : [] })
-  } catch (e: any) {
-    return NextResponse.json({
-      error: `Error al consultar DENUE: ${e?.message ?? 'desconocido'}`,
-      results: [],
-    }, { status: 500 })
+  if (error) {
+    console.error('[radar] supabase error:', error)
+    return NextResponse.json({ error: error.message, results: [] }, { status: 500 })
   }
+
+  return NextResponse.json({ results: data ?? [] })
 }

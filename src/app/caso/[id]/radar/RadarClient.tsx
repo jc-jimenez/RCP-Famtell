@@ -188,67 +188,34 @@ export default function RadarClient({ caseId, companyName }: Props) {
     setResults([])
     setPage(1)
 
-    // INEGI devuelve HTTP/1.1 000 (status inválido) — usamos XHR que lo maneja bien
-    // CORS está abierto (Access-Control-Allow-Origin: *) así que llamamos directo al browser
-    const token = process.env.NEXT_PUBLIC_DENUE_TOKEN
-    if (!token) { setError('Token DENUE no configurado (NEXT_PUBLIC_DENUE_TOKEN)'); setLoading(false); return }
-
-    const BASE = 'https://www.inegi.org.mx/app/api/denue/v1/consulta'
-
-    function xhrGet(url: string): Promise<any[]> {
-      return new Promise(resolve => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('GET', url, true)
-        xhr.timeout = 15000
-        xhr.onload = () => {
-          try { const d = JSON.parse(xhr.responseText); resolve(Array.isArray(d) ? d : []) }
-          catch { resolve([]) }
-        }
-        xhr.onerror = () => resolve([])
-        xhr.ontimeout = () => resolve([])
-        xhr.send()
-      })
-    }
-
     if (searchMode === 'nombre') {
-      const url = `${BASE}/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/1/${PAGE_SIZE}/${token}`
-      const data = await xhrGet(url)
-      setResults(data)
-      if (!data.length) setError('Sin resultados. Prueba con otro término o estado.')
+      const params = new URLSearchParams({ keyword, entidad, estrato, limit: '200' })
+      const res = await fetch(`/api/radar/search?${params}`)
+      const json = await res.json()
+      if (!res.ok || json.error) { setError(json.error ?? 'Error al buscar'); setLoading(false); return }
+      setResults(json.results ?? [])
+      if (!json.results?.length) setError('Sin resultados. Prueba con otro término o estado.')
       setLoading(false)
       return
     }
 
-    // Modo SCIAN — extraer keywords de los subsectores seleccionados y buscar por nombre
-    // (DENUE v1 solo soporta BuscarEntidad, no existe BuscarAreaActEcon)
-    const keywords: string[] = []
+    // Modo SCIAN — extraer keywords de los subsectores seleccionados
+    const kwList: string[] = []
     for (const sector of SCIAN_SECTORS) {
       for (const sub of sector.subsectors) {
-        if (selectedCodes.includes(sub.code)) {
-          keywords.push(...sub.keywords)
-        }
+        if (selectedCodes.includes(sub.code)) kwList.push(...sub.keywords)
       }
     }
-    const uniqueKeywords = [...new Set(keywords)]
+    const uniqueKw = [...new Set(kwList)]
 
-    const allResults: Empresa[] = []
-    const batches: string[][] = []
-    for (let i = 0; i < uniqueKeywords.length; i += 5) batches.push(uniqueKeywords.slice(i, i + 5))
+    const params = new URLSearchParams({ entidad, estrato, limit: '500' })
+    uniqueKw.forEach(kw => params.append('kw', kw))
 
-    for (const batch of batches) {
-      const fetches = batch.map(kw => {
-        const url = `${BASE}/BuscarEntidad/${encodeURIComponent(kw)}/${entidad}/1/10/${token}`
-        return xhrGet(url)
-      })
-      const responses = await Promise.all(fetches)
-      for (const arr of responses) allResults.push(...arr)
-    }
-
-    // Deduplicar por Id
-    const seen = new Set<string>()
-    const unique = allResults.filter(e => { if (seen.has(e.Id)) return false; seen.add(e.Id); return true })
-    setResults(unique)
-    if (unique.length === 0) setError('Sin resultados. Ajusta los filtros o selecciona más subsectores.')
+    const res = await fetch(`/api/radar/search?${params}`)
+    const json = await res.json()
+    if (!res.ok || json.error) { setError(json.error ?? 'Error al buscar'); setLoading(false); return }
+    setResults(json.results ?? [])
+    if (!json.results?.length) setError('Sin resultados. Ajusta los filtros o selecciona más subsectores.')
     setLoading(false)
   }
 
