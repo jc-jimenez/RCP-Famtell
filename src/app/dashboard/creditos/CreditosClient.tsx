@@ -42,7 +42,7 @@ const MODULE_COSTS: Record<string, number> = {
 export default function CreditosClient({ account }: { account: Account }) {
   const [loading, setLoading] = useState<string | null>(null)
 
-  const planMax = account.subscription_plan === 'pro' ? 500 : account.subscription_plan === 'enterprise' ? 2000 : 100
+  const planMax = account.subscription_plan === 'pro' ? 500 : account.subscription_plan === 'enterprise' ? 2000 : account.subscription_plan === 'free' ? 100 : 100
   const balancePct = Math.min(100, (account.credits_balance / planMax) * 100)
   const barColor = balancePct > 40 ? 'bg-emerald-500' : balancePct > 15 ? 'bg-amber-400' : 'bg-red-500'
 
