@@ -91,6 +91,38 @@ export default async function ModuloPage({
   const duration = MODULE_DURATION[moduleCode] ?? '20-30 minutos'
   const isCompleted = status === 'completed'
 
+  // Para M6: cargar sesiones de colaboradores
+  let collaboratorVoices: any[] = []
+  if (moduleCode === 'M6') {
+    const { data: collabSessions } = await db
+      .from('sessions')
+      .select('id, messages, completed, last_message_at, user_id')
+      .eq('case_id', caseId)
+      .eq('module_code', 'M6')
+      .neq('user_id', session.user.id)
+
+    if (collabSessions?.length) {
+      const collabUserIds = collabSessions.map((s: any) => s.user_id)
+      const { data: collabUsers } = await db
+        .from('case_users')
+        .select('user_id, job_title, invitation_email')
+        .eq('case_id', caseId)
+        .in('user_id', collabUserIds)
+
+      const userMap: Record<string, { jobTitle: string; email: string }> = {}
+      ;(collabUsers ?? []).forEach((u: any) => {
+        userMap[u.user_id] = { jobTitle: u.job_title ?? 'Colaborador', email: u.invitation_email ?? '' }
+      })
+
+      collaboratorVoices = collabSessions.map((s: any) => ({
+        jobTitle: userMap[s.user_id]?.jobTitle ?? 'Colaborador',
+        email: userMap[s.user_id]?.email ?? '',
+        messages: s.messages ?? [],
+        completedAt: s.completed ? s.last_message_at : null,
+      }))
+    }
+  }
+
   return (
     <ModuleStartClient
       caseId={caseId}
@@ -102,6 +134,8 @@ export default async function ModuloPage({
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
       userEmail={session.user.email!}
+      userRole={caseUser.role === 'collaborator' ? 'collaborator' : 'director'}
+      collaboratorVoices={collaboratorVoices}
     />
   )
 }

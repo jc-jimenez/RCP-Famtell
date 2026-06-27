@@ -32,8 +32,10 @@ export default async function ColaboradorModuloPage({
 
   if (!caseUser || caseUser.role !== 'collaborator') redirect('/mis-modulos')
 
-  const permissions: Record<string, string> = (caseUser.permissions_json as any) ?? {}
-  if (permissions[code] !== 'respond') redirect('/mis-modulos')
+  // permissions_json guardado como { modules: ['M6', 'M1', ...] }
+  const permissions = caseUser.permissions_json as { modules?: string[] } | null
+  const assignedModules = permissions?.modules ?? []
+  if (!assignedModules.includes(moduleCode)) redirect('/mis-modulos')
 
   // Sesión existente
   const { data: existingSession } = await db
@@ -44,17 +46,24 @@ export default async function ColaboradorModuloPage({
     .eq('user_id', session.user.id)
     .maybeSingle()
 
+  const MODULE_LABELS: Record<string, string> = {
+    M1: 'Radiografía Comercial', M2: 'Radiografía Operativa',
+    M3: 'Base de Contactos', M4: 'Radiografía Financiera',
+    M5: 'Radiografía Competitiva', M6: 'Radiografía Interna', M7: 'Síntesis y Plan RCP',
+  }
+
   return (
     <ModuleStartClient
       caseId={caseId}
       moduleCode={moduleCode}
-      label={`Instrumento ${code}`}
+      label={MODULE_LABELS[moduleCode] ?? `Instrumento ${code}`}
       description="Nova te hará una serie de preguntas sobre tu área de trabajo. Responde con honestidad — tu perspectiva es valiosa para el diagnóstico de la empresa."
       duration="15-25 minutos"
       isCompleted={existingSession?.completed ?? false}
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
       userEmail={session.user.email!}
+      userRole="collaborator"
     />
   )
 }

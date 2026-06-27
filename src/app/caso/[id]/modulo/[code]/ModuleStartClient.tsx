@@ -16,6 +16,15 @@ interface Props {
   existingSessionId: string | null
   existingMessages: ChatMessage[]
   userEmail: string
+  userRole?: 'director' | 'collaborator'
+  collaboratorVoices?: CollaboratorVoice[]
+}
+
+interface CollaboratorVoice {
+  jobTitle: string
+  email: string
+  messages: ChatMessage[]
+  completedAt: string | null
 }
 
 type View = 'start' | 'chat' | 'completed'
@@ -30,6 +39,8 @@ export default function ModuleStartClient({
   existingSessionId,
   existingMessages,
   userEmail,
+  userRole = 'director',
+  collaboratorVoices = [],
 }: Props) {
   const router = useRouter()
   const [view, setView] = useState<View>(
@@ -37,6 +48,9 @@ export default function ModuleStartClient({
   )
   const [sessionId, setSessionId] = useState<string | null>(existingSessionId)
   const [starting, setStarting] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
+
+  const backHref = userRole === 'collaborator' ? '/mis-modulos' : `/caso/${caseId}`
 
   async function handleStart() {
     setStarting(true)
@@ -60,7 +74,7 @@ export default function ModuleStartClient({
   // ── Vista: completado ──
   if (view === 'completed') {
     return (
-      <AppShell role="director" email={userEmail} caseCompanyName="">
+      <AppShell role={userRole} email={userEmail} caseCompanyName="">
         <div className="max-w-lg mx-auto text-center py-16 space-y-6">
           <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-3xl text-emerald-600 mx-auto">
             ✓
@@ -68,14 +82,16 @@ export default function ModuleStartClient({
           <div>
             <h1 className="text-xl font-bold text-ink">{label} completado</h1>
             <p className="text-muted text-sm mt-2">
-              La información fue guardada. Tu consultor ya puede ver los resultados.
+              {userRole === 'collaborator'
+                ? 'Tus respuestas fueron guardadas. El consultor puede ver tu perspectiva.'
+                : 'La información fue guardada. Tu consultor ya puede ver los resultados.'}
             </p>
           </div>
           <button
-            onClick={() => router.push(`/caso/${caseId}` as any)}
+            onClick={() => router.push(backHref as any)}
             className="btn-primary px-6 py-3"
           >
-            Volver a mi caso →
+            {userRole === 'collaborator' ? 'Volver a mis módulos →' : 'Volver a mi caso →'}
           </button>
         </div>
       </AppShell>
@@ -89,10 +105,10 @@ export default function ModuleStartClient({
         {/* Encabezado del módulo */}
         <div className="w-full max-w-2xl flex items-center justify-between mb-3 flex-shrink-0">
           <button
-            onClick={() => router.push(`/caso/${caseId}` as any)}
+            onClick={() => router.push(backHref as any)}
             className="text-xs text-muted hover:text-ink transition-colors"
           >
-            ← Volver al caso
+            ← {userRole === 'collaborator' ? 'Mis módulos' : 'Volver al caso'}
           </button>
           <span className="text-sm font-semibold text-ink">{label}</span>
           <div className="w-20" />
@@ -114,7 +130,7 @@ export default function ModuleStartClient({
 
   // ── Vista: pantalla de inicio del módulo (DI-03) ──
   return (
-    <AppShell role="director" email={userEmail} caseCompanyName="">
+    <AppShell role={userRole} email={userEmail} caseCompanyName="">
       <div className="max-w-lg mx-auto py-12 space-y-8">
 
         {/* Número de módulo */}
@@ -166,6 +182,49 @@ export default function ModuleStartClient({
         >
           {starting ? 'Iniciando…' : `Comenzar ${label}`}
         </button>
+
+        {/* Voces del equipo — solo visible para director/consultor en M6 */}
+        {collaboratorVoices.length > 0 && userRole !== 'collaborator' && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2">
+              <span className="section-label">Voces del equipo</span>
+              <span className="badge text-xs">{collaboratorVoices.length}</span>
+            </div>
+            <p className="text-xs text-muted">Perspectivas de los colaboradores invitados a este módulo.</p>
+            <div className="space-y-2">
+              {collaboratorVoices.map((v, i) => (
+                <div key={i} className="card p-4">
+                  <button
+                    onClick={() => setVoiceOpen(voiceOpen === i ? null : i)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-bold">
+                        {v.jobTitle?.charAt(0)?.toUpperCase() ?? 'C'}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-ink">{v.jobTitle || 'Colaborador'}</p>
+                        <p className="text-xs text-faint">{v.email} · {v.messages.length} respuestas</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted">{voiceOpen === i ? '▲' : '▼'}</span>
+                  </button>
+                  {voiceOpen === i && (
+                    <div className="mt-3 pt-3 border-t border-subtle space-y-2 max-h-64 overflow-y-auto">
+                      {v.messages
+                        .filter((m: ChatMessage) => m.role === 'user')
+                        .map((m: ChatMessage, j: number) => (
+                          <div key={j} className="text-xs text-ink bg-surface-2 rounded-xl px-3 py-2 leading-relaxed">
+                            {m.content as string}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   )
