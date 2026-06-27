@@ -21,7 +21,8 @@ export default function DirectorTabs({ caseId }: Props) {
     { id: 'kpis',     label: 'KPIs',         href: `/caso/${caseId}/kpis` },
     { id: 'checkin',  label: 'Check-in',     href: `/caso/${caseId}/checkin` },
     { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad` },
-    { id: 'escenarios', label: 'Escenarios', href: `/caso/${caseId}/escenarios` },
+    { id: 'escenarios',  label: 'Escenarios',  href: `/caso/${caseId}/escenarios` },
+    { id: 'competencia', label: 'Competencia', href: `/caso/${caseId}/competencia` },
     { id: 'brief',      label: 'Brief M7',   href: `/caso/${caseId}/brief` },
   ]
 
