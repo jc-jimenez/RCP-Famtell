@@ -54,6 +54,15 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   const ierCounts = { blue: 0, yellow: 0, red: 0 }
   ;(signals ?? []).forEach((s: any) => ierCounts[s.signal_type as keyof typeof ierCounts]++)
 
+  // Módulos completados (tienen al menos una sesión)
+  const { data: completedSessions } = await db
+    .from('sessions')
+    .select('module_code')
+    .eq('case_id', id)
+
+  const uniqueModules = new Set((completedSessions ?? []).map((s: any) => s.module_code))
+  const modulesCompleted = uniqueModules.size
+
   if (isConsultant) {
     return (
       <BriefConsultorClient
@@ -63,6 +72,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         email={session.user.email!}
         initialBrief={brief ?? null}
         ierCounts={ierCounts}
+        modulesCompleted={modulesCompleted}
       />
     )
   }
