@@ -20,8 +20,9 @@ export default function DirectorTabs({ caseId }: Props) {
     { id: 'modulos',   label: 'Mis Módulos', href: `/caso/${caseId}` },
     { id: 'kpis',     label: 'KPIs',         href: `/caso/${caseId}/kpis` },
     { id: 'checkin',  label: 'Check-in',     href: `/caso/${caseId}/checkin` },
-    { id: 'capacidad',label: 'Capacidad',    href: `/caso/${caseId}/capacidad` },
-    { id: 'brief',    label: 'Brief M7',     href: `/caso/${caseId}/brief` },
+    { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad` },
+    { id: 'escenarios', label: 'Escenarios', href: `/caso/${caseId}/escenarios` },
+    { id: 'brief',      label: 'Brief M7',   href: `/caso/${caseId}/brief` },
   ]
 
   function isActive(tab: Tab) {
