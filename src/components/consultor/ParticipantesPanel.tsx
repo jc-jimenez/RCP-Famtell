@@ -71,6 +71,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
     email: '',
     profileId: 'director_general',
     customModules: [] as string[],
+    whatsapp: '',
   })
 
   const selectedProfile = PROFILES.find(p => p.id === form.profileId)!
@@ -99,6 +100,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
         role: isDirector ? 'director' : 'collaborator',
         jobTitle: form.profileId,
         permissions: { modules: effectiveModules },
+        whatsappPhone: form.whatsapp.trim() || null,
       }),
     })
     const data = await res.json()
@@ -116,7 +118,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
     }])
     setLastInviteUrl(data.activationUrl ?? null)
     setShowModal(false)
-    setForm({ email: '', profileId: 'director_general', customModules: [] })
+    setForm({ email: '', profileId: 'director_general', customModules: [], whatsapp: '' })
   }
 
   return (
@@ -184,6 +186,18 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
                 className="input-field"
                 placeholder="persona@empresa.com"
               />
+            </div>
+
+            <div>
+              <label className="label-text">WhatsApp (opcional)</label>
+              <input
+                type="tel"
+                value={form.whatsapp}
+                onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+                className="input-field"
+                placeholder="+52 55 1234 5678"
+              />
+              <p className="text-xs text-faint mt-1">Se usará para recordatorios de check-in cada lunes</p>
             </div>
 
             {/* Selector de perfil */}

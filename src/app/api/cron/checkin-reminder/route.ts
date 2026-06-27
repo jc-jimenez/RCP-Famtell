@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendWhatsApp } from '@/lib/twilio'
 
 // Llamado por Vercel Cron cada lunes a las 8AM (America/Mexico_City)
 // Vercel env: CRON_SECRET para autenticar la llamada
@@ -94,7 +95,6 @@ export async function GET(request: Request) {
       })
 
       if (resendRes.ok) {
-        // Marcar notificación como enviada
         await supabase
           .from('notifications')
           .update({ status: 'sent', sent_at: new Date().toISOString() })
@@ -103,6 +103,20 @@ export async function GET(request: Request) {
           .eq('status', 'pending')
 
         results.push({ caseId: c.id, email, status: 'sent' })
+
+        // Enviar WhatsApp al directivo si tiene número registrado
+        const { data: director } = await supabase
+          .from('case_users')
+          .select('whatsapp_phone')
+          .eq('case_id', c.id)
+          .eq('role', 'director')
+          .not('whatsapp_phone', 'is', null)
+          .maybeSingle()
+
+        if (director?.whatsapp_phone) {
+          const waMsg = `⚡ *Check-in semanal — ${c.company_name}*\n\nEs lunes. Hora de registrar el avance de esta semana.\n\n👉 ${process.env.NEXT_PUBLIC_APP_URL}/caso/${c.id}/checkin`
+          await sendWhatsApp(director.whatsapp_phone, waMsg)
+        }
       } else {
         results.push({ caseId: c.id, email, status: 'email_failed' })
       }

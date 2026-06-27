@@ -7,6 +7,7 @@ import AppShell from '@/components/shared/AppShell'
 import AgendaPanel from '@/components/consultor/AgendaPanel'
 import ParticipantesPanel from '@/components/consultor/ParticipantesPanel'
 import CasoTabs from '@/components/consultor/CasoTabs'
+import SharePortalPanel from '@/components/consultor/SharePortalPanel'
 import type { ModuleCode } from '@/types'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
@@ -138,6 +139,12 @@ export default async function CasoDetallePage({
 
         {tab === 'agenda' && (
           <AgendaPanel signals={signals ?? []} />
+        )}
+
+        {tab === 'portal' && (
+          <div className="card p-5">
+            <SharePortalPanel caseId={id} />
+          </div>
         )}
 
         {/* Tabs que redirigen a sus páginas propias */}

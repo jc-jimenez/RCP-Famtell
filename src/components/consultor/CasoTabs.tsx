@@ -24,6 +24,7 @@ const TABS: Tab[] = [
   { id: 'kpis',        label: 'KPIs',         external: true },
   { id: 'checkin',     label: 'Check-in',     external: true },
   { id: 'brief',       label: 'Brief M7',     external: true },
+  { id: 'portal',      label: 'Portal Cliente' },
 ]
 
 interface Props {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
+import { sendWhatsApp } from '@/lib/twilio'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, email, role, jobTitle, permissions } = await request.json()
+  const { caseId, email, role, jobTitle, permissions, whatsappPhone } = await request.json()
 
   if (!caseId || !email || !role) {
     return NextResponse.json({ error: 'caseId, email y role son requeridos' }, { status: 400 })
@@ -58,13 +59,14 @@ export async function POST(request: Request) {
     .from('case_users')
     .insert({
       case_id: caseId,
-      user_id: null, // se asigna al activar la invitación
+      user_id: null,
       role,
       job_title: jobTitle ?? null,
       permissions_json: permissions ?? null,
       invitation_email: email,
       invitation_token: token,
       invitation_expires_at: expiresAt,
+      whatsapp_phone: whatsappPhone ?? null,
     })
     .select()
     .single()
@@ -112,13 +114,18 @@ export async function POST(request: Request) {
       `,
     })
   } catch (emailError) {
-    // El registro ya fue creado — notificar pero no fallar
     console.error('Error enviando email:', emailError)
     return NextResponse.json({
       caseUser,
       warning: 'Usuario registrado pero el email no pudo enviarse',
-      activationUrl, // Devolver URL para compartir manualmente
+      activationUrl,
     })
+  }
+
+  // Enviar WhatsApp si tiene número registrado
+  if (whatsappPhone) {
+    const waMsg = `Hola 👋 Fuiste invitado como *${roleLabel}* al diagnóstico empresarial de *${caseData.company_name}* en RCP.ai.\n\nActiva tu cuenta aquí:\n${activationUrl}\n\n_(Enlace válido 48 horas)_`
+    await sendWhatsApp(whatsappPhone, waMsg)
   }
 
   return NextResponse.json({ caseUser, activationUrl })
