@@ -1,6 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import {
+  SCIAN_SECTORS,
+  RADAR_PROFILES,
+  type SCIANSector,
+  type SCIANSubsector,
+} from '@/lib/radar-profiles'
 
 const ESTADOS = [
   { code: '00', name: 'Todo México' },
@@ -38,6 +44,13 @@ const ESTADOS = [
   { code: '32', name: 'Zacatecas' },
 ]
 
+const ESTRATOS = [
+  { code: '0', name: 'Todos los tamaños' },
+  { code: '2', name: 'Pequeña' },
+  { code: '3', name: 'Mediana' },
+  { code: '4', name: 'Grande' },
+]
+
 interface Empresa {
   Id: string
   Nombre: string
@@ -47,7 +60,6 @@ interface Empresa {
   Tipo_vialidad: string
   Nombre_vialidad: string
   Numero_Exterior: string
-  Tipo_asentamiento: string
   Nombre_asentamiento: string
   Municipio: string
   Entidad: string
@@ -64,19 +76,37 @@ interface Props {
 }
 
 function buildAddress(e: Empresa): string {
-  const parts = [
+  return [
     e.Tipo_vialidad && e.Nombre_vialidad ? `${e.Tipo_vialidad} ${e.Nombre_vialidad} ${e.Numero_Exterior || ''}`.trim() : '',
     e.Nombre_asentamiento ? `Col. ${e.Nombre_asentamiento}` : '',
     e.Municipio,
     e.Entidad,
     e.Codigo_Postal,
-  ].filter(Boolean)
-  return parts.join(', ')
+  ].filter(Boolean).join(', ')
+}
+
+function estratoLabel(e: string) {
+  const map: Record<string, string> = { '1': 'Micro', '2': 'Pequeña', '3': 'Mediana', '4': 'Grande' }
+  return map[e] ?? e
 }
 
 export default function RadarClient({ caseId, companyName }: Props) {
-  const [keyword, setKeyword]   = useState('')
-  const [entidad, setEntidad]   = useState('00')
+  const defaultProfile = RADAR_PROFILES[0] // Famtell 3PL
+
+  // Modo
+  const [searchMode, setSearchMode] = useState<'scian' | 'nombre'>('scian')
+
+  // Filtros SCIAN
+  const [profileId, setProfileId]       = useState(defaultProfile.id)
+  const [selectedSector, setSelectedSector] = useState<SCIANSector | null>(null)
+  const [selectedCodes, setSelectedCodes]   = useState<string[]>([])
+  const [entidad, setEntidad]               = useState('00')
+  const [estrato, setEstrato]               = useState('0')
+
+  // Modo nombre
+  const [keyword, setKeyword] = useState('')
+
+  // Resultados
   const [results, setResults]   = useState<Empresa[]>([])
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
@@ -84,33 +114,88 @@ export default function RadarClient({ caseId, companyName }: Props) {
   const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [msg, setMsg]           = useState<{ id: string; text: string; ok: boolean } | null>(null)
-  const mapRef   = useRef<HTMLDivElement>(null)
+  const [page, setPage]         = useState(1)
+  const PAGE_SIZE = 50
+
+  const mapRef    = useRef<HTMLDivElement>(null)
   const leafletRef = useRef<any>(null)
 
+  const profile = RADAR_PROFILES.find(p => p.id === profileId) ?? defaultProfile
+
+  function toggleCode(code: string) {
+    setSelectedCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
+  }
+
+  function selectAll(codes: string[]) {
+    setSelectedCodes(prev => {
+      const allSelected = codes.every(c => prev.includes(c))
+      if (allSelected) return prev.filter(c => !codes.includes(c))
+      return [...new Set([...prev, ...codes])]
+    })
+  }
+
+  // Al cambiar perfil, pre-seleccionar códigos recomendados
+  useEffect(() => {
+    const p = RADAR_PROFILES.find(r => r.id === profileId)
+    if (p && p.recommendedCodes.length > 0) {
+      setSelectedCodes(p.recommendedCodes)
+    } else {
+      setSelectedCodes([])
+    }
+    setSelectedSector(null)
+  }, [profileId])
+
   async function search() {
-    if (!keyword.trim()) return
+    if (searchMode === 'scian' && selectedCodes.length === 0) return
+    if (searchMode === 'nombre' && !keyword.trim()) return
+
     setLoading(true)
     setError(null)
     setResults([])
-    const params = new URLSearchParams({ keyword, entidad, inicio: '1', fin: '50' })
-    try {
+    setPage(1)
+
+    if (searchMode === 'nombre') {
+      const params = new URLSearchParams({ mode: 'nombre', keyword, entidad, inicio: '1', fin: String(PAGE_SIZE) })
       const res = await fetch(`/api/radar/search?${params}`)
       const json = await res.json()
-      if (!res.ok || json.error) {
-        setError(json.error ?? 'Error al buscar')
-      } else {
+      if (!res.ok || json.error) setError(json.error ?? 'Error al buscar')
+      else {
         setResults(json.results ?? [])
-        if ((json.results ?? []).length === 0) setError('Sin resultados. Prueba con otro término o estado.')
+        if (!json.results?.length) setError('Sin resultados. Prueba con otro término o estado.')
       }
-    } catch (e: any) {
-      setError('Error al conectar con el servidor')
+      setLoading(false)
+      return
     }
+
+    // Modo SCIAN: buscar cada código seleccionado en paralelo (máx 5 a la vez)
+    const allResults: Empresa[] = []
+    const batches: string[][] = []
+    for (let i = 0; i < selectedCodes.length; i += 5) batches.push(selectedCodes.slice(i, i + 5))
+
+    for (const batch of batches) {
+      const fetches = batch.map(code => {
+        const params = new URLSearchParams({ mode: 'scian', cveAct: code, entidad, estrato, inicio: '1', fin: '20' })
+        return fetch(`/api/radar/search?${params}`).then(r => r.json()).catch(() => ({ results: [] }))
+      })
+      const responses = await Promise.all(fetches)
+      for (const json of responses) {
+        if (json.results) allResults.push(...json.results)
+      }
+    }
+
+    // Deduplicar por Id
+    const seen = new Set<string>()
+    const unique = allResults.filter(e => { if (seen.has(e.Id)) return false; seen.add(e.Id); return true })
+
+    setResults(unique)
+    if (unique.length === 0) setError('Sin resultados. Ajusta los filtros o selecciona más subsectores.')
     setLoading(false)
   }
 
   async function addToCRM(e: Empresa) {
     setAddingId(e.Id)
-    const address = buildAddress(e)
     const res = await fetch('/api/contacts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -122,7 +207,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
         phone: e.Telefono || null,
         email: e.Correo_e || null,
         relationship_type: 'prospect',
-        notes: `Sector: ${e.Clase_actividad}. ${address}. Tamaño: ${e.Estrato}. Fuente: DENUE/INEGI`,
+        notes: `Sector SCIAN: ${e.Clase_actividad}. ${buildAddress(e)}. Tamaño: ${estratoLabel(e.Estrato)}. Fuente: DENUE/INEGI`,
         pipeline_stage: 'pending',
       }),
     })
@@ -137,95 +222,221 @@ export default function RadarClient({ caseId, companyName }: Props) {
     setTimeout(() => setMsg(null), 3000)
   }
 
-  // Inicializar mapa Leaflet
+  // Mapa Leaflet
   useEffect(() => {
     if (view !== 'map' || !mapRef.current || results.length === 0) return
-
     const withCoords = results.filter(e => e.Latitud && e.Longitud)
     if (withCoords.length === 0) return
 
     import('leaflet').then(L => {
-      if (leafletRef.current) {
-        leafletRef.current.remove()
-        leafletRef.current = null
-      }
-
+      if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null }
       const map = L.map(mapRef.current!, { scrollWheelZoom: true })
       leafletRef.current = map
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap · DENUE/INEGI',
-        maxZoom: 18,
+        attribution: '© OpenStreetMap · DENUE/INEGI', maxZoom: 18,
       }).addTo(map)
-
       const bounds: [number, number][] = []
-
       withCoords.forEach(e => {
-        const lat = parseFloat(e.Latitud)
-        const lng = parseFloat(e.Longitud)
+        const lat = parseFloat(e.Latitud), lng = parseFloat(e.Longitud)
         if (isNaN(lat) || isNaN(lng)) return
-
         bounds.push([lat, lng])
-        const marker = L.marker([lat, lng])
-        marker.bindPopup(`
+        L.marker([lat, lng]).bindPopup(`
           <div style="font-family:sans-serif;min-width:180px;">
             <p style="font-weight:700;font-size:13px;margin:0 0 4px">${e.Nombre || e.Razon_social}</p>
             <p style="font-size:11px;color:#64748b;margin:0 0 4px">${e.Clase_actividad}</p>
             ${e.Telefono ? `<p style="font-size:11px;margin:0">📞 ${e.Telefono}</p>` : ''}
             <p style="font-size:11px;color:#64748b;margin:4px 0 0">${e.Municipio}, ${e.Entidad}</p>
-          </div>
-        `)
-        marker.addTo(map)
+          </div>`
+        ).addTo(map)
       })
-
       if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] })
     })
-
-    return () => {
-      if (leafletRef.current) {
-        leafletRef.current.remove()
-        leafletRef.current = null
-      }
-    }
+    return () => { if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null } }
   }, [view, results])
+
+  const paged = results.slice(0, page * PAGE_SIZE)
 
   return (
     <div className="space-y-5">
 
-      {/* Buscador */}
+      {/* Header */}
       <div className="card p-5 space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-ink">Radar de Prospectos</h2>
-          <p className="text-xs text-muted mt-0.5">
-            Busca empresas del sector de <span className="font-medium text-ink">{companyName}</span> usando el directorio DENUE del INEGI
-          </p>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Radar de Prospectos</h2>
+            <p className="text-xs text-muted mt-0.5">
+              Encuentra empresas objetivo usando el directorio DENUE del INEGI
+            </p>
+          </div>
+          {/* Toggle modo */}
+          <div className="flex gap-1 border border-subtle rounded-xl p-0.5 bg-surface">
+            <button
+              onClick={() => setSearchMode('scian')}
+              className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${searchMode === 'scian' ? 'bg-accent text-white' : 'text-muted hover:text-ink'}`}
+            >
+              Por sector SCIAN
+            </button>
+            <button
+              onClick={() => setSearchMode('nombre')}
+              className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${searchMode === 'nombre' ? 'bg-accent text-white' : 'text-muted hover:text-ink'}`}
+            >
+              Por nombre
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <input
-            type="text"
-            className="input flex-1 min-w-[200px] text-sm"
-            placeholder="Ej: distribuidora, consultora, manufactura…"
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && search()}
-          />
-          <select
-            className="input w-48 text-sm"
-            value={entidad}
-            onChange={e => setEntidad(e.target.value)}
-          >
-            {ESTADOS.map(s => (
-              <option key={s.code} value={s.code}>{s.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={search}
-            disabled={loading || !keyword.trim()}
-            className="btn-primary text-sm px-5 disabled:opacity-50"
-          >
-            {loading ? 'Buscando…' : 'Buscar'}
-          </button>
-        </div>
+
+        {/* ── Modo SCIAN ── */}
+        {searchMode === 'scian' && (
+          <div className="space-y-4">
+
+            {/* Perfil */}
+            <div>
+              <p className="text-xs font-medium text-muted mb-1.5">Perfil de búsqueda</p>
+              <div className="flex gap-2 flex-wrap">
+                {RADAR_PROFILES.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setProfileId(p.id)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${profileId === p.id ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:text-ink hover:border-accent/40'}`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+              {profile.description && (
+                <p className="text-xs text-muted mt-1.5 italic">{profile.description}</p>
+              )}
+            </div>
+
+            {/* Árbol SCIAN */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-muted">Sectores y subsectores</p>
+                {selectedCodes.length > 0 && (
+                  <span className="text-xs text-accent font-medium">{selectedCodes.length} seleccionados</span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {SCIAN_SECTORS.map(sector => {
+                  const isOpen = selectedSector?.code === sector.code
+                  const sectorCodes = sector.subsectors.map(s => s.code)
+                  const selectedInSector = sectorCodes.filter(c => selectedCodes.includes(c))
+                  const allSelected = sectorCodes.every(c => selectedCodes.includes(c))
+
+                  return (
+                    <div key={sector.code} className="border border-subtle rounded-xl overflow-hidden">
+                      {/* Cabecera sector */}
+                      <div className="flex items-center gap-2 px-3 py-2 bg-surface">
+                        <button
+                          onClick={() => setSelectedSector(isOpen ? null : sector)}
+                          className="flex-1 flex items-center gap-2 text-left"
+                        >
+                          <span className="text-base">{sector.icon}</span>
+                          <span className="text-xs font-semibold text-ink">{sector.name}</span>
+                          <span className="text-xs text-faint">({sector.code}xx)</span>
+                          {selectedInSector.length > 0 && (
+                            <span className="ml-1 text-xs bg-accent text-white rounded-full px-1.5 py-0.5">
+                              {selectedInSector.length}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => selectAll(sectorCodes)}
+                          className={`text-xs px-2 py-1 rounded-lg border transition-colors ${allSelected ? 'border-accent text-accent' : 'border-subtle text-muted hover:text-ink'}`}
+                        >
+                          {allSelected ? 'Quitar todos' : 'Todos'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedSector(isOpen ? null : sector)}
+                          className="text-muted hover:text-ink text-xs ml-1"
+                        >
+                          {isOpen ? '▲' : '▼'}
+                        </button>
+                      </div>
+
+                      {/* Subsectores */}
+                      {isOpen && (
+                        <div className="px-3 pb-3 pt-1 grid grid-cols-1 gap-1 border-t border-subtle bg-white">
+                          {sector.subsectors.map(sub => {
+                            const isRec = profile.recommendedCodes.includes(sub.code)
+                            const isSelected = selectedCodes.includes(sub.code)
+                            return (
+                              <label
+                                key={sub.code}
+                                className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-accent-soft' : 'hover:bg-surface'}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleCode(sub.code)}
+                                  className="mt-0.5 accent-accent"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-medium text-ink">{sub.name}</span>
+                                    <span className="text-xs text-faint font-mono">{sub.code}</span>
+                                    {isRec && (
+                                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 rounded-full">★ Recomendado</span>
+                                    )}
+                                  </div>
+                                  {sub.pitch && (
+                                    <p className="text-xs text-muted mt-0.5">{sub.pitch}</p>
+                                  )}
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Filtros geo/tamaño */}
+            <div className="flex gap-2 flex-wrap">
+              <select className="input flex-1 min-w-[180px] text-sm" value={entidad} onChange={e => setEntidad(e.target.value)}>
+                {ESTADOS.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
+              </select>
+              <select className="input w-44 text-sm" value={estrato} onChange={e => setEstrato(e.target.value)}>
+                {ESTRATOS.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
+              </select>
+              <button
+                onClick={search}
+                disabled={loading || selectedCodes.length === 0}
+                className="btn-primary text-sm px-6 disabled:opacity-50"
+              >
+                {loading ? 'Buscando…' : `Buscar${selectedCodes.length > 0 ? ` (${selectedCodes.length} subsectores)` : ''}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modo nombre ── */}
+        {searchMode === 'nombre' && (
+          <div className="flex gap-2 flex-wrap">
+            <input
+              type="text"
+              className="input flex-1 min-w-[200px] text-sm"
+              placeholder="Ej: Grupo Bimbo, FEMSA, Lala…"
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && search()}
+            />
+            <select className="input w-48 text-sm" value={entidad} onChange={e => setEntidad(e.target.value)}>
+              {ESTADOS.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
+            </select>
+            <button
+              onClick={search}
+              disabled={loading || !keyword.trim()}
+              className="btn-primary text-sm px-5 disabled:opacity-50"
+            >
+              {loading ? 'Buscando…' : 'Buscar'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error */}
@@ -244,23 +455,19 @@ export default function RadarClient({ caseId, companyName }: Props) {
               <button
                 onClick={() => setView('list')}
                 className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${view === 'list' ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:text-ink'}`}
-              >
-                Lista
-              </button>
+              >Lista</button>
               <button
                 onClick={() => setView('map')}
                 className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${view === 'map' ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:text-ink'}`}
-              >
-                Mapa
-              </button>
+              >Mapa</button>
             </div>
           </div>
 
-          {/* Vista lista */}
+          {/* Lista */}
           {view === 'list' && (
             <div className="space-y-2">
-              {results.map(e => {
-                const isAdded = addedIds.has(e.Id)
+              {paged.map(e => {
+                const isAdded  = addedIds.has(e.Id)
                 const isAdding = addingId === e.Id
                 const feedback = msg?.id === e.Id ? msg : null
                 return (
@@ -274,10 +481,10 @@ export default function RadarClient({ caseId, companyName }: Props) {
                         <p className="text-xs text-muted truncate">{e.Razon_social}</p>
                       )}
                       <p className="text-xs text-faint mt-0.5 truncate">{e.Clase_actividad}</p>
-                      <p className="text-xs text-faint mt-0.5">{e.Municipio}{e.Entidad ? `, ${e.Entidad}` : ''}{e.Codigo_Postal ? ` CP ${e.Codigo_Postal}` : ''}</p>
+                      <p className="text-xs text-faint">{e.Municipio}{e.Entidad ? `, ${e.Entidad}` : ''}{e.Codigo_Postal ? ` CP ${e.Codigo_Postal}` : ''}</p>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         {e.Telefono && <span className="text-xs text-muted">📞 {e.Telefono}</span>}
-                        {e.Estrato && <span className="text-xs text-faint">Tamaño: {e.Estrato}</span>}
+                        {e.Estrato && <span className="text-xs bg-surface border border-subtle rounded px-1.5 py-0.5 text-faint">{estratoLabel(e.Estrato)}</span>}
                         {feedback && (
                           <span className={`text-xs font-medium ${feedback.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                             {feedback.text}
@@ -289,9 +496,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
                       onClick={() => !isAdded && addToCRM(e)}
                       disabled={isAdded || isAdding}
                       className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap flex-shrink-0 transition-colors ${
-                        isAdded
-                          ? 'border-emerald-200 text-emerald-600 bg-emerald-50 cursor-default'
-                          : 'btn-secondary'
+                        isAdded ? 'border-emerald-200 text-emerald-600 bg-emerald-50 cursor-default' : 'btn-secondary'
                       }`}
                     >
                       {isAdding ? '…' : isAdded ? '✓ En CRM' : '+ CRM'}
@@ -299,22 +504,25 @@ export default function RadarClient({ caseId, companyName }: Props) {
                   </div>
                 )
               })}
+
+              {paged.length < results.length && (
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  className="w-full py-3 text-xs text-muted border border-subtle rounded-xl hover:text-ink hover:border-accent/40 transition-colors"
+                >
+                  Ver más ({results.length - paged.length} restantes)
+                </button>
+              )}
             </div>
           )}
 
-          {/* Vista mapa */}
+          {/* Mapa */}
           {view === 'map' && (
             <>
               <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-              <div
-                ref={mapRef}
-                className="w-full rounded-2xl border border-subtle overflow-hidden"
-                style={{ height: 480 }}
-              />
+              <div ref={mapRef} className="w-full rounded-2xl border border-subtle overflow-hidden" style={{ height: 480 }} />
               {results.filter(e => e.Latitud && e.Longitud).length === 0 && (
-                <p className="text-xs text-muted text-center mt-2">
-                  Estos resultados no tienen coordenadas disponibles en DENUE.
-                </p>
+                <p className="text-xs text-muted text-center mt-2">Estos resultados no tienen coordenadas disponibles en DENUE.</p>
               )}
             </>
           )}
@@ -325,9 +533,9 @@ export default function RadarClient({ caseId, companyName }: Props) {
       {results.length === 0 && !loading && !error && (
         <div className="card p-10 text-center">
           <p className="text-3xl mb-3">🎯</p>
-          <p className="text-sm font-medium text-ink">Busca empresas prospecto</p>
-          <p className="text-xs text-muted mt-1">
-            Escribe el giro o nombre del tipo de empresa que buscas y selecciona el estado
+          <p className="text-sm font-medium text-ink">Selecciona sectores y busca prospectos</p>
+          <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+            El perfil <strong>Famtell 3PL</strong> ya tiene pre-seleccionados los subsectores con mayor potencial de necesitar operación logística tercerizada.
           </p>
         </div>
       )}
