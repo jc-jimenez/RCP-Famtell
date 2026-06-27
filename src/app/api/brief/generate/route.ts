@@ -23,12 +23,13 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, section, attachmentBase64, attachmentName, marketData } = await request.json() as {
+  const { caseId, section, attachmentBase64, attachmentName, marketData, novaHint } = await request.json() as {
     caseId: string
     section: Section
     attachmentBase64?: string
     attachmentName?: string
     marketData?: Record<string, string>
+    novaHint?: string
   }
 
   const db = supabase as any
@@ -373,8 +374,8 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
 [{ "año": "Año 1", "vision": "...", "objetivos": ["obj1", "obj2"], "hito_transformador": "...", "ier_alineacion": "cómo este año avanza hacia el IER detectado" }]`,
   }
 
-  const systemPrompt = prompts[section]
-  if (!systemPrompt) return NextResponse.json({ error: 'Sección inválida' }, { status: 400 })
+  const basePrompt = prompts[section]
+  if (!basePrompt) return NextResponse.json({ error: 'Sección inválida' }, { status: 400 })
 
   // Descontar créditos (2 por sección generada)
   const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.BRIEF_SECTION)
@@ -384,6 +385,10 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
       { status: 402 },
     )
   }
+
+  const systemPrompt = novaHint?.trim()
+    ? `${basePrompt}\n\n⚠️ INSTRUCCIÓN ADICIONAL DEL CONSULTOR (prioridad alta):\n${novaHint.trim()}`
+    : basePrompt
 
   type ContentBlock = { type: string; [key: string]: unknown }
   const contentBlocks: ContentBlock[] = []

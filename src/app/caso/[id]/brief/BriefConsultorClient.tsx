@@ -31,6 +31,25 @@ const STEPS = [
 
 type StepId = typeof STEPS[number]['id']
 
+function NovaHintInput({ section, hints, setHints }: {
+  section: string
+  hints: Record<string, string>
+  setHints: React.Dispatch<React.SetStateAction<Record<string, string>>>
+}) {
+  return (
+    <div className="bg-surface-2 rounded-xl px-3 py-2 flex gap-2 items-start">
+      <span className="text-xs text-faint mt-1.5 shrink-0">✦</span>
+      <textarea
+        rows={2}
+        className="w-full bg-transparent text-xs text-muted placeholder:text-faint resize-none focus:outline-none"
+        placeholder="Instrucciones opcionales para Nova — ej. &quot;enfócate en el área comercial&quot; o &quot;el mercado meta es PYMES de manufactura&quot;"
+        value={hints[section] ?? ''}
+        onChange={e => setHints(p => ({ ...p, [section]: e.target.value }))}
+      />
+    </div>
+  )
+}
+
 const PAIN_COLOR: Record<string, string> = {
   alto:  'bg-rose-50 text-rose-700 border-rose-200',
   medio: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -56,6 +75,7 @@ export default function BriefConsultorClient({
   const [saving, setSaving]         = useState(false)
   const [uploadName, setUploadName] = useState('')
   const [uploadB64, setUploadB64]   = useState<string | null>(null)
+  const [novaHints, setNovaHints]   = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
   const track: Record<string, { status: 'complete' | 'active' | 'pending' }> = brief?.track_status ?? {}
@@ -93,6 +113,7 @@ export default function BriefConsultorClient({
           caseId, section,
           attachmentBase64: section === 'market_context' ? uploadB64 : undefined,
           attachmentName:   section === 'market_context' ? uploadName : undefined,
+          novaHint: novaHints[section] || undefined,
           ...extra,
         }),
       })
@@ -292,6 +313,7 @@ export default function BriefConsultorClient({
                 {generating === 'module_findings' ? '✦ Analizando…' : '✦ Generar con Nova'}
               </button>
             </div>
+            <NovaHintInput section="module_findings" hints={novaHints} setHints={setNovaHints} />
             <div className="space-y-3">
               {['M1','M2','M3','M4','M5','M6','M7'].map(mod => (
                 <div key={mod}>
@@ -329,6 +351,7 @@ export default function BriefConsultorClient({
                 {generating === 'jtbd' ? '✦ Analizando…' : '✦ Diagnosticar con Nova'}
               </button>
             </div>
+            <NovaHintInput section="jtbd" hints={novaHints} setHints={setNovaHints} />
 
             {jtbdList.length === 0 ? (
               <div className="card p-8 text-center space-y-2">
@@ -505,6 +528,7 @@ export default function BriefConsultorClient({
                 </button>
               </div>
             </div>
+            <NovaHintInput section="segments" hints={novaHints} setHints={setNovaHints} />
 
             {uploadName && (
               <div className="flex items-center gap-2 text-xs bg-accent-soft text-accent px-3 py-2 rounded-lg">
@@ -611,6 +635,7 @@ export default function BriefConsultorClient({
                 {generating === 'priorities' ? '✦ Generando…' : '✦ Generar con Nova'}
               </button>
             </div>
+            <NovaHintInput section="priorities" hints={novaHints} setHints={setNovaHints} />
 
             {priorityList.length === 0 ? (
               <div className="card p-8 text-center text-sm text-muted">
@@ -686,6 +711,8 @@ export default function BriefConsultorClient({
                   </button>
                 </div>
               </div>
+
+              <NovaHintInput section="market_context" hints={novaHints} setHints={setNovaHints} />
 
               {/* Formulario de datos actuales */}
               <div className="bg-surface-2 rounded-xl p-4 space-y-3">
@@ -765,6 +792,7 @@ export default function BriefConsultorClient({
                   {generating === 'executive_summary' ? '✦…' : '✦ Nova'}
                 </button>
               </div>
+              <NovaHintInput section="executive_summary" hints={novaHints} setHints={setNovaHints} />
               <textarea rows={5} className="input-field w-full text-sm resize-none"
                 placeholder="Genera o escribe el resumen ejecutivo…"
                 value={brief?.executive_summary ?? ''}
@@ -789,6 +817,7 @@ export default function BriefConsultorClient({
                       {generating === id ? '✦ Generando…' : `✦ Generar ${label}`}
                     </button>
                   </div>
+                  <NovaHintInput section={id} hints={novaHints} setHints={setNovaHints} />
                   {items.length > 0 ? (
                     <div className="space-y-2">
                       {items.map((item: any, i: number) => (
