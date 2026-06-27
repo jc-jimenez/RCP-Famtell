@@ -188,55 +188,56 @@ export default function RadarClient({ caseId, companyName }: Props) {
     setResults([])
     setPage(1)
 
+    // INEGI devuelve HTTP/1.1 000 (status inválido) — usamos XHR que lo maneja bien
+    // CORS está abierto (Access-Control-Allow-Origin: *) así que llamamos directo al browser
+    const token = process.env.NEXT_PUBLIC_DENUE_TOKEN
+    if (!token) { setError('Token DENUE no configurado (NEXT_PUBLIC_DENUE_TOKEN)'); setLoading(false); return }
+
+    const BASE = 'https://www.inegi.org.mx/app/api/denue/v1/consulta'
+
+    function xhrGet(url: string): Promise<any[]> {
+      return new Promise(resolve => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', url, true)
+        xhr.timeout = 15000
+        xhr.onload = () => {
+          try { const d = JSON.parse(xhr.responseText); resolve(Array.isArray(d) ? d : []) }
+          catch { resolve([]) }
+        }
+        xhr.onerror = () => resolve([])
+        xhr.ontimeout = () => resolve([])
+        xhr.send()
+      })
+    }
+
     if (searchMode === 'nombre') {
-      const params = new URLSearchParams({ mode: 'nombre', keyword, entidad, inicio: '1', fin: String(PAGE_SIZE) })
-      const res = await fetch(`/api/radar/search?${params}`)
-      const json = await res.json()
-      if (!res.ok || json.error) setError(json.error ?? 'Error al buscar')
-      else {
-        setResults(json.results ?? [])
-        if (!json.results?.length) setError('Sin resultados. Prueba con otro término o estado.')
-      }
+      const url = `${BASE}/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/1/${PAGE_SIZE}/${token}`
+      const data = await xhrGet(url)
+      setResults(data)
+      if (!data.length) setError('Sin resultados. Prueba con otro término o estado.')
       setLoading(false)
       return
     }
 
-    // Modo SCIAN: buscar primero solo con el primer código para diagnosticar
-    const firstCode = selectedCodes[0]
-    const testParams = new URLSearchParams({ mode: 'scian', cveAct: firstCode, entidad, estrato, inicio: '1', fin: '20' })
-    const testRes = await fetch(`/api/radar/search?${testParams}`)
-    const testJson = await testRes.json()
-
-    // Si hay error real (no solo vacío), mostrarlo
-    if (!testRes.ok || testJson.error) {
-      setError(testJson.error ?? `Error ${testRes.status} al consultar DENUE`)
-      setLoading(false)
-      return
-    }
-
-    // Buscar todos los códigos en paralelo (máx 5 a la vez)
-    const allResults: Empresa[] = [...(testJson.results ?? [])]
-    const remainingCodes = selectedCodes.slice(1)
+    // Modo SCIAN — buscar en paralelo (máx 5 a la vez)
+    const allResults: Empresa[] = []
     const batches: string[][] = []
-    for (let i = 0; i < remainingCodes.length; i += 5) batches.push(remainingCodes.slice(i, i + 5))
+    for (let i = 0; i < selectedCodes.length; i += 5) batches.push(selectedCodes.slice(i, i + 5))
 
     for (const batch of batches) {
       const fetches = batch.map(code => {
-        const params = new URLSearchParams({ mode: 'scian', cveAct: code, entidad, estrato, inicio: '1', fin: '20' })
-        return fetch(`/api/radar/search?${params}`).then(r => r.json()).catch(() => ({ results: [] }))
+        const url = `${BASE}/BuscarAreaActEcon/${code}/${entidad}/${estrato}/1/20/${token}`
+        return xhrGet(url)
       })
       const responses = await Promise.all(fetches)
-      for (const json of responses) {
-        if (json.results) allResults.push(...json.results)
-      }
+      for (const arr of responses) allResults.push(...arr)
     }
 
     // Deduplicar por Id
     const seen = new Set<string>()
     const unique = allResults.filter(e => { if (seen.has(e.Id)) return false; seen.add(e.Id); return true })
-
     setResults(unique)
-    if (unique.length === 0) setError(`Sin resultados para los sectores seleccionados en ${entidad === '00' ? 'Todo México' : 'el estado seleccionado'}. Prueba con otro estado o amplía la selección.`)
+    if (unique.length === 0) setError('Sin resultados. Ajusta los filtros o selecciona más subsectores.')
     setLoading(false)
   }
 
