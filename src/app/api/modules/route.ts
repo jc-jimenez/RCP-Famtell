@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
-import { MODULE_CREDITS } from '@/lib/credits'
+import { MODULE_CREDITS, deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import type { ModuleCode } from '@/types'
 
@@ -152,16 +152,14 @@ export async function POST(request: Request) {
       .eq('module_code', nextModule)
   }
 
-  // Descontar créditos del account
-  const { data: caseData } = await db.from('cases').select('account_id').eq('id', caseId).single()
+  // Descontar créditos del account (función atómica con check de saldo)
+  const { data: caseData } = await db.from('cases').select('account_id, credits_used').eq('id', caseId).single()
   if (caseData?.account_id) {
-    await db.from('accounts')
-      .update({ credits_used: db.rpc('increment', { x: creditsUsed }) })
-      .eq('id', caseData.account_id)
+    await deductCredits(supabase, caseData.account_id, creditsUsed)
 
-    // También actualizar credits_used del caso
+    // Actualizar credits_used acumulado del caso
     await db.from('cases')
-      .update({ credits_used: db.rpc('increment', { x: creditsUsed }) })
+      .update({ credits_used: (caseData.credits_used ?? 0) + creditsUsed })
       .eq('id', caseId)
   }
 

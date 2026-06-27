@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { MODULE_CREDITS, getAccount, checkCredits } from '@/lib/credits'
 import type { ModuleCode } from '@/types'
 
 // POST — crear o recuperar sesión de un módulo
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
   const db = supabase as any
 
-  // Buscar sesión existente (no completada)
+  // Si ya existe sesión en progreso, retomarla (no cobra créditos)
   const { data: existing } = await db
     .from('sessions')
     .select('*')
@@ -31,6 +32,24 @@ export async function POST(request: Request) {
 
   if (existing) {
     return NextResponse.json({ session: existing, resumed: true })
+  }
+
+  // Sesión nueva: verificar créditos del consultor dueño del caso
+  const { data: caseData } = await db
+    .from('cases')
+    .select('account_id')
+    .eq('id', caseId)
+    .single()
+
+  if (caseData?.account_id) {
+    const cost = MODULE_CREDITS[moduleCode] ?? 10
+    const { ok, remaining } = await checkCredits(supabase, caseData.account_id, cost)
+    if (!ok) {
+      return NextResponse.json(
+        { error: 'Créditos insuficientes', remaining, cost, upgrade_url: '/dashboard/creditos' },
+        { status: 402 },
+      )
+    }
   }
 
   // Crear nueva sesión

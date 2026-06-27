@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/components/shared/AppShell'
 import NovaChat from '@/components/shared/NovaChat'
+import { MODULE_CREDITS } from '@/lib/credits'
 import type { ChatMessage, ModuleCode } from '@/types'
 
 interface Props {
@@ -49,6 +50,7 @@ export default function ModuleStartClient({
   const [sessionId, setSessionId] = useState<string | null>(existingSessionId)
   const [starting, setStarting] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
+  const [noCredits, setNoCredits] = useState(false)
 
   const backHref = userRole === 'collaborator' ? '/mis-modulos' : `/caso/${caseId}`
 
@@ -59,6 +61,11 @@ export default function ModuleStartClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ caseId, moduleCode }),
     })
+    if (res.status === 402) {
+      setNoCredits(true)
+      setStarting(false)
+      return
+    }
     const data = await res.json()
     if (data.session?.id) {
       setSessionId(data.session.id)
@@ -174,14 +181,27 @@ export default function ModuleStartClient({
           </ul>
         </div>
 
-        {/* CTA */}
-        <button
-          onClick={handleStart}
-          disabled={starting}
-          className="btn-primary w-full px-6 py-4"
-        >
-          {starting ? 'Iniciando…' : `Comenzar ${label}`}
-        </button>
+        {/* Sin créditos */}
+        {noCredits ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3 text-center">
+            <p className="text-2xl">⚠️</p>
+            <p className="text-sm font-semibold text-amber-800">Créditos insuficientes</p>
+            <p className="text-xs text-amber-700">
+              Necesitas al menos {MODULE_CREDITS[moduleCode] ?? 10} créditos para iniciar este módulo.
+            </p>
+            <a href="/dashboard/creditos" className="btn-primary inline-block text-sm px-5 py-2.5">
+              Ver plan y créditos →
+            </a>
+          </div>
+        ) : (
+          <button
+            onClick={handleStart}
+            disabled={starting}
+            className="btn-primary w-full px-6 py-4"
+          >
+            {starting ? 'Iniciando…' : `Comenzar ${label}`}
+          </button>
+        )}
 
         {/* Voces del equipo — solo visible para director/consultor en M6 */}
         {collaboratorVoices.length > 0 && userRole !== 'collaborator' && (

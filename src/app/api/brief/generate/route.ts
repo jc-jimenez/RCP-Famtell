@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
+import { CREDIT_COSTS, deductCreditsByEmail } from '@/lib/credits'
 
 export const runtime = 'nodejs'
 
@@ -300,6 +301,15 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
 
   const systemPrompt = prompts[section]
   if (!systemPrompt) return NextResponse.json({ error: 'Sección inválida' }, { status: 400 })
+
+  // Descontar créditos (2 por sección generada)
+  const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.BRIEF_SECTION)
+  if (!credit.success) {
+    return NextResponse.json(
+      { error: credit.error, upgrade_url: '/dashboard/creditos' },
+      { status: 402 },
+    )
+  }
 
   type ContentBlock = { type: string; [key: string]: unknown }
   const contentBlocks: ContentBlock[] = []

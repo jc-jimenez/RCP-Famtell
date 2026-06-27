@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
+import { CREDIT_COSTS, deductCreditsByEmail } from '@/lib/credits'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -36,6 +37,15 @@ export async function POST(request: Request) {
   }
 
   const db = supabase as any
+
+  // Verificar y descontar créditos (3 por check-in)
+  const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.WEEKLY_CHECKIN)
+  if (!credit.success) {
+    return NextResponse.json(
+      { error: credit.error, upgrade_url: '/dashboard/creditos' },
+      { status: 402 },
+    )
+  }
 
   // Generar análisis de Nova
   let aiAnalysis: string | null = null
