@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { detectUserRole, getRoleRedirect } from '@/lib/utils/role-detection'
 
 // Rutas públicas que no requieren auth
-const PUBLIC_PATHS = ['/login', '/activar', '/recuperar', '/api/auth', '/api/invitations']
+const PUBLIC_PATHS = ['/login', '/registro', '/activar', '/recuperar', '/api/auth', '/api/invitations', '/api/registro', '/portal']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
 
   // Sin sesión → login
   if (!session) {
-    const loginUrl = request.nextUrl.clone()
+      const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
   }

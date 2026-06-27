@@ -96,7 +96,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-5 pt-5 border-t border-subtle text-center">
+          <div className="mt-5 pt-5 border-t border-subtle space-y-3 text-center">
+            <p className="text-sm text-muted">
+              ¿Eres consultor nuevo?{' '}
+              <a href="/registro" className="text-accent font-semibold hover:underline">
+                Crear cuenta gratis →
+              </a>
+            </p>
             <p className="text-xs text-muted">
               ¿Tienes un link de invitación?{' '}
               <a href="/recuperar" className="text-accent font-medium hover:underline">Úsalo aquí</a>
