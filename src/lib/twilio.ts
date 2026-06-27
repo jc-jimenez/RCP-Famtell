@@ -10,7 +10,9 @@ export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
 
   const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+
+  // btoa funciona en Edge y Node.js (no Buffer)
+  const credentials = btoa(`${accountSid}:${authToken}`)
 
   try {
     const res = await fetch(url, {
@@ -24,7 +26,7 @@ export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('[twilio] API error:', res.status, err)
+      console.error('[twilio] API error:', res.status, err.slice(0, 300))
       return false
     }
     return true
