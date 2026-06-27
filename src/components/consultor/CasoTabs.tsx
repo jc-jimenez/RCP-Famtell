@@ -15,6 +15,7 @@ const TABS: Tab[] = [
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
   { id: 'crm',         label: 'CRM',          external: true },
+  { id: 'radar',       label: 'Radar',        external: true },
   { id: 'propuestas',  label: 'Propuestas',   external: true },
   { id: 'tarifas',     label: 'Tarifas',      external: true },
   { id: 'capacidad',   label: 'Capacidad',    external: true },
