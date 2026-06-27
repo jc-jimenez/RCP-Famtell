@@ -26,12 +26,7 @@ export async function GET(request: Request) {
     if (!cveAct.trim()) return NextResponse.json({ results: [] })
     // BuscarAreaActEcon/{cve_act}/{entidad}/{estrato}/{inicio}/{fin}/{token}
     // estrato: 0=todos, 1=micro, 2=pequeña, 3=mediana, 4=grande
-    // Cuando estrato=0 usar endpoint sin estrato
-    if (estrato === '0') {
-      url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${inicio}/${fin}/${token}`
-    } else {
-      url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${estrato}/${inicio}/${fin}/${token}`
-    }
+    url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${estrato}/${inicio}/${fin}/${token}`
   }
 
   console.log('[radar] GET', url.replace(token, 'TOKEN'))
@@ -47,7 +42,12 @@ export async function GET(request: Request) {
       const text = await res.text()
       return NextResponse.json({ error: `DENUE respondió ${res.status}: ${text.slice(0, 100)}`, results: [] }, { status: 502 })
     }
-    const data = await res.json()
+    const text = await res.text()
+    let data: any
+    try { data = JSON.parse(text) } catch {
+      // DENUE a veces devuelve texto plano en errores
+      return NextResponse.json({ error: `DENUE respuesta no JSON: ${text.slice(0, 150)}`, results: [] }, { status: 502 })
+    }
     return NextResponse.json({ results: Array.isArray(data) ? data : [] })
   } catch (e: any) {
     return NextResponse.json({

@@ -201,10 +201,24 @@ export default function RadarClient({ caseId, companyName }: Props) {
       return
     }
 
-    // Modo SCIAN: buscar cada código seleccionado en paralelo (máx 5 a la vez)
-    const allResults: Empresa[] = []
+    // Modo SCIAN: buscar primero solo con el primer código para diagnosticar
+    const firstCode = selectedCodes[0]
+    const testParams = new URLSearchParams({ mode: 'scian', cveAct: firstCode, entidad, estrato, inicio: '1', fin: '20' })
+    const testRes = await fetch(`/api/radar/search?${testParams}`)
+    const testJson = await testRes.json()
+
+    // Si hay error real (no solo vacío), mostrarlo
+    if (!testRes.ok || testJson.error) {
+      setError(testJson.error ?? `Error ${testRes.status} al consultar DENUE`)
+      setLoading(false)
+      return
+    }
+
+    // Buscar todos los códigos en paralelo (máx 5 a la vez)
+    const allResults: Empresa[] = [...(testJson.results ?? [])]
+    const remainingCodes = selectedCodes.slice(1)
     const batches: string[][] = []
-    for (let i = 0; i < selectedCodes.length; i += 5) batches.push(selectedCodes.slice(i, i + 5))
+    for (let i = 0; i < remainingCodes.length; i += 5) batches.push(remainingCodes.slice(i, i + 5))
 
     for (const batch of batches) {
       const fetches = batch.map(code => {
@@ -222,7 +236,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
     const unique = allResults.filter(e => { if (seen.has(e.Id)) return false; seen.add(e.Id); return true })
 
     setResults(unique)
-    if (unique.length === 0) setError('Sin resultados. Ajusta los filtros o selecciona más subsectores.')
+    if (unique.length === 0) setError(`Sin resultados para los sectores seleccionados en ${entidad === '00' ? 'Todo México' : 'el estado seleccionado'}. Prueba con otro estado o amplía la selección.`)
     setLoading(false)
   }
 
