@@ -1,10 +1,9 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
-import AppShell from '@/components/shared/AppShell'
-import BriefGeneratorClient from './BriefGeneratorClient'
+import BriefConsultorClient from './BriefConsultorClient'
+import BriefDirectorClient from './BriefDirectorClient'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -20,12 +19,11 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
     .eq('id', id)
     .single()
 
-  if (!caseData) redirect('/dashboard')
+  if (!caseData) redirect('/login')
 
-  // Verificar si el usuario tiene acceso (consultor o directivo del caso)
   const { data: account } = await db
     .from('accounts')
-    .select('id, credits_total, credits_used')
+    .select('id')
     .eq('email', session.user.email)
     .maybeSingle()
 
@@ -36,42 +34,59 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  const isConsultant = account && caseData.account_id === account.id
+  const isConsultant = !!(account && caseData.account_id === account.id)
   const isDirector = caseUser?.role === 'director'
   if (!isConsultant && !isDirector) redirect('/login')
 
-  // Brief más reciente
+  // Cargar brief de la nueva tabla
   const { data: brief } = await db
-    .from('briefs')
+    .from('brief_documents')
     .select('*')
     .eq('case_id', id)
-    .eq('brief_type', 'diagnostic')
-    .order('version', { ascending: false })
-    .limit(1)
     .maybeSingle()
 
-  // Contar módulos completados
-  const { data: modules } = await db
-    .from('modules')
-    .select('status')
+  // Señales IER
+  const { data: signals } = await db
+    .from('agenda_signals')
+    .select('module_code, signal_type, signal_text')
     .eq('case_id', id)
 
-  const completedCount = (modules ?? []).filter((m: any) => m.status === 'completed').length
+  const ierCounts = { blue: 0, yellow: 0, red: 0 }
+  ;(signals ?? []).forEach((s: any) => ierCounts[s.signal_type as keyof typeof ierCounts]++)
 
-  return (
-    <AppShell
-      role={isConsultant ? 'consultant' : 'director'}
-      email={session.user.email!}
-      caseCompanyName={caseData.company_name}
-    >
-      <BriefGeneratorClient
+  if (isConsultant) {
+    return (
+      <BriefConsultorClient
         caseId={id}
         companyName={caseData.company_name}
-        existingBrief={brief ?? null}
-        completedModules={completedCount}
-        canGenerate={isConsultant}
-        creditsRemaining={account ? account.credits_total - account.credits_used : 0}
+        industry={caseData.industry ?? '3PL / Logística'}
+        email={session.user.email!}
+        initialBrief={brief ?? null}
+        ierCounts={ierCounts}
       />
-    </AppShell>
+    )
+  }
+
+  // Director — solo puede ver el brief si está publicado
+  if (!brief || brief.status !== 'published') {
+    return (
+      <BriefDirectorClient
+        caseId={id}
+        companyName={caseData.company_name}
+        email={session.user.email!}
+        brief={null}
+        role="director"
+      />
+    )
+  }
+
+  return (
+    <BriefDirectorClient
+      caseId={id}
+      companyName={caseData.company_name}
+      email={session.user.email!}
+      brief={brief}
+      role="director"
+    />
   )
 }
