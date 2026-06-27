@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 
-type Step = 'datos' | 'whatsapp' | 'listo'
+type Step = 'datos' | 'whatsapp' | 'revisa-correo' | 'listo'
 
 const PRIVACY_TEXT = `GoNextSales S.A. de C.V. ("RCP.ai") recopila tu nombre, correo electrónico, teléfono y empresa para brindar el servicio de diagnóstico empresarial con IA, enviarte comunicaciones relacionadas con tu cuenta y —con tu consentimiento— información comercial y campañas de marketing del producto por correo electrónico y WhatsApp. Puedes cancelar estas comunicaciones en cualquier momento. Tus datos se almacenan en servidores seguros y no se comparten con terceros sin tu consentimiento, salvo obligación legal. Al registrarte aceptas estos términos.`
 
@@ -81,7 +81,14 @@ export default function RegistroPage() {
       return
     }
 
-    // Iniciar sesión automáticamente
+    // WhatsApp verificado pero email pendiente
+    if (json.pendingEmail) {
+      setLoading(false)
+      setStep('revisa-correo')
+      return
+    }
+
+    // Ambos verificados → iniciar sesión
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signInWithPassword({ email, password })
 
@@ -102,7 +109,30 @@ export default function RegistroPage() {
     setError('Código reenviado. Revisa tu WhatsApp.')
   }
 
-  // ── Paso 3: listo ───────────────────────────────────────────────────────────
+  // ── Paso 3: revisa correo ───────────────────────────────────────────────────
+  if (step === 'revisa-correo') {
+    return (
+      <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="text-5xl mb-6">📬</div>
+          <h1 className="text-2xl font-bold text-ink mb-3">Revisa tu correo</h1>
+          <p className="text-muted mb-2 leading-relaxed">
+            WhatsApp verificado. Enviamos un enlace de verificación a:
+          </p>
+          <p className="text-ink font-semibold mb-6">{email}</p>
+          <p className="text-sm text-muted mb-8">
+            Haz clic en el enlace del correo para activar tu cuenta con 100 créditos.
+            Revisa también tu carpeta de spam.
+          </p>
+          <a href="/login" className="text-accent text-sm hover:underline">
+            Ya verifiqué mi correo → Iniciar sesión
+          </a>
+        </div>
+      </main>
+    )
+  }
+
+  // ── Paso 4: listo ───────────────────────────────────────────────────────────
   if (step === 'listo') {
     return (
       <main className="min-h-screen bg-canvas flex items-center justify-center p-6">

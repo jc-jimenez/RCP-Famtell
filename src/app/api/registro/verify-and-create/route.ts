@@ -13,7 +13,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Error de configuración' }, { status: 500 })
   }
 
-  // Buscar registro pendiente
   const { data: pending, error: fetchErr } = await (admin as any)
     .from('pending_registrations')
     .select('*')
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se encontró un registro pendiente para este correo' }, { status: 404 })
   }
 
-  // Validar código
+  // Validar código WhatsApp
   if (pending.whatsapp_code !== code) {
     return NextResponse.json({ error: 'Código incorrecto' }, { status: 400 })
   }
@@ -33,9 +32,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'El código ha expirado. Solicita uno nuevo.' }, { status: 400 })
   }
 
-  // Crear usuario en Supabase Auth (con email_confirm: true — ya verificamos por WhatsApp)
-  const { data: authData, error: authErr } = await (admin as any).auth.admin.createUser({
-    email,
+  // Marcar WhatsApp como verificado
+  await (admin as any)
+    .from('pending_registrations')
+    .update({ whatsapp_verified: true })
+    .eq('email', email)
+
+  // Verificar si el email ya fue verificado
+  if (!pending.email_verified) {
+    return NextResponse.json({
+      ok: false,
+      pendingEmail: true,
+      message: 'WhatsApp verificado. Revisa tu correo y haz clic en el enlace de verificación para activar tu cuenta.',
+    })
+  }
+
+  // Ambos verificados → crear cuenta
+  return await createAccount(admin, pending, password)
+}
+
+async function createAccount(admin: any, pending: any, password: string) {
+  const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+    email: pending.email,
     password,
     email_confirm: true,
     user_metadata: {
@@ -53,25 +71,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: authErr?.message ?? 'No se pudo crear el usuario' }, { status: 500 })
   }
 
-  // Crear cuenta con 100 créditos de bienvenida
-  const { error: accountErr } = await (admin as any)
-    .from('accounts')
-    .insert({
-      email,
-      company_name: pending.empresa,
-      plan_id: 'starter',
-      credits_total: 100,
-      credits_used: 0,
-      status: 'active',
-    })
-
-  if (accountErr) {
-    console.error('[registro/verify-and-create] account insert error:', accountErr)
-    // No bloqueamos — la cuenta puede crearse después
-  }
+  await admin.from('accounts').insert({
+    email: pending.email,
+    company_name: pending.empresa,
+    plan_id: 'starter',
+    credits_total: 100,
+    credits_used: 0,
+    status: 'active',
+  })
 
   // Limpiar registro pendiente
-  await (admin as any).from('pending_registrations').delete().eq('email', email)
+  await admin.from('pending_registrations').delete().eq('email', pending.email)
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, activated: true })
 }
