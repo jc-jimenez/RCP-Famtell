@@ -68,7 +68,9 @@ export default function CRMClient({ caseId, companyName, initialContacts }: Prop
   const [showModal, setShowModal] = useState(false)
   const [editContact, setEditContact] = useState<Contact | null>(null)
   const [saving, setSaving] = useState(false)
-  const [dragging, setDragging] = useState<string | null>(null)
+  const [dragging, setDragging]   = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
 
   const [form, setForm] = useState({
     name: '', company: '', role: '', email: '', phone: '',
@@ -132,6 +134,26 @@ export default function CRMClient({ caseId, companyName, initialContacts }: Prop
     setShowModal(false)
   }
 
+  async function importFromM3() {
+    setImporting(true)
+    setImportMsg('')
+    try {
+      const res = await fetch('/api/contacts/import-m3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setImportMsg(data.error ?? 'Error al importar'); return }
+      if (data.imported === 0) { setImportMsg('No se encontraron contactos en M3'); return }
+      setContacts(prev => [...prev, ...data.contacts])
+      setImportMsg(`✓ ${data.imported} contactos importados desde M3`)
+    } finally {
+      setImporting(false)
+      setTimeout(() => setImportMsg(''), 4000)
+    }
+  }
+
   async function moveStage(contactId: string, stage: Stage) {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, pipeline_stage: stage } : c))
     await fetch('/api/contacts', {
@@ -165,9 +187,18 @@ export default function CRMClient({ caseId, companyName, initialContacts }: Prop
                 </button>
               ))}
             </div>
+            <button onClick={importFromM3} disabled={importing} className="btn-secondary text-sm disabled:opacity-50">
+              {importing ? '✦ Importando…' : '⬇ Importar M3'}
+            </button>
             <button onClick={openNew} className="btn-primary text-sm">+ Contacto</button>
           </div>
         </div>
+
+        {importMsg && (
+          <p className={`text-sm px-4 py-2 rounded-xl ${importMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+            {importMsg}
+          </p>
+        )}
 
         {/* Métricas rápidas */}
         <div className="grid grid-cols-3 gap-3">
