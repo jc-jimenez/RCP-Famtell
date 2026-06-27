@@ -157,6 +157,7 @@ export default function BriefConsultorClient({
   }
 
   const isPublished       = brief?.status === 'published'
+  const [mktData, setMktData] = useState<Record<string, string>>(initialBrief?.market_data_inputs ?? {})
   const jtbdList          = brief?.jtbd ?? []           // campo BD se llama 'jtbd', en UI = Diagnósticos Clave
   const jtbdComercialList = brief?.jtbd_comercial ?? []
   const segmentList       = brief?.segments ?? []
@@ -665,21 +666,94 @@ export default function BriefConsultorClient({
             <h2 className="text-base font-semibold text-ink">Planes de acción</h2>
 
             {/* Contexto de mercado */}
-            <div className="card p-4 space-y-3">
+            <div className="card p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-ink">Contexto de mercado</h3>
+                <div>
+                  <h3 className="text-sm font-medium text-ink">Contexto de mercado</h3>
+                  <p className="text-xs text-muted mt-0.5">Ingresa los datos actuales — Nova los usará como fuente de verdad</p>
+                </div>
                 <div className="flex gap-2">
-                  <button onClick={() => fileRef.current?.click()} className="btn-secondary text-xs px-2 py-1">📎</button>
+                  <button onClick={() => fileRef.current?.click()} className="btn-secondary text-xs px-2 py-1" title="Subir estudio de mercado PDF">📎 Estudio</button>
                   <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
-                  <button onClick={() => generate('market_context')} disabled={!!generating}
-                    className="btn-secondary text-xs px-2 py-1 disabled:opacity-50">
-                    {generating === 'market_context' ? '✦…' : '✦ Nova'}
+                  <button
+                    onClick={() => {
+                      setBrief((p: any) => ({ ...p, market_data_inputs: mktData }))
+                      generate('market_context', { marketData: mktData })
+                    }}
+                    disabled={!!generating}
+                    className="btn-primary text-xs px-3 py-1 disabled:opacity-50">
+                    {generating === 'market_context' ? '✦ Generando…' : '✦ Generar con Nova'}
                   </button>
                 </div>
               </div>
-              {brief?.market_context?.macro
-                ? <p className="text-xs text-ink leading-relaxed">{brief.market_context.macro}</p>
-                : <p className="text-xs text-muted">Genera el contexto de mercado para anclar los planes.</p>}
+
+              {/* Formulario de datos actuales */}
+              <div className="bg-surface-2 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide">Datos actuales confirmados</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'tipo_cambio',    label: 'Tipo de cambio',        placeholder: 'Ej. 17.80 MXN/USD' },
+                    { key: 'tasa_banxico',   label: 'Tasa Banxico',          placeholder: 'Ej. 10.00%' },
+                    { key: 'inflacion',      label: 'Inflación actual',       placeholder: 'Ej. 4.5% anual' },
+                    { key: 'pib',            label: 'Crecimiento PIB est.',   placeholder: 'Ej. 1.2% 2025' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label className="text-xs text-muted block mb-1">{label}</label>
+                      <input
+                        type="text"
+                        className="input-field w-full text-sm"
+                        placeholder={placeholder}
+                        value={mktData[key] ?? ''}
+                        onChange={e => setMktData(p => ({ ...p, [key]: e.target.value }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className="text-xs text-muted block mb-1">Tendencia clave del sector ({industry})</label>
+                  <input
+                    type="text"
+                    className="input-field w-full text-sm"
+                    placeholder="Ej. Crecimiento del nearshoring impulsa demanda logística en corredor CTT"
+                    value={mktData.tendencia_sector ?? ''}
+                    onChange={e => setMktData(p => ({ ...p, tendencia_sector: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted block mb-1">Contexto adicional (oportunidades, riesgos, regulación)</label>
+                  <textarea
+                    rows={2}
+                    className="input-field w-full text-sm resize-none"
+                    placeholder="Cualquier dato relevante que Nova debe considerar para este sector y momento…"
+                    value={mktData.contexto_extra ?? ''}
+                    onChange={e => setMktData(p => ({ ...p, contexto_extra: e.target.value }))}
+                  />
+                </div>
+                {uploadName && (
+                  <div className="flex items-center gap-2 text-xs bg-accent-soft text-accent px-3 py-1.5 rounded-lg">
+                    📄 {uploadName}
+                    <button onClick={() => { setUploadName(''); setUploadB64(null) }} className="ml-auto text-faint hover:text-rose-500">✕</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Resultado generado */}
+              {brief?.market_context?.macro && (
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide">Análisis generado por Nova</p>
+                  <p className="text-xs text-ink leading-relaxed">{brief.market_context.macro}</p>
+                  {brief.market_context.short_term && (
+                    <p className="text-xs text-muted leading-relaxed border-t border-subtle pt-2">{brief.market_context.short_term}</p>
+                  )}
+                  {brief.market_context.opportunities?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {brief.market_context.opportunities.map((o: string, i: number) => (
+                        <span key={i} className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">{o}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Resumen ejecutivo */}

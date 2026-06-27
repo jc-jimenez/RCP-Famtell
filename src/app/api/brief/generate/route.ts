@@ -23,11 +23,12 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, section, attachmentBase64, attachmentName } = await request.json() as {
+  const { caseId, section, attachmentBase64, attachmentName, marketData } = await request.json() as {
     caseId: string
     section: Section
     attachmentBase64?: string
     attachmentName?: string
+    marketData?: Record<string, string>
   }
 
   const db = supabase as any
@@ -255,22 +256,46 @@ IER: ${ierSummary}
   "M7": "Síntesis..."
 }`,
 
-    market_context: `Eres un analista estratégico experto en el sector ${sector} en México.
+    market_context: (() => {
+      const hasMktData = marketData && Object.values(marketData).some(v => v?.trim())
+      const datosActuales = hasMktData ? `
+⚠️ DATOS ACTUALES CONFIRMADOS POR EL CONSULTOR — ÚSALOS COMO FUENTE DE VERDAD, no uses datos de tu entrenamiento para estos valores:
+${marketData!.tipo_cambio   ? `• Tipo de cambio: ${marketData!.tipo_cambio}` : ''}
+${marketData!.tasa_banxico  ? `• Tasa de interés Banxico: ${marketData!.tasa_banxico}` : ''}
+${marketData!.inflacion     ? `• Inflación: ${marketData!.inflacion}` : ''}
+${marketData!.pib           ? `• Crecimiento PIB estimado: ${marketData!.pib}` : ''}
+${marketData!.tendencia_sector ? `• Tendencia clave del sector: ${marketData!.tendencia_sector}` : ''}
+${marketData!.contexto_extra   ? `• Contexto adicional: ${marketData!.contexto_extra}` : ''}
+`.trim() : `IMPORTANTE: No tienes datos actuales confirmados por el consultor. Usa tu mejor conocimiento del sector ${sector} en México e INDICA EXPLÍCITAMENTE en el campo "sources" que los datos son estimaciones basadas en tu entrenamiento y deben ser verificados.`
 
-Genera un análisis de contexto de mercado actualizado para ${company}.
-${attachmentBase64 ? `Se adjunta un estudio especializado: ${attachmentName}. Úsalo como fuente principal.` : ''}
+      return `Eres un analista estratégico experto en el sector ${sector} en México.
+
+Genera un análisis de contexto de mercado para ${company} (${sector}).
+${attachmentBase64 ? `Se adjunta un estudio especializado: ${attachmentName}. Úsalo como fuente primaria de datos.` : ''}
+
+${datosActuales}
+
+Con base en estos datos, redacta un análisis estructurado que incluya:
+- macro: entorno macroeconómico actual (2-3 oraciones con los datos confirmados)
+- short_term: perspectiva 0-12 meses para ${sector} en México
+- mid_term: perspectiva 1-3 años
+- long_term: perspectiva 3-5 años
+- opportunities: 3-5 oportunidades concretas para ${company} en este contexto
+- risks: 3 riesgos principales a monitorear
+- sources: indica si los datos vienen de los datos confirmados por el consultor, del PDF adjunto, o de tu conocimiento de entrenamiento
 
 ÚNICAMENTE JSON:
 {
   "sector": "${sector}",
-  "macro": "Entorno macroeconómico actual: inflación, tipo de cambio, PIB, nearshoring...",
-  "short_term": "Perspectiva 0-12 meses para ${sector}...",
-  "mid_term": "Perspectiva 1-3 años...",
-  "long_term": "Perspectiva 3-5 años...",
-  "opportunities": ["oportunidad 1", "oportunidad 2", "oportunidad 3", "oportunidad 4"],
-  "risks": ["riesgo 1", "riesgo 2", "riesgo 3"],
-  "sources": ["fuente utilizada"]
-}`,
+  "macro": "...",
+  "short_term": "...",
+  "mid_term": "...",
+  "long_term": "...",
+  "opportunities": ["...", "..."],
+  "risks": ["...", "..."],
+  "sources": ["Datos actuales confirmados por consultor", "..."]
+}`
+    })(),
 
     executive_summary: `Redacta un resumen ejecutivo profesional para el Brief de Cierre de ${company} (${sector}).
 
