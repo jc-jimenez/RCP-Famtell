@@ -35,7 +35,7 @@ export default async function CatalogoAdminPage() {
   }))
 
   return (
-    <AppShell role="admin" email={session.user.email!}>
+    <AppShell role="super_admin" email={session.user.email!}>
       <CatalogoAdminClient initialModules={sorted} />
     </AppShell>
   )
