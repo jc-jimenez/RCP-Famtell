@@ -1,9 +1,77 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { MODULE_CREDITS } from '@/lib/credits'
+import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import type { ModuleCode } from '@/types'
 
 const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
+
+async function extractAndSaveContacts(db: any, caseId: string, sessionId: string) {
+  const { data: sess } = await db.from('sessions').select('messages').eq('id', sessionId).single()
+  if (!sess?.messages?.length) return
+
+  const transcript = (sess.messages as any[])
+    .map((m: any) => `[${m.role === 'user' ? 'Directivo' : 'Nova'}]: ${m.content}`)
+    .join('\n')
+
+  const response = await anthropic.messages.create({
+    model: NOVA_MODEL,
+    max_tokens: 2000,
+    system: `Eres un asistente que extrae contactos clave de transcripciones de entrevistas empresariales.
+
+Analiza la transcripción del módulo M3 (Base de Contactos) y extrae hasta 30 contactos mencionados.
+Para cada contacto incluye toda la información disponible en la conversación.
+
+Tipos: cliente_actual, cliente_potencial, proveedor, aliado, competidor, referido, otro
+
+Responde ÚNICAMENTE con JSON array:
+[{
+  "name": "Nombre completo o empresa",
+  "email": null,
+  "phone": null,
+  "company": "Empresa donde trabaja (si es persona)",
+  "job_title": "Cargo",
+  "contact_type": "cliente_actual",
+  "notes": "Contexto mencionado en la entrevista",
+  "priority": "alta|media|baja",
+  "pipeline_stage": "lead"
+}]`,
+    messages: [{ role: 'user', content: `Transcripción M3:\n\n${transcript}` }],
+  })
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  const match = text.match(/\[[\s\S]*\]/)
+  if (!match) return
+
+  const contacts = JSON.parse(match[0]) as any[]
+  if (!contacts.length) return
+
+  // Evitar duplicados: sólo insertar si no hay contactos ya
+  const { count } = await db.from('contacts').select('id', { count: 'exact', head: true }).eq('case_id', caseId)
+  if ((count ?? 0) > 0) return
+
+  const TYPE_MAP: Record<string, string> = {
+    cliente_actual: 'client', cliente_potencial: 'prospect',
+    proveedor: 'supplier', aliado: 'partner',
+    competidor: 'other', referido: 'prospect', otro: 'other',
+  }
+  const PROB_MAP: Record<string, string> = { alta: 'high', media: 'medium', baja: 'low' }
+
+  const toInsert = contacts.map((c: any) => ({
+    case_id: caseId,
+    name: c.name ?? 'Sin nombre',
+    email: c.email ?? null,
+    phone: c.phone ?? null,
+    company: c.company ?? null,
+    role: c.job_title ?? null,
+    relationship_type: TYPE_MAP[c.contact_type] ?? 'other',
+    notes: c.notes ?? null,
+    close_probability: PROB_MAP[c.priority] ?? 'medium',
+    pipeline_stage: 'pending',
+  }))
+
+  await db.from('contacts').insert(toInsert)
+}
 
 // GET /api/modules?caseId=xxx — listar módulos del caso con estado
 export async function GET(request: Request) {
@@ -95,6 +163,11 @@ export async function POST(request: Request) {
     await db.from('cases')
       .update({ credits_used: db.rpc('increment', { x: creditsUsed }) })
       .eq('id', caseId)
+  }
+
+  // M3: extraer contactos de la transcripción y poblar el CRM
+  if (moduleCode === 'M3' && sessionId) {
+    extractAndSaveContacts(db, caseId, sessionId).catch(() => {})
   }
 
   return NextResponse.json({ ok: true, unlockedNext: currentIndex < MODULE_ORDER.length - 1 })
