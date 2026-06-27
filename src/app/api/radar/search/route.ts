@@ -21,17 +21,25 @@ export async function GET(request: Request) {
 
   const url = `${DENUE_BASE}/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/${inicio}/${fin}/${token}`
 
+  console.log('[radar] fetching:', url.replace(token, 'TOKEN'))
+
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } })
+    const res = await fetch(url, {
+      next: { revalidate: 300 },
+      headers: { 'Accept': 'application/json' },
+    })
     if (!res.ok) {
       const text = await res.text()
-      console.error('[radar] DENUE error:', text)
-      return NextResponse.json({ error: 'Error al consultar DENUE', results: [] }, { status: 502 })
+      console.error('[radar] DENUE HTTP error:', res.status, text.slice(0, 200))
+      return NextResponse.json({ error: `DENUE respondió ${res.status}`, results: [] }, { status: 502 })
     }
     const data = await res.json()
     return NextResponse.json({ results: Array.isArray(data) ? data : [] })
   } catch (e: any) {
-    console.error('[radar] fetch error:', e)
-    return NextResponse.json({ error: e.message, results: [] }, { status: 500 })
+    console.error('[radar] fetch error:', e?.cause ?? e)
+    return NextResponse.json({
+      error: `Error de red al consultar DENUE: ${e?.cause?.code ?? e?.message ?? 'desconocido'}`,
+      results: [],
+    }, { status: 500 })
   }
 }
