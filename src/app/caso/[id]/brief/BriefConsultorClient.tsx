@@ -21,7 +21,8 @@ const STEPS = [
   { id: 'interviews',    label: 'Entrevistas',    desc: 'Módulos con sesiones completadas' },
   { id: 'levantamiento', label: 'Levantamiento',  desc: 'Los 7 módulos completados' },
   { id: 'analisis',      label: 'Análisis',       desc: 'Hallazgos M1-M7 generados' },
-  { id: 'jtbd',          label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
+  { id: 'jtbd',           label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
+  { id: 'jtbd_comercial', label: 'JTBD Comercial', desc: 'Jobs de clientes validados' },
   { id: 'segmentos',     label: 'Segmentos',      desc: 'Segmentos validados y priorizados' },
   { id: 'diagnostico',   label: 'Diagnóstico',    desc: 'Líneas prioritarias aprobadas' },
   { id: 'plan',          label: 'Plan',           desc: 'Planes 90d/6m/1a/3a generados' },
@@ -155,13 +156,15 @@ export default function BriefConsultorClient({
     reader.readAsDataURL(file)
   }
 
-  const isPublished  = brief?.status === 'published'
-  const jtbdList     = brief?.jtbd ?? []   // campo BD se llama 'jtbd', en UI = Diagnósticos Clave
-  const segmentList  = brief?.segments ?? []
-  const priorityList = brief?.priorities ?? []
-  const approvedJtbd = jtbdList.filter((j: any) => j.approved).length  // aprobados por consultor
-  const approvedSegs = segmentList.filter((s: any) => s.approved).length
-  const approvedPris = priorityList.filter((p: any) => p.approved).length
+  const isPublished       = brief?.status === 'published'
+  const jtbdList          = brief?.jtbd ?? []           // campo BD se llama 'jtbd', en UI = Diagnósticos Clave
+  const jtbdComercialList = brief?.jtbd_comercial ?? []
+  const segmentList       = brief?.segments ?? []
+  const priorityList      = brief?.priorities ?? []
+  const approvedJtbd  = jtbdList.filter((j: any) => j.approved).length
+  const approvedJtbdC = jtbdComercialList.filter((j: any) => j.approved).length
+  const approvedSegs  = segmentList.filter((s: any) => s.approved).length
+  const approvedPris  = priorityList.filter((p: any) => p.approved).length
 
   return (
     <AppShell role="consultant" email={email} caseCompanyName={companyName} tabBar={<CasoTabs caseId={caseId} activeTab="brief" />}>
@@ -389,6 +392,93 @@ export default function BriefConsultorClient({
                 </button>
                 <button onClick={() => approveStep('jtbd')} className="btn-primary text-sm px-4 py-2">
                   Confirmar {approvedJtbd} diagnósticos y continuar →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Etapa: JTBD Comercial ── */}
+        {activeStep === 'jtbd_comercial' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-ink">JTBD Comerciales</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Jobs que los clientes contratan a {companyName} · {approvedJtbdC} de {jtbdComercialList.length} aprobados
+                </p>
+              </div>
+              <button onClick={() => generate('jtbd_comercial')} disabled={!!generating}
+                className="btn-primary text-xs px-3 py-2 disabled:opacity-50">
+                {generating === 'jtbd_comercial' ? '✦ Identificando…' : '✦ Identificar con Nova'}
+              </button>
+            </div>
+
+            {jtbdComercialList.length === 0 ? (
+              <div className="card p-8 text-center space-y-2">
+                <p className="text-sm text-muted">
+                  Nova leerá las transcripciones de M1 y M3 para identificar los trabajos que los clientes contratan a {companyName}: qué situación los lleva a buscar un 3PL, qué necesitan lograr y qué resultado esperan.
+                </p>
+                <p className="text-xs text-faint">Formato: "Cuando tengo [situación], necesito [job], para [resultado esperado]"</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {jtbdComercialList.map((j: any) => (
+                  <div key={j.id} className={`card p-4 space-y-3 transition-all ${j.approved ? 'border-emerald-200 bg-emerald-50/30' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <button onClick={() => toggleApproveItem('jtbd_comercial', j.id)}
+                        className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center text-xs transition-colors ${
+                          j.approved ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-subtle hover:border-emerald-400'
+                        }`}>
+                        {j.approved ? '✓' : ''}
+                      </button>
+                      <div className="flex-1 space-y-2">
+                        <textarea rows={2} className="input-field w-full text-sm resize-none font-medium"
+                          value={j.statement}
+                          onChange={e => updateItem('jtbd_comercial', j.id, { statement: e.target.value })}
+                        />
+                        {j.evidence && (
+                          <div className="bg-surface-2 rounded-xl px-3 py-2">
+                            <p className="text-xs text-faint mb-1">Evidencia:</p>
+                            <p className="text-xs text-ink italic">{j.evidence}</p>
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {j.client_type && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-surface-2 text-muted border border-subtle font-medium">
+                              {j.client_type}
+                            </span>
+                          )}
+                          {j.frequency && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              {j.frequency}
+                            </span>
+                          )}
+                          {j.market_size && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                              Mercado: {j.market_size}
+                            </span>
+                          )}
+                          {j.source_module && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-accent-soft text-accent border border-accent/20">
+                              {j.source_module}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {approvedJtbdC >= 1 && (
+              <div className="flex gap-2">
+                <button onClick={() => save()} disabled={saving} className="btn-secondary text-sm px-4 py-2">
+                  Guardar
+                </button>
+                <button onClick={() => approveStep('jtbd_comercial')} className="btn-primary text-sm px-4 py-2">
+                  Confirmar {approvedJtbdC} jobs y continuar →
                 </button>
               </div>
             )}

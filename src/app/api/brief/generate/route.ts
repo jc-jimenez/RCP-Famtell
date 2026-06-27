@@ -7,6 +7,7 @@ export const runtime = 'nodejs'
 
 type Section =
   | 'jtbd'
+  | 'jtbd_comercial'
   | 'segments'
   | 'priorities'
   | 'market_context'
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
   const sector = caseData.industry || '3PL / Logística'
   const company = caseData.company_name
   const jtbdAprobados = (brief?.jtbd ?? []).filter((j: any) => j.approved)
+  const jtbdComercialAprobados = (brief?.jtbd_comercial ?? []).filter((j: any) => j.approved)
   const segmentosAprobados = (brief?.segments ?? []).filter((s: any) => s.approved)
   const findings = brief?.module_findings ?? {}
   const marketCtx = brief?.market_context ?? {}
@@ -122,19 +124,60 @@ Responde ÚNICAMENTE con JSON:
   "approved": false
 }]`,
 
+    jtbd_comercial: `Eres un consultor de estrategia comercial especializado en operadores logísticos 3PL.
+
+Analiza las transcripciones de los módulos M1 (comercial) y M3 (contactos y relaciones) de ${company} (${sector}) e identifica los JOBS TO BE DONE COMERCIALES: los trabajos que los clientes actuales y potenciales contratan a ${company} para que los realice.
+
+TRANSCRIPCIONES DE LOS MÓDULOS:
+${transcripts || 'No hay transcripciones disponibles aún.'}
+
+Un Job To Be Done comercial es la tarea funcional, emocional o social que un cliente necesita resolver y para la cual contrata (o consideraría contratar) a ${company}. Se expresa desde la perspectiva del cliente, no de la empresa.
+
+Formato de statement: "Cuando [situación del cliente], necesito [job a contratar], para [resultado esperado]"
+Ejemplo: "Cuando tengo picos de demanda en temporada alta, necesito un 3PL que absorba volumen sin previo aviso, para no perder ventas por falta de capacidad logística."
+
+Genera entre 4 y 6 JTBD comerciales. Para cada uno incluye:
+- statement: frase completa en formato "Cuando... necesito... para..."
+- situation: descripción de la situación del cliente que detona el job
+- job: qué necesita contratar/hacer el cliente
+- outcome: resultado esperado por el cliente al completar el job
+- client_type: tipo de cliente (e-commerce, manufactura, retail, exportación, farmacéutico, etc.)
+- frequency: "recurrente" (necesidad constante) / "estacional" (picos predecibles) / "ocasional" (evento específico)
+- market_size: "grande" (muchos clientes potenciales) / "mediano" / "nicho" (pocos pero valiosos)
+- evidence: cita o paráfrasis de la transcripción que evidencia que este job existe
+- source_module: "M1" o "M3"
+
+Responde ÚNICAMENTE con JSON:
+[{
+  "id": "jc_1",
+  "statement": "Cuando [situación], necesito [job], para [resultado]",
+  "situation": "descripción de la situación",
+  "job": "qué necesita contratar el cliente",
+  "outcome": "resultado esperado",
+  "client_type": "e-commerce",
+  "frequency": "estacional",
+  "market_size": "grande",
+  "evidence": "El directivo mencionó: '...'",
+  "source_module": "M1",
+  "approved": false
+}]`,
+
     segments: `Eres un consultor de marketing B2B especialista en segmentación para operadores logísticos 3PL.
 
-Basándote en los diagnósticos clave confirmados y en el contexto de mercado, propón los segmentos de clientes más relevantes y rentables para que ${company} enfoque su estrategia comercial.
+Basándote en los diagnósticos clave, los JTBD comerciales confirmados y el contexto de mercado, propón los segmentos de clientes más relevantes y rentables para que ${company} enfoque su estrategia comercial.
 
 DIAGNÓSTICOS CLAVE CONFIRMADOS (problemas que la empresa debe resolver):
 ${JSON.stringify(jtbdAprobados, null, 2)}
+
+JTBD COMERCIALES CONFIRMADOS (trabajos que los clientes contratan a ${company}):
+${JSON.stringify(jtbdComercialAprobados, null, 2)}
 
 CONTEXTO DE MERCADO:
 ${JSON.stringify(marketCtx, null, 2)}
 
 IER: ${ierSummary}
 
-Nota: los segmentos deben estar alineados con la capacidad actual de la empresa según sus diagnósticos. Si tiene brechas operativas, no propongas segmentos que las agraven.
+Los segmentos deben estar alineados con los JTBD comerciales detectados (a qué clientes sirve mejor) y con la capacidad actual de la empresa según sus diagnósticos (si tiene brechas operativas, no propongas segmentos que las agraven).
 
 Para cada segmento define:
 - Nombre del segmento
