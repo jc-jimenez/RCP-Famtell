@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const db = supabase as any
   const { data } = await db
     .from('case_question_overrides')
-    .select('question_id, is_active, custom_text')
+    .select('question_id, is_active, custom_text, roles_override')
     .eq('case_id', caseId)
 
   return NextResponse.json(data ?? [])
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, questionId, isActive, customText } = await req.json()
+  const { caseId, questionId, isActive, customText, rolesOverride } = await req.json()
   const db = supabase as any
 
   // Verificar que el caso pertenece al consultor
@@ -47,12 +47,17 @@ export async function POST(req: Request) {
 
   if (!caseRow) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
 
+  const upsertPayload: Record<string, unknown> = {
+    case_id: caseId,
+    question_id: questionId,
+    is_active: isActive ?? true,
+    custom_text: customText ?? null,
+  }
+  if (rolesOverride !== undefined) upsertPayload.roles_override = rolesOverride
+
   const { data, error } = await db
     .from('case_question_overrides')
-    .upsert(
-      { case_id: caseId, question_id: questionId, is_active: isActive ?? true, custom_text: customText ?? null },
-      { onConflict: 'case_id,question_id' }
-    )
+    .upsert(upsertPayload, { onConflict: 'case_id,question_id' })
     .select()
     .single()
 

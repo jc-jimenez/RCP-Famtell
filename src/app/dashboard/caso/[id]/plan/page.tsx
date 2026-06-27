@@ -31,7 +31,7 @@ export default async function PlanDiagnosticoPage({
     .maybeSingle()
   if (!caseData) redirect('/dashboard')
 
-  // Cargar catálogo completo
+  // Catálogo completo
   const { data: modules } = await db
     .from('module_templates')
     .select(`
@@ -45,10 +45,16 @@ export default async function PlanDiagnosticoPage({
     `)
     .order('sort_order', { ascending: true })
 
-  // Cargar overrides existentes para este caso
+  // Overrides del consultor para este caso
   const { data: overrides } = await db
     .from('case_question_overrides')
-    .select('question_id, is_active, custom_text')
+    .select('question_id, is_active, custom_text, roles_override')
+    .eq('case_id', caseId)
+
+  // Preguntas custom creadas por el consultor para este caso
+  const { data: customQuestions } = await db
+    .from('case_custom_questions')
+    .select('id, section_id, text, nova_hint, sort_order, suggested_roles, is_active')
     .eq('case_id', caseId)
 
   const sorted = (modules ?? []).map((m: any) => ({
@@ -61,9 +67,20 @@ export default async function PlanDiagnosticoPage({
       })),
   }))
 
-  const overridesMap: Record<string, { is_active: boolean; custom_text: string | null }> = {}
+  const overridesMap: Record<string, { is_active: boolean; custom_text: string | null; roles_override: string[] | null }> = {}
   ;(overrides ?? []).forEach((o: any) => {
-    overridesMap[o.question_id] = { is_active: o.is_active, custom_text: o.custom_text }
+    overridesMap[o.question_id] = {
+      is_active: o.is_active,
+      custom_text: o.custom_text,
+      roles_override: o.roles_override ?? null,
+    }
+  })
+
+  // Agrupar preguntas custom por section_id
+  const customBySection: Record<string, any[]> = {}
+  ;(customQuestions ?? []).forEach((q: any) => {
+    if (!customBySection[q.section_id]) customBySection[q.section_id] = []
+    customBySection[q.section_id].push(q)
   })
 
   return (
@@ -72,6 +89,7 @@ export default async function PlanDiagnosticoPage({
       companyName={caseData.company_name}
       modules={sorted}
       initialOverrides={overridesMap}
+      initialCustomBySection={customBySection}
     />
   )
 }
