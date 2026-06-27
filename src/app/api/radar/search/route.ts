@@ -1,7 +1,30 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import https from 'https'
 
 const DENUE_BASE = 'https://www.inegi.org.mx/app/api/denue/v1/consulta'
+
+function httpsGet(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; RCPai/1.0)',
+      },
+    }, (res) => {
+      // Seguir redirects
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return httpsGet(res.headers.location).then(resolve).catch(reject)
+      }
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', (chunk) => body += chunk)
+      res.on('end', () => resolve(body))
+    })
+    req.on('error', reject)
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')) })
+  })
+}
 
 export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient()
@@ -20,25 +43,16 @@ export async function GET(request: Request) {
   if (!keyword.trim()) return NextResponse.json({ results: [] })
 
   const url = `${DENUE_BASE}/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/${inicio}/${fin}/${token}`
-
   console.log('[radar] fetching:', url.replace(token, 'TOKEN'))
 
   try {
-    const res = await fetch(url, {
-      next: { revalidate: 300 },
-      headers: { 'Accept': 'application/json' },
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      console.error('[radar] DENUE HTTP error:', res.status, text.slice(0, 200))
-      return NextResponse.json({ error: `DENUE respondió ${res.status}`, results: [] }, { status: 502 })
-    }
-    const data = await res.json()
+    const body = await httpsGet(url)
+    const data = JSON.parse(body)
     return NextResponse.json({ results: Array.isArray(data) ? data : [] })
   } catch (e: any) {
-    console.error('[radar] fetch error:', e?.cause ?? e)
+    console.error('[radar] error:', e?.message)
     return NextResponse.json({
-      error: `Error de red al consultar DENUE: ${e?.cause?.code ?? e?.message ?? 'desconocido'}`,
+      error: `Error al consultar DENUE: ${e?.message ?? 'desconocido'}`,
       results: [],
     }, { status: 500 })
   }
