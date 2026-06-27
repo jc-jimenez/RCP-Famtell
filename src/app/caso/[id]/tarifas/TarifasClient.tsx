@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 interface Props {
@@ -98,13 +98,10 @@ ${Array.from({ length: Number(p.numPayments) || 1 }).map((_, i) => `  Pago ${i +
   }
 
   return (
-    <AppShell role="consultant" email={email ?? ''}>
+    <AppShell role="consultant" email={email ?? ''} tabBar={<CasoTabs caseId={caseId} activeTab="tarifas" />}>
       <div className="max-w-3xl mx-auto space-y-6">
 
         <div>
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-2 inline-block">
-            ← {companyName}
-          </Link>
           <h1 className="text-xl font-bold text-ink">Calculadora de Tarifas</h1>
           <p className="text-muted text-sm mt-0.5">Calcula el precio justo para este proyecto</p>
         </div>

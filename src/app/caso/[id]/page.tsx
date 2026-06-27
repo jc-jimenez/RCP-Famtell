@@ -89,11 +89,9 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
       email={session.user.email!}
       caseCompanyName={caseData.company_name}
       modulesCompleted={completedCount}
+      tabBar={isDirector ? <DirectorTabs caseId={id} /> : undefined}
     >
       <div className="max-w-3xl mx-auto space-y-6">
-
-        {/* Tabs de navegación (solo directivo) */}
-        {isDirector && <DirectorTabs caseId={id} />}
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4">

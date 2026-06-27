@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import type { UserRole } from '@/types'
 
 interface Props {
@@ -289,15 +291,13 @@ export default function ComunicacionClient({ caseId, companyName, industry, role
     comentario_consultor: 'Comentario del consultor',
   }
 
-  return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
-      <div className="max-w-5xl mx-auto space-y-4">
+  const tabBar = role === 'director'
+    ? <DirectorTabs caseId={caseId} />
+    : <CasoTabs caseId={caseId} activeTab="comunicacion" />
 
-        {role !== 'director' && (
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block">
-            ← {companyName}
-          </Link>
-        )}
+  return (
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
+      <div className="max-w-5xl mx-auto space-y-4">
 
         <div>
           <h1 className="text-xl font-bold text-ink">Motor de Comunicación</h1>

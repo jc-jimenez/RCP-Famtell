@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 
 interface Props {
   caseId: string
@@ -163,7 +164,7 @@ export default function BriefConsultorClient({
   const approvedPris = priorityList.filter((p: any) => p.approved).length
 
   return (
-    <AppShell role="consultant" email={email} caseCompanyName={companyName}>
+    <AppShell role="consultant" email={email} caseCompanyName={companyName} tabBar={<CasoTabs caseId={caseId} activeTab="brief" />}>
       <div className="max-w-4xl mx-auto space-y-5 pb-16">
 
         <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block">

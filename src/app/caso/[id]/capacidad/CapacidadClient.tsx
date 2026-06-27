@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import type { UserRole } from '@/types'
 
 interface Props {
@@ -84,17 +85,13 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
     }
   }, [m2Total, pctAprovechable, rack, niveles, ocupacion, rotacion, tarifaDia, tarifaAlmacenaje, modoTarifa])
 
+  const tabBar = role === 'director'
+    ? <DirectorTabs caseId={caseId} />
+    : <CasoTabs caseId={caseId} activeTab="capacidad" />
+
   return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
       <div className="max-w-4xl mx-auto space-y-6">
-
-        {role === 'director' && <DirectorTabs caseId={caseId} />}
-
-        {role === 'consultant' && (
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block mb-1">
-            ← {companyName}
-          </Link>
-        )}
 
         <div>
           <h1 className="text-xl font-bold text-ink">Tracker de Capacidad</h1>

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 type Stage = 'pending' | 'contacted' | 'proposal_sent' | 'negotiating' | 'closed_won' | 'closed_lost'
@@ -147,15 +147,12 @@ export default function CRMClient({ caseId, companyName, initialContacts }: Prop
   const won = contacts.filter(c => c.pipeline_stage === 'closed_won')
 
   return (
-    <AppShell role="consultant" email={email ?? ''}>
+    <AppShell role="consultant" email={email ?? ''} tabBar={<CasoTabs caseId={caseId} activeTab="crm" />}>
       <div className="max-w-6xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-2 inline-block">
-              ← {companyName}
-            </Link>
             <h1 className="text-xl font-bold text-ink">CRM Ligero</h1>
             <p className="text-muted text-sm mt-0.5">{contacts.length} contactos · potencial ${totalPotential.toLocaleString('es-MX')}/mes</p>
           </div>

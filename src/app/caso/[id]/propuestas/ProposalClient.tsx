@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 interface Props {
@@ -58,14 +58,11 @@ export default function ProposalClient({ caseId, companyName, industry, creditsR
   }
 
   return (
-    <AppShell role="consultant" email={email ?? ''}>
+    <AppShell role="consultant" email={email ?? ''} tabBar={<CasoTabs caseId={caseId} activeTab="propuestas" />}>
       <div className="max-w-3xl mx-auto space-y-6">
 
         <div className="flex items-start justify-between">
           <div>
-            <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-2 inline-block">
-              ← {companyName}
-            </Link>
             <h1 className="text-xl font-bold text-ink">Generador de Propuestas</h1>
             <p className="text-muted text-sm mt-0.5">{PROPOSAL_COST} créditos por propuesta · {credits} disponibles</p>
           </div>

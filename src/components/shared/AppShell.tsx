@@ -67,6 +67,8 @@ interface AppShellProps {
   caseCompanyName?: string
   /** Para directivos: progreso de módulos (0-7) */
   modulesCompleted?: number
+  /** Barra de tabs que aparece justo debajo del header */
+  tabBar?: React.ReactNode
 }
 
 export default function AppShell({
@@ -75,6 +77,7 @@ export default function AppShell({
   email,
   caseCompanyName,
   modulesCompleted = 0,
+  tabBar,
 }: AppShellProps) {
   const pathname = usePathname()
   const [loggingOut, setLoggingOut] = useState(false)
@@ -186,6 +189,13 @@ export default function AppShell({
             </button>
           </div>
         </header>
+
+        {/* Tabs opcionales (sub-páginas de caso) */}
+        {tabBar && (
+          <div className="border-b border-subtle bg-surface px-6 pt-3">
+            {tabBar}
+          </div>
+        )}
 
         {/* Contenido */}
         <main className="flex-1 p-6 overflow-auto">

@@ -34,9 +34,8 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
 
   if (!brief) {
     return (
-      <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
+      <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={<DirectorTabs caseId={caseId} />}>
         <div className="max-w-3xl mx-auto space-y-4">
-          <DirectorTabs caseId={caseId} />
           <div className="card p-12 text-center space-y-3">
             <p className="text-3xl">📋</p>
             <p className="text-base font-semibold text-ink">Brief en preparación</p>
@@ -54,9 +53,8 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
   const findings = brief.module_findings ?? {}
 
   return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={<DirectorTabs caseId={caseId} />}>
       <div className="max-w-3xl mx-auto space-y-8 pb-16">
-        <DirectorTabs caseId={caseId} />
 
         {/* ── Portada ── */}
         <div className="card p-8 text-center space-y-2 border-accent/20 bg-accent-soft">

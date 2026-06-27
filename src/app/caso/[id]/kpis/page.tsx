@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
+import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import KPIBoardClient from './KPIBoardClient'
 
 export default async function KPIsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,8 +36,12 @@ export default async function KPIsPage({ params }: { params: Promise<{ id: strin
 
   const role = caseUser?.role === 'director' ? 'director' : 'consultant'
 
+  const tabBar = role === 'director'
+    ? <DirectorTabs caseId={id} />
+    : <CasoTabs caseId={id} activeTab="kpis" />
+
   return (
-    <AppShell role={role} email={session.user.email!} caseCompanyName={caseData?.company_name}>
+    <AppShell role={role} email={session.user.email!} caseCompanyName={caseData?.company_name} tabBar={tabBar}>
       <KPIBoardClient caseId={id} initialKPIs={kpis ?? []} canEdit={role === 'director'} />
     </AppShell>
   )

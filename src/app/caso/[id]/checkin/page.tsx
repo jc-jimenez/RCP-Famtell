@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import AppShell from '@/components/shared/AppShell'
+import DirectorTabs from '@/components/director/DirectorTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 export default function CheckinPage() {
@@ -44,7 +45,7 @@ export default function CheckinPage() {
 
   if (result) {
     return (
-      <AppShell role="director" email={email ?? ''}>
+      <AppShell role="director" email={email ?? ''} tabBar={<DirectorTabs caseId={caseId} />}>
         <div className="max-w-lg mx-auto py-12 space-y-6 text-center">
           <div className="w-14 h-14 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-2xl mx-auto">✓</div>
           <h1 className="text-xl font-bold text-ink">Check-in semana {form.weekNumber} registrado</h1>
@@ -68,7 +69,7 @@ export default function CheckinPage() {
   }
 
   return (
-    <AppShell role="director" email={email ?? ''}>
+    <AppShell role="director" email={email ?? ''} tabBar={<DirectorTabs caseId={caseId} />}>
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto py-6 space-y-5">
         <div>
           <h1 className="text-xl font-bold text-ink">Check-in semanal</h1>

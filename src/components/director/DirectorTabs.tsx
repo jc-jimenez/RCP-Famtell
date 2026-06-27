@@ -33,17 +33,17 @@ export default function DirectorTabs({ caseId }: Props) {
   }
 
   return (
-    <div className="border-b border-subtle overflow-x-auto mb-6">
-      <nav className="flex gap-0 min-w-max">
+    <div className="overflow-x-auto pb-3">
+      <nav className="flex gap-1.5 min-w-max">
         {TABS.map(tab => (
           <Link
             key={tab.id}
             href={tab.href as any}
             className={`
-              px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors
+              px-3.5 py-1.5 text-sm font-medium whitespace-nowrap rounded-full border transition-colors
               ${isActive(tab)
-                ? 'border-accent text-accent'
-                : 'border-transparent text-muted hover:text-ink hover:border-subtle'}
+                ? 'bg-accent text-white border-accent'
+                : 'border-subtle text-muted bg-surface hover:text-ink hover:border-accent/40 hover:bg-accent-soft'}
             `}
           >
             {tab.label}

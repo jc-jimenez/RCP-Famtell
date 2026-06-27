@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import type { UserRole } from '@/types'
 
 interface Props {
@@ -84,16 +85,13 @@ export default function EscenariosClient({ caseId, companyName, role, email }: P
   // Escala para mini chart
   const maxIng = Math.max(...active.months.map(m => m.ing))
 
-  return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
-      <div className="max-w-5xl mx-auto space-y-6">
+  const tabBar = isDirector
+    ? <DirectorTabs caseId={caseId} />
+    : <CasoTabs caseId={caseId} activeTab="escenarios" />
 
-        {isDirector && <DirectorTabs caseId={caseId} />}
-        {!isDirector && (
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block mb-1">
-            ← {companyName}
-          </Link>
-        )}
+  return (
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
+      <div className="max-w-5xl mx-auto space-y-6">
 
         <div>
           <h1 className="text-xl font-bold text-ink">Simulador de Escenarios</h1>

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import type { UserRole } from '@/types'
 
 interface Signal {
@@ -94,16 +95,13 @@ export default function IndiceClient({ caseId, companyName, role, email, signals
   // Posición del marcador en el gradiente (0=crecimiento izq, 100=salida der)
   const gaugePos = score ?? 50
 
-  return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
-      <div className="max-w-3xl mx-auto space-y-6">
+  const tabBar = isDirector
+    ? <DirectorTabs caseId={caseId} />
+    : <CasoTabs caseId={caseId} activeTab="indice" />
 
-        {isDirector && <DirectorTabs caseId={caseId} />}
-        {!isDirector && (
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block">
-            ← {companyName}
-          </Link>
-        )}
+  return (
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
+      <div className="max-w-3xl mx-auto space-y-6">
 
         <div>
           <h1 className="text-xl font-bold text-ink">Índice de Intención Estratégica</h1>

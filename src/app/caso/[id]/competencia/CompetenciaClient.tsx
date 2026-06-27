@@ -4,6 +4,7 @@ import { useState, useId } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import type { UserRole } from '@/types'
 
 interface Props {
@@ -151,16 +152,13 @@ export default function CompetenciaClient({ caseId, companyName, role, email }: 
   const FILL_COLORS = ['fill-accent/10', 'fill-rose-500/10', 'fill-emerald-500/10', 'fill-amber-500/10', 'fill-purple-500/10']
   const STROKE_COLORS = ['#6366f1', '#ef4444', '#22c55e', '#f59e0b', '#a855f7']
 
-  return (
-    <AppShell role={shellRole} email={email} caseCompanyName={companyName}>
-      <div className="max-w-5xl mx-auto space-y-5">
+  const tabBar = isDirector
+    ? <DirectorTabs caseId={caseId} />
+    : <CasoTabs caseId={caseId} activeTab="competencia" />
 
-        {isDirector && <DirectorTabs caseId={caseId} />}
-        {!isDirector && (
-          <Link href={`/dashboard/caso/${caseId}` as any} className="text-xs text-muted hover:text-ink inline-block">
-            ← {companyName}
-          </Link>
-        )}
+  return (
+    <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
+      <div className="max-w-5xl mx-auto space-y-5">
 
         <div className="flex items-start justify-between gap-4">
           <div>
