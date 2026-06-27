@@ -92,14 +92,20 @@ export default function RadarClient({ caseId, companyName }: Props) {
     setLoading(true)
     setError(null)
     setResults([])
-    const params = new URLSearchParams({ keyword, entidad, inicio: '1', fin: '50' })
-    const res = await fetch(`/api/radar/search?${params}`)
-    const json = await res.json()
-    if (!res.ok || json.error) {
-      setError(json.error ?? 'Error al buscar')
-    } else {
-      setResults(json.results ?? [])
-      if ((json.results ?? []).length === 0) setError('Sin resultados. Prueba con otro término o estado.')
+
+    const token = process.env.NEXT_PUBLIC_DENUE_TOKEN
+    if (!token) { setError('Token DENUE no configurado'); setLoading(false); return }
+
+    const url = `https://www.inegi.org.mx/app/api/denue/v1/consulta/BuscarEntidad/${encodeURIComponent(keyword)}/${entidad}/1/50/${token}`
+    try {
+      const res = await fetch(url)
+      if (!res.ok) { setError(`DENUE respondió ${res.status}`); setLoading(false); return }
+      const data = await res.json()
+      const results = Array.isArray(data) ? data : []
+      setResults(results)
+      if (results.length === 0) setError('Sin resultados. Prueba con otro término o estado.')
+    } catch (e: any) {
+      setError('Error al conectar con DENUE/INEGI')
     }
     setLoading(false)
   }

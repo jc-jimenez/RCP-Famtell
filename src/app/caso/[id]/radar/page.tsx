@@ -31,7 +31,7 @@ export default async function RadarPage({ params }: { params: Promise<{ id: stri
 
   if (!caseData) redirect('/dashboard')
 
-  const hasDenueToken = !!process.env.DENUE_TOKEN
+  const hasDenueToken = !!(process.env.NEXT_PUBLIC_DENUE_TOKEN || process.env.DENUE_TOKEN)
 
   return (
     <AppShell role="consultant" email={session.user.email!}>
