@@ -5,6 +5,7 @@ import { getModulePrompt } from '@/lib/anthropic/prompts'
 import { buildModulePromptFromCatalog } from '@/lib/anthropic/prompts/build-from-catalog'
 import { extractAgendaSignals, stripAgendaTags } from '@/lib/anthropic/agenda-detector'
 import type { ModuleCode, ChatMessage } from '@/types'
+import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 
 export const runtime = 'nodejs'
 
@@ -122,14 +123,9 @@ export async function POST(request: Request) {
   // ────────────────────────────────────────────────────────────────────────
 
   // Construir mensajes para Claude (con soporte de archivos adjuntos)
-  const historyForClaude = updatedHistory.map(({ role, content }) => ({ role, content }))
+  const historyForClaude: MessageParam[] = updatedHistory.map(({ role, content }) => ({ role, content }))
 
-  type ClaudeMessage = {
-    role: 'user' | 'assistant'
-    content: string | { type: string; [key: string]: unknown }[]
-  }
-
-  let messagesForClaude: ClaudeMessage[]
+  let messagesForClaude: MessageParam[]
 
   if (isStartTrigger) {
     messagesForClaude = [{ role: 'user', content: 'Inicia la sesión presentándote y comenzando con la primera pregunta del guion.' }]
@@ -138,7 +134,7 @@ export async function POST(request: Request) {
     const prevMessages = historyForClaude.slice(0, -1)
     const userText = message.trim()
 
-    const contentBlocks: { type: string; [key: string]: unknown }[] = []
+    const contentBlocks: ContentBlockParam[] = []
 
     // Bloque de documento/imagen
     if (attachment.mimeType === 'application/pdf') {
@@ -149,15 +145,13 @@ export async function POST(request: Request) {
           media_type: 'application/pdf',
           data: attachment.base64,
         },
-        title: attachment.fileName,
-        context: 'Documento adjuntado por el usuario en el contexto del diagnóstico empresarial.',
-      })
+      } as ContentBlockParam)
     } else if (attachment.mimeType.startsWith('image/')) {
       contentBlocks.push({
         type: 'image',
         source: {
           type: 'base64',
-          media_type: attachment.mimeType,
+          media_type: attachment.mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
           data: attachment.base64,
         },
       })
