@@ -13,6 +13,7 @@ const TABS: Tab[] = [
   { id: 'participantes',label: 'Participantes' },
   { id: 'plan',         label: 'Plan',        external: true },
   { id: 'agenda',       label: 'Agenda Oculta' },
+  { id: 'indice',       label: 'Índice IER',   external: true },
   { id: 'crm',         label: 'CRM',          external: true },
   { id: 'propuestas',  label: 'Propuestas',   external: true },
   { id: 'tarifas',     label: 'Tarifas',      external: true },

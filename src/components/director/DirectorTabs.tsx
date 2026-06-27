@@ -23,6 +23,7 @@ export default function DirectorTabs({ caseId }: Props) {
     { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad` },
     { id: 'escenarios',  label: 'Escenarios',  href: `/caso/${caseId}/escenarios` },
     { id: 'competencia', label: 'Competencia', href: `/caso/${caseId}/competencia` },
+    { id: 'indice',     label: 'Índice IER',  href: `/caso/${caseId}/indice` },
     { id: 'brief',      label: 'Brief M7',   href: `/caso/${caseId}/brief` },
   ]
 
