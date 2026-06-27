@@ -21,7 +21,7 @@ const STEPS = [
   { id: 'interviews',    label: 'Entrevistas',    desc: 'Módulos con sesiones completadas' },
   { id: 'levantamiento', label: 'Levantamiento',  desc: 'Los 7 módulos completados' },
   { id: 'analisis',      label: 'Análisis',       desc: 'Hallazgos M1-M7 generados' },
-  { id: 'jtbd',          label: 'JTBD',           desc: 'Jobs-To-Be-Done aprobados' },
+  { id: 'jtbd',          label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
   { id: 'segmentos',     label: 'Segmentos',      desc: 'Segmentos validados y priorizados' },
   { id: 'diagnostico',   label: 'Diagnóstico',    desc: 'Líneas prioritarias aprobadas' },
   { id: 'plan',          label: 'Plan',           desc: 'Planes 90d/6m/1a/3a generados' },
@@ -156,10 +156,10 @@ export default function BriefConsultorClient({
   }
 
   const isPublished  = brief?.status === 'published'
-  const jtbdList     = brief?.jtbd ?? []
+  const jtbdList     = brief?.jtbd ?? []   // campo BD se llama 'jtbd', en UI = Diagnósticos Clave
   const segmentList  = brief?.segments ?? []
   const priorityList = brief?.priorities ?? []
-  const approvedJtbd = jtbdList.filter((j: any) => j.approved).length
+  const approvedJtbd = jtbdList.filter((j: any) => j.approved).length  // aprobados por consultor
   const approvedSegs = segmentList.filter((s: any) => s.approved).length
   const approvedPris = priorityList.filter((p: any) => p.approved).length
 
@@ -310,23 +310,28 @@ export default function BriefConsultorClient({
           </div>
         )}
 
-        {/* ── Etapa: JTBD ── */}
+        {/* ── Etapa: Diagnósticos Clave ── */}
         {activeStep === 'jtbd' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h2 className="text-base font-semibold text-ink">Jobs-To-Be-Done</h2>
-                <p className="text-xs text-muted mt-0.5">{approvedJtbd} de {jtbdList.length} aprobados</p>
+                <h2 className="text-base font-semibold text-ink">Diagnósticos Clave</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Problemas críticos que {companyName} debe resolver · {approvedJtbd} de {jtbdList.length} confirmados
+                </p>
               </div>
               <button onClick={() => generate('jtbd')} disabled={!!generating}
                 className="btn-primary text-xs px-3 py-2 disabled:opacity-50">
-                {generating === 'jtbd' ? '✦ Identificando…' : '✦ Identificar con Nova'}
+                {generating === 'jtbd' ? '✦ Analizando…' : '✦ Diagnosticar con Nova'}
               </button>
             </div>
 
             {jtbdList.length === 0 ? (
-              <div className="card p-8 text-center text-sm text-muted">
-                Nova analizará las transcripciones de las entrevistas para identificar los Jobs-To-Be-Done de los clientes de {companyName}.
+              <div className="card p-8 text-center space-y-2">
+                <p className="text-sm text-muted">
+                  Nova leerá las transcripciones de los módulos y extraerá los problemas críticos internos de {companyName}: cuellos de botella, brechas, riesgos y dolores operativos, financieros, comerciales y organizacionales.
+                </p>
+                <p className="text-xs text-faint">Cada diagnóstico incluye evidencia textual, área afectada e impacto estimado.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -345,15 +350,30 @@ export default function BriefConsultorClient({
                           onChange={e => updateItem('jtbd', j.id, { statement: e.target.value })}
                         />
                         <div className="bg-surface-2 rounded-xl px-3 py-2">
-                          <p className="text-xs text-faint mb-1">Evidencia de la entrevista:</p>
+                          <p className="text-xs text-faint mb-1">Evidencia del diagnóstico:</p>
                           <p className="text-xs text-ink italic">{j.evidence}</p>
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                          <span className={`text-xs px-2 py-0.5 rounded border ${PAIN_COLOR[j.pain_level] ?? ''}`}>
-                            Dolor: {j.pain_level}
-                          </span>
-                          {j.frequency && <span className="text-xs px-2 py-0.5 rounded bg-surface-2 text-muted">{j.frequency}</span>}
-                          {j.type && <span className="text-xs px-2 py-0.5 rounded bg-surface-2 text-muted">{j.type}</span>}
+                          {j.area && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-surface-2 text-muted border border-subtle font-medium">
+                              {j.area}
+                            </span>
+                          )}
+                          {j.pain_level && (
+                            <span className={`text-xs px-2 py-0.5 rounded border ${PAIN_COLOR[j.pain_level] ?? ''}`}>
+                              Impacto: {j.pain_level}
+                            </span>
+                          )}
+                          {j.urgency && (
+                            <span className={`text-xs px-2 py-0.5 rounded border ${PAIN_COLOR[j.urgency] ?? 'bg-surface-2 text-muted border-subtle'}`}>
+                              {j.urgency}
+                            </span>
+                          )}
+                          {j.module_origin && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-accent-soft text-accent border border-accent/20">
+                              {j.module_origin}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -368,7 +388,7 @@ export default function BriefConsultorClient({
                   Guardar
                 </button>
                 <button onClick={() => approveStep('jtbd')} className="btn-primary text-sm px-4 py-2">
-                  Aprobar {approvedJtbd} JTBD y continuar →
+                  Confirmar {approvedJtbd} diagnósticos y continuar →
                 </button>
               </div>
             )}
@@ -404,7 +424,7 @@ export default function BriefConsultorClient({
 
             {segmentList.length === 0 ? (
               <div className="card p-8 text-center text-sm text-muted">
-                Nova propondrá segmentos de clientes basados en los JTBD aprobados y el contexto del sector {industry}.
+                Nova propondrá segmentos de mercado basados en los diagnósticos confirmados y el contexto del sector {industry}.
               </div>
             ) : (
               <div className="space-y-4">
@@ -503,7 +523,7 @@ export default function BriefConsultorClient({
 
             {priorityList.length === 0 ? (
               <div className="card p-8 text-center text-sm text-muted">
-                Nova identificará las líneas de diagnóstico más importantes basadas en los hallazgos, JTBD y segmentos aprobados.
+                Nova identificará las prioridades de intervención más urgentes, cruzando los diagnósticos clave con los segmentos y hallazgos de módulos.
               </div>
             ) : (
               <div className="space-y-2">

@@ -91,44 +91,50 @@ export async function POST(request: Request) {
 
   const prompts: Record<Section, string> = {
 
-    jtbd: `Eres un consultor estratégico experto en metodología Jobs-To-Be-Done (JTBD).
+    jtbd: `Eres un consultor empresarial senior especializado en diagnóstico organizacional y rescate de empresas.
 
-Analiza las transcripciones de las entrevistas de diagnóstico de ${company} (${sector}) y extrae los Jobs-To-Be-Done principales de sus clientes actuales y potenciales.
+Analiza las transcripciones de los módulos de diagnóstico de ${company} (${sector}) e identifica los DIAGNÓSTICOS CLAVE: los problemas críticos internos que la empresa debe resolver para estabilizarse y crecer.
 
-TRANSCRIPCIONES:
+TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
 
 IER detectado: ${ierSummary}
 
-Genera entre 3 y 6 JTBD. Para cada uno incluye:
-- El "job" redactado en primera persona del cliente (ej. "Cuando tengo exceso de inventario en temporada alta, quiero...")
-- Evidencia textual de la entrevista que lo sustenta (cita directa o paráfrasis)
-- Nivel de dolor: alto / medio / bajo
-- Frecuencia: recurrente / estacional / ocasional
-- Tipo: funcional / emocional / social
+Estos diagnósticos son problemas INTERNOS de la empresa (no de sus clientes), vistos desde la perspectiva del consultor: cuellos de botella operativos, brechas financieras, debilidades comerciales, riesgos organizacionales, falta de procesos, dependencia de personas clave, etc.
+
+Genera entre 4 y 7 diagnósticos clave. Para cada uno incluye:
+- statement: descripción clara del problema en 1-2 líneas, redactada en tercera persona sobre la empresa (ej. "La empresa no tiene visibilidad del costo real por cliente, lo que impide tomar decisiones de pricing rentables")
+- evidence: cita o paráfrasis directa de la entrevista que evidencia el problema
+- area: una de [Comercial, Operativo, Financiero, Organizacional, Tecnología, Estrategia, Capital Humano]
+- pain_level: "alto" (bloquea el crecimiento hoy) / "medio" (importante pero manejable) / "bajo" (mejora deseable)
+- urgency: "urgente" (hay que atacarlo en las primeras 4 semanas) / "importante" (semanas 5-12) / "deseable" (horizonte 6+ meses)
+- module_origin: código del módulo donde se evidenció (M1..M7)
 
 Responde ÚNICAMENTE con JSON:
 [{
-  "id": "jtbd_1",
-  "statement": "Cuando [situación], quiero [job], para [resultado esperado]",
-  "evidence": "El directivo mencionó: '...'",
+  "id": "dk_1",
+  "statement": "Descripción clara del problema que enfrenta la empresa",
+  "evidence": "El directivo mencionó: '...' / En el módulo M2 se identificó que...",
+  "area": "Comercial",
   "pain_level": "alto",
-  "frequency": "recurrente",
-  "type": "funcional",
+  "urgency": "urgente",
+  "module_origin": "M1",
   "approved": false
 }]`,
 
     segments: `Eres un consultor de marketing B2B especialista en segmentación para operadores logísticos 3PL.
 
-Basándote en los JTBD aprobados, propón los segmentos de clientes más relevantes para ${company}.
+Basándote en los diagnósticos clave confirmados y en el contexto de mercado, propón los segmentos de clientes más relevantes y rentables para que ${company} enfoque su estrategia comercial.
 
-JTBD APROBADOS:
+DIAGNÓSTICOS CLAVE CONFIRMADOS (problemas que la empresa debe resolver):
 ${JSON.stringify(jtbdAprobados, null, 2)}
 
 CONTEXTO DE MERCADO:
 ${JSON.stringify(marketCtx, null, 2)}
 
 IER: ${ierSummary}
+
+Nota: los segmentos deben estar alineados con la capacidad actual de la empresa según sus diagnósticos. Si tiene brechas operativas, no propongas segmentos que las agraven.
 
 Para cada segmento define:
 - Nombre del segmento
@@ -156,12 +162,12 @@ Genera 3-5 segmentos. ÚNICAMENTE JSON:
   "approved": false
 }]`,
 
-    priorities: `Eres un consultor estratégico. Basándote en los hallazgos del diagnóstico, los JTBD y los segmentos aprobados de ${company} (${sector}), define las líneas de diagnóstico prioritarias.
+    priorities: `Eres un consultor estratégico. Basándote en los hallazgos del diagnóstico, los diagnósticos clave confirmados y los segmentos aprobados de ${company} (${sector}), define las prioridades de intervención.
 
 HALLAZGOS M1-M7:
 ${JSON.stringify(findings, null, 2)}
 
-JTBD APROBADOS:
+DIAGNÓSTICOS CLAVE CONFIRMADOS:
 ${JSON.stringify(jtbdAprobados, null, 2)}
 
 SEGMENTOS APROBADOS:
@@ -225,16 +231,16 @@ ${attachmentBase64 ? `Se adjunta un estudio especializado: ${attachmentName}. Ú
 
     executive_summary: `Redacta un resumen ejecutivo profesional para el Brief de Cierre de ${company} (${sector}).
 
-JTBD aprobados: ${JSON.stringify(jtbdAprobados)}
-Segmentos prioritarios: ${JSON.stringify(segmentosAprobados.filter((s:any) => s.priority === '90d'))}
+Diagnósticos clave confirmados: ${JSON.stringify(jtbdAprobados)}
+Segmentos prioritarios (90d): ${JSON.stringify(segmentosAprobados.filter((s:any) => s.priority === '90d'))}
 IER: ${ierSummary}
-Hallazgos: ${JSON.stringify(findings)}
+Hallazgos por módulo: ${JSON.stringify(findings)}
 
 3-4 párrafos, tono ejecutivo, máximo 300 palabras. Solo el texto, sin títulos.`,
 
     plan_90d: `Eres un consultor estratégico para ${company} (${sector}).
 
-Genera un plan de acción a 90 días anclado en los JTBD, segmentos y prioridades aprobados.
+Genera un plan de acción a 90 días anclado en los diagnósticos clave confirmados, segmentos y prioridades de intervención aprobadas.
 
 PRIORIDADES APROBADAS:
 ${JSON.stringify((brief?.priorities ?? []).filter((p:any) => p.approved), null, 2)}
@@ -267,7 +273,7 @@ Para cada acción incluye: semana, área, acción concreta, tipo (urgente/import
 
     plan_6m: `Plan 6 meses para ${company} (${sector}). Consolidación del modelo y ataque a segmentos validados.
 
-JTBD: ${JSON.stringify(jtbdAprobados)}
+DIAGNÓSTICOS CLAVE RESUELTOS/EN PROCESO: ${JSON.stringify(jtbdAprobados)}
 SEGMENTOS: ${JSON.stringify(segmentosAprobados)}
 IER: ${ierSummary}
 CONTEXTO MERCADO: ${JSON.stringify(marketCtx)}
