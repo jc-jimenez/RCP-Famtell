@@ -28,7 +28,9 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Premium',        href: '/premium',              icon: '✦' },
     { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
   ],
-  director: [],
+  director: [
+    { label: 'Mi diagnóstico', href: '/mi-caso',  icon: '▤' },
+  ],
   collaborator: [
     { label: 'Mis módulos',    href: '/mis-modulos',          icon: '▤' },
   ],
