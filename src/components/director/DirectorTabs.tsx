@@ -17,10 +17,11 @@ export default function DirectorTabs({ caseId }: Props) {
   const pathname = usePathname()
 
   const TABS: Tab[] = [
-    { id: 'modulos',  label: 'Mis Módulos', href: `/caso/${caseId}` },
-    { id: 'kpis',    label: 'KPIs',         href: `/caso/${caseId}/kpis` },
-    { id: 'checkin', label: 'Check-in',     href: `/caso/${caseId}/checkin` },
-    { id: 'brief',   label: 'Brief M7',     href: `/caso/${caseId}/brief` },
+    { id: 'modulos',   label: 'Mis Módulos', href: `/caso/${caseId}` },
+    { id: 'kpis',     label: 'KPIs',         href: `/caso/${caseId}/kpis` },
+    { id: 'checkin',  label: 'Check-in',     href: `/caso/${caseId}/checkin` },
+    { id: 'capacidad',label: 'Capacidad',    href: `/caso/${caseId}/capacidad` },
+    { id: 'brief',    label: 'Brief M7',     href: `/caso/${caseId}/brief` },
   ]
 
   function isActive(tab: Tab) {
