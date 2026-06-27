@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { UserRole } from '@/types'
+import NotificationsBell from './NotificationsBell'
 
 interface NavItem {
   label: string
@@ -27,6 +28,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Nuevo caso',     href: '/dashboard/nuevo-caso', icon: '＋' },
     { label: 'Premium',        href: '/premium',              icon: '✦' },
     { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
+    { label: 'Configuración',  href: '/settings',             icon: '⚙' },
   ],
   director: [
     { label: 'Mi diagnóstico', href: '/mi-caso',  icon: '▤' },
@@ -177,9 +179,10 @@ export default function AppShell({
 
           <div className="flex items-center gap-3">
             <span className={`badge ${ROLE_PILL[role]}`}>{ROLE_LABEL[role]}</span>
-            <div className="w-8 h-8 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-semibold text-muted">
+            {(role === 'consultant' || role === 'super_admin') && <NotificationsBell />}
+            <Link href="/settings" className="w-8 h-8 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-semibold text-muted hover:bg-surface-2 hover:border-accent transition-colors" title="Configuración">
               {initials}
-            </div>
+            </Link>
             <button
               onClick={handleLogout}
               disabled={loggingOut}
