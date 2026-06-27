@@ -219,14 +219,25 @@ export default function RadarClient({ caseId, companyName }: Props) {
       return
     }
 
-    // Modo SCIAN — buscar en paralelo (máx 5 a la vez)
+    // Modo SCIAN — extraer keywords de los subsectores seleccionados y buscar por nombre
+    // (DENUE v1 solo soporta BuscarEntidad, no existe BuscarAreaActEcon)
+    const keywords: string[] = []
+    for (const sector of SCIAN_SECTORS) {
+      for (const sub of sector.subsectors) {
+        if (selectedCodes.includes(sub.code)) {
+          keywords.push(...sub.keywords)
+        }
+      }
+    }
+    const uniqueKeywords = [...new Set(keywords)]
+
     const allResults: Empresa[] = []
     const batches: string[][] = []
-    for (let i = 0; i < selectedCodes.length; i += 5) batches.push(selectedCodes.slice(i, i + 5))
+    for (let i = 0; i < uniqueKeywords.length; i += 5) batches.push(uniqueKeywords.slice(i, i + 5))
 
     for (const batch of batches) {
-      const fetches = batch.map(code => {
-        const url = `${BASE}/BuscarAreaActEcon/${code}/${entidad}/${estrato}/1/20/${token}`
+      const fetches = batch.map(kw => {
+        const url = `${BASE}/BuscarEntidad/${encodeURIComponent(kw)}/${entidad}/1/10/${token}`
         return xhrGet(url)
       })
       const responses = await Promise.all(fetches)
