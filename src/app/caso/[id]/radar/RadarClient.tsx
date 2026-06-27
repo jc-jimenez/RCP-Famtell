@@ -93,6 +93,38 @@ function estratoLabel(e: string) {
 export default function RadarClient({ caseId, companyName }: Props) {
   const defaultProfile = RADAR_PROFILES[0] // Famtell 3PL
 
+  // IA sugerencias
+  const [aiLoading, setAiLoading]   = useState(false)
+  const [aiSummary, setAiSummary]   = useState<string | null>(null)
+  const [aiReasoning, setAiReasoning] = useState<{ code: string; reason: string }[]>([])
+
+  async function suggestWithAI() {
+    setAiLoading(true)
+    setAiSummary(null)
+    setAiReasoning([])
+    try {
+      const res = await fetch('/api/radar/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId }),
+      })
+      const json = await res.json()
+      if (res.ok && json.codes?.length) {
+        setSelectedCodes(json.codes)
+        setAiReasoning(json.reasoning ?? [])
+        setAiSummary(json.summary ?? null)
+        // Expandir el primer sector que tenga códigos seleccionados
+        const firstMatch = SCIAN_SECTORS.find(s => s.subsectors.some(sub => json.codes.includes(sub.code)))
+        if (firstMatch) setSelectedSector(firstMatch)
+      } else {
+        setAiSummary('No se pudo generar sugerencias. Verifica que el brief esté completo.')
+      }
+    } catch {
+      setAiSummary('Error al conectar con el servicio de IA.')
+    }
+    setAiLoading(false)
+  }
+
   // Modo
   const [searchMode, setSearchMode] = useState<'scian' | 'nombre'>('scian')
 
@@ -306,6 +338,36 @@ export default function RadarClient({ caseId, companyName }: Props) {
               {profile.description && (
                 <p className="text-xs text-muted mt-1.5 italic">{profile.description}</p>
               )}
+
+              {/* Botón IA */}
+              <button
+                onClick={suggestWithAI}
+                disabled={aiLoading}
+                className="mt-2 flex items-center gap-2 text-xs px-3 py-2 rounded-xl border border-accent/30 text-accent bg-accent-soft hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+              >
+                {aiLoading
+                  ? <><span className="animate-spin">⟳</span> Analizando el diagnóstico…</>
+                  : <>✨ Sugerir sectores con IA</>
+                }
+              </button>
+
+              {/* Panel de razonamiento IA */}
+              {aiSummary && (
+                <div className="mt-2 rounded-xl border border-accent/20 bg-accent-soft/40 p-3 space-y-2">
+                  <p className="text-xs font-medium text-accent">✨ Sugerencia de IA</p>
+                  <p className="text-xs text-ink">{aiSummary}</p>
+                  {aiReasoning.length > 0 && (
+                    <div className="space-y-1 mt-1">
+                      {aiReasoning.map(r => (
+                        <div key={r.code} className="flex items-start gap-2 text-xs">
+                          <span className="font-mono text-accent shrink-0">{r.code}</span>
+                          <span className="text-muted">{r.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Árbol SCIAN */}
@@ -360,6 +422,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
                         <div className="px-3 pb-3 pt-1 grid grid-cols-1 gap-1 border-t border-subtle bg-white">
                           {sector.subsectors.map(sub => {
                             const isRec = profile.recommendedCodes.includes(sub.code)
+                            const isAI  = aiReasoning.some(r => r.code === sub.code)
                             const isSelected = selectedCodes.includes(sub.code)
                             return (
                               <label
@@ -376,8 +439,11 @@ export default function RadarClient({ caseId, companyName }: Props) {
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-xs font-medium text-ink">{sub.name}</span>
                                     <span className="text-xs text-faint font-mono">{sub.code}</span>
-                                    {isRec && (
-                                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 rounded-full">★ Recomendado</span>
+                                    {isAI && (
+                                      <span className="text-xs bg-accent/10 text-accent px-1.5 rounded-full font-medium">✨ IA</span>
+                                    )}
+                                    {isRec && !isAI && (
+                                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 rounded-full">★ Perfil</span>
                                     )}
                                   </div>
                                   {sub.pitch && (
