@@ -25,8 +25,16 @@ export async function GET(request: Request) {
   } else {
     if (!cveAct.trim()) return NextResponse.json({ results: [] })
     // BuscarAreaActEcon/{cve_act}/{entidad}/{estrato}/{inicio}/{fin}/{token}
-    url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${estrato}/${inicio}/${fin}/${token}`
+    // estrato: 0=todos, 1=micro, 2=pequeña, 3=mediana, 4=grande
+    // Cuando estrato=0 usar endpoint sin estrato
+    if (estrato === '0') {
+      url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${inicio}/${fin}/${token}`
+    } else {
+      url = `${DENUE_BASE}/BuscarAreaActEcon/${cveAct}/${entidad}/${estrato}/${inicio}/${fin}/${token}`
+    }
   }
+
+  console.log('[radar] GET', url.replace(token, 'TOKEN'))
 
   try {
     const res = await fetch(url, {
