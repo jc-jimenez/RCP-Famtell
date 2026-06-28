@@ -181,6 +181,8 @@ export default function RegistroPage() {
                 <Field label="Nombre completo">
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     value={nombre}
                     onChange={e => setNombre(e.target.value)}
                     placeholder="Juan Carlos Jiménez"
@@ -192,6 +194,8 @@ export default function RegistroPage() {
                 <Field label="Correo electrónico">
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="consultor@empresa.com"
@@ -203,6 +207,8 @@ export default function RegistroPage() {
                 <Field label="WhatsApp (10 dígitos)">
                   <input
                     type="tel"
+                    name="tel"
+                    autoComplete="tel-national"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="5512345678"
@@ -214,6 +220,8 @@ export default function RegistroPage() {
                 <Field label="Empresa o despacho">
                   <input
                     type="text"
+                    name="organization"
+                    autoComplete="organization"
                     value={empresa}
                     onChange={e => setEmpresa(e.target.value)}
                     placeholder="Mi Consultoría S.C."
@@ -226,6 +234,8 @@ export default function RegistroPage() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      name="new-password"
+                      autoComplete="new-password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
@@ -245,6 +255,8 @@ export default function RegistroPage() {
                 <Field label="Confirmar contraseña">
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    name="confirm-password"
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     required
