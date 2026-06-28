@@ -8,7 +8,13 @@ export async function sendWhatsApp(to: string, body: string): Promise<boolean> {
     return false
   }
 
-  const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
+  // México móvil: WhatsApp usa +521XXXXXXXXXX (no +52)
+  let toE164 = to
+  if (!to.startsWith('whatsapp:') && !to.startsWith('+')) {
+    const digits = to.replace(/\D/g, '')
+    toE164 = digits.length === 10 ? `+521${digits}` : `+${digits}`
+  }
+  const toFormatted = toE164.startsWith('whatsapp:') ? toE164 : `whatsapp:${toE164}`
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
 
   // btoa funciona en Edge y Node.js (no Buffer)
