@@ -11,6 +11,13 @@ function generateCode(): string {
 }
 
 export async function POST(request: Request) {
+  // DEBUG TEMPORAL — eliminar después del fix
+  const twilioKeys = Object.keys(process.env).filter(k => k.startsWith('TWILIO') || k.startsWith('NEXT'))
+  console.log('[send-code] env keys:', twilioKeys)
+  console.log('[send-code] TWILIO_ACCOUNT_SID exists:', !!process.env.TWILIO_ACCOUNT_SID, '| prefix:', process.env.TWILIO_ACCOUNT_SID?.slice(0, 4))
+  console.log('[send-code] TWILIO_AUTH_TOKEN exists:', !!process.env.TWILIO_AUTH_TOKEN)
+  console.log('[send-code] TWILIO_WHATSAPP_FROM:', process.env.TWILIO_WHATSAPP_FROM)
+
   const { email, phone, nombre, empresa } = await request.json()
 
   if (!email || !phone || !nombre || !empresa) {
@@ -53,7 +60,8 @@ export async function POST(request: Request) {
   }
 
   // 1. Enviar código por WhatsApp
-  const toPhone = phoneClean.length === 10 ? `+52${phoneClean}` : `+${phoneClean}`
+  // México móvil: +521XXXXXXXXXX (no +52)
+  const toPhone = phoneClean.length === 10 ? `+521${phoneClean}` : `+${phoneClean}`
   const waMsg = `Tu código de verificación RCP.ai es: *${whatsappCode}*\n\nVálido por 10 minutos.`
   const waSent = await sendWhatsApp(toPhone, waMsg)
   if (!waSent) {
