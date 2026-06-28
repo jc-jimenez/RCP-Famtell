@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { MODULE_CREDITS, deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import type { ModuleCode } from '@/types'
+
+export const runtime = 'nodejs'
 
 const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
 
@@ -125,7 +128,40 @@ export async function POST(request: Request) {
     sessionId: string
   }
 
-  const db = supabase as any
+  // Las escrituras tocan el account del CONSULTOR y tablas del caso por cuenta
+  // de directivos/colaboradores, que por RLS no pueden modificarlas. Se usa el
+  // admin client (service role) tras validar que el usuario tiene acceso al caso.
+  const admin = getSupabaseAdmin()
+  const db = (admin ?? supabase) as any
+
+  // Datos del caso + validación de acceso
+  const { data: caseData } = await db
+    .from('cases')
+    .select('account_id, credits_used')
+    .eq('id', caseId)
+    .single()
+
+  if (!caseData) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
+
+  // El usuario debe ser miembro del caso (case_users) o el consultor dueño
+  const { data: membership } = await db
+    .from('case_users')
+    .select('id')
+    .eq('case_id', caseId)
+    .eq('user_id', session.user.id)
+    .maybeSingle()
+
+  let hasAccess = !!membership
+  if (!hasAccess && caseData.account_id) {
+    const { data: ownerAccount } = await db
+      .from('accounts')
+      .select('email')
+      .eq('id', caseData.account_id)
+      .single()
+    hasAccess = ownerAccount?.email === session.user.email
+  }
+
+  if (!hasAccess) return NextResponse.json({ error: 'Acceso denegado al caso' }, { status: 403 })
 
   // Marcar sesión como completada
   await db.from('sessions').update({ completed: true }).eq('id', sessionId)
@@ -152,10 +188,12 @@ export async function POST(request: Request) {
       .eq('module_code', nextModule)
   }
 
-  // Descontar créditos del account (función atómica con check de saldo)
-  const { data: caseData } = await db.from('cases').select('account_id, credits_used').eq('id', caseId).single()
-  if (caseData?.account_id) {
-    await deductCredits(supabase, caseData.account_id, creditsUsed)
+  // Descontar créditos del account del consultor (función atómica con check de saldo)
+  if (caseData.account_id) {
+    const credit = await deductCredits(db, caseData.account_id, creditsUsed)
+    if (!credit.success) {
+      console.error('[modules/complete] No se pudieron descontar créditos:', credit.error)
+    }
 
     // Actualizar credits_used acumulado del caso
     await db.from('cases')

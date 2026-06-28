@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
-import { MODULE_CREDITS, getAccount, checkCredits } from '@/lib/credits'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { MODULE_CREDITS, checkCredits } from '@/lib/credits'
 import type { ModuleCode } from '@/types'
 
 // POST — crear o recuperar sesión de un módulo
@@ -34,8 +35,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ session: existing, resumed: true })
   }
 
-  // Sesión nueva: verificar créditos del consultor dueño del caso
-  const { data: caseData } = await db
+  // Sesión nueva: verificar créditos del consultor dueño del caso.
+  // Se usa el admin client (service role) porque el account de los créditos
+  // pertenece al CONSULTOR, no al usuario actual (que puede ser colaborador o
+  // directivo). Por RLS (accounts_rls_self_read) ellos no pueden leer ese
+  // account, pero el sistema sí debe verificar su pool de créditos.
+  const admin = getSupabaseAdmin()
+  const creditsClient = admin ?? supabase
+
+  const { data: caseData } = await (admin ?? db)
     .from('cases')
     .select('account_id')
     .eq('id', caseId)
@@ -43,7 +51,7 @@ export async function POST(request: Request) {
 
   if (caseData?.account_id) {
     const cost = MODULE_CREDITS[moduleCode] ?? 10
-    const { ok, remaining } = await checkCredits(supabase, caseData.account_id, cost)
+    const { ok, remaining } = await checkCredits(creditsClient, caseData.account_id, cost)
     if (!ok) {
       return NextResponse.json(
         { error: 'Créditos insuficientes', remaining, cost, upgrade_url: '/dashboard/creditos' },
