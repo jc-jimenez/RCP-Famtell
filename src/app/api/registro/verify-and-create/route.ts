@@ -2,11 +2,12 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { activateAccountIfReady } from '@/lib/registro/activate'
 
 export async function POST(request: Request) {
-  const { email, code, password } = await request.json()
+  const { email, code } = await request.json()
 
-  if (!email || !code || !password) {
+  if (!email || !code) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
   }
 
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     .update({ whatsapp_verified: true })
     .eq('email', email)
 
-  // Verificar si el email ya fue verificado
+  // Si el email aún no está verificado → pedir verificación de correo
   if (!pending.email_verified) {
     return NextResponse.json({
       ok: false,
@@ -49,41 +50,11 @@ export async function POST(request: Request) {
     })
   }
 
-  // Ambos verificados → crear cuenta
-  return await createAccount(admin, pending, password)
-}
-
-async function createAccount(admin: any, pending: any, password: string) {
-  const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-    email: pending.email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      nombre: pending.nombre,
-      empresa: pending.empresa,
-      phone: pending.phone,
-      role: 'consultor',
-    },
-  })
-
-  if (authErr || !authData?.user) {
-    if (authErr?.message?.includes('already registered')) {
-      return NextResponse.json({ error: 'Este correo ya tiene una cuenta registrada' }, { status: 409 })
-    }
-    return NextResponse.json({ error: authErr?.message ?? 'No se pudo crear el usuario' }, { status: 500 })
+  // Ambos verificados → activar cuenta (con el password guardado en send-code)
+  const result = await activateAccountIfReady(admin, { ...pending, whatsapp_verified: true })
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
-
-  await admin.from('accounts').insert({
-    email: pending.email,
-    company_name: pending.empresa,
-    plan_id: 'starter',
-    credits_total: 100,
-    credits_used: 0,
-    status: 'active',
-  })
-
-  // Limpiar registro pendiente
-  await admin.from('pending_registrations').delete().eq('email', pending.email)
 
   return NextResponse.json({ ok: true, activated: true })
 }

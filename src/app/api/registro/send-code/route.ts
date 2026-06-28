@@ -11,9 +11,9 @@ function generateCode(): string {
 }
 
 export async function POST(request: Request) {
-  const { email, phone, nombre, empresa } = await request.json()
+  const { email, phone, nombre, empresa, password } = await request.json()
 
-  if (!email || !phone || !nombre || !empresa) {
+  if (!email || !phone || !nombre || !empresa || !password) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
   }
 
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       phone: phoneClean,
       nombre,
       empresa,
+      password,
       whatsapp_code: whatsappCode,
       whatsapp_expires_at: expires.toISOString(),
       whatsapp_verified: false,

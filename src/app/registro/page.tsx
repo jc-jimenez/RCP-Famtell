@@ -49,7 +49,7 @@ export default function RegistroPage() {
     const res = await fetch('/api/registro/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, phone, nombre, empresa }),
+      body: JSON.stringify({ email, phone, nombre, empresa, password }),
     })
     const json = await res.json()
     setLoading(false)
@@ -102,7 +102,7 @@ export default function RegistroPage() {
     await fetch('/api/registro/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, phone, nombre, empresa }),
+      body: JSON.stringify({ email, phone, nombre, empresa, password }),
     })
     setLoading(false)
     setCode('')

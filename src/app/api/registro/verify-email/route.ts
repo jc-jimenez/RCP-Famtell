@@ -2,6 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { activateAccountIfReady } from '@/lib/registro/activate'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -36,13 +37,21 @@ export async function GET(request: Request) {
     .update({ email_verified: true })
     .eq('email_token', token)
 
-  // Si WhatsApp también está verificado → crear cuenta directamente
-  if (pending.whatsapp_verified && pending.password_hash) {
-    // La cuenta se creará cuando haga verify-and-create,
-    // solo redirigir a página de éxito de email
+  const baseUrl = new URL(request.url).origin
+
+  // Si WhatsApp también está verificado → activar la cuenta ahora mismo
+  if (pending.whatsapp_verified) {
+    const result = await activateAccountIfReady(admin, {
+      ...pending,
+      email_verified: true,
+    })
+    if (result.ok) {
+      // Cuenta activada → página de éxito con CTA a login
+      return NextResponse.redirect(new URL('/registro/email-verificado?activada=1', baseUrl))
+    }
+    // Si falló la activación, igual mostramos email verificado
   }
 
-  // Redirigir a página que indica que el email fue verificado
-  const baseUrl = new URL(request.url).origin
+  // Email verificado pero falta el código de WhatsApp
   return NextResponse.redirect(new URL('/registro/email-verificado', baseUrl))
 }
