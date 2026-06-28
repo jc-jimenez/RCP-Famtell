@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const { data: caseData } = await db
     .from('cases')
-    .select('company_name, industry')
+    .select('company_name, industry, strategic_notes')
     .eq('id', caseId)
     .eq('account_id', account.id)
     .single()
@@ -82,6 +82,16 @@ export async function POST(request: Request) {
     return `\n\n=== ${MODULE_LABELS[s.module_code] ?? s.module_code} ===\n${qa}`
   }).join('\n')
 
+  const hypothesisBlock = caseData.strategic_notes?.trim()
+    ? `
+HIPÓTESIS INICIAL DEL CONSULTOR (a CONTRASTAR con la evidencia, NO asumir como verdad):
+"${caseData.strategic_notes.trim()}"
+
+Trata esto como una hipótesis a validar o refutar con base en las transcripciones. Si la evidencia
+la confirma, refuérzala con datos; si la contradice o matiza, dilo explícitamente. No dejes que sesgue
+los hallazgos: tu análisis debe partir de la evidencia, no de esta hipótesis.`
+    : ''
+
   const briefPrompt = `
 Eres un consultor senior de RCP.ai. Basándote en las siguientes transcripciones de entrevistas
 con el directivo de "${caseData.company_name}" (${caseData.industry ?? 'sector no especificado'}),
@@ -91,6 +101,7 @@ TRANSCRIPCIONES:
 ${sessionSummaries}
 
 INTENCIÓN ESTRATÉGICA DETECTADA: ${intentMap[dominantIntent]}
+${hypothesisBlock}
 
 Genera el brief en formato JSON con la siguiente estructura EXACTA:
 {

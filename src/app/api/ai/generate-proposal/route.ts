@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   // Obtener datos del caso y brief
   const { data: caseData } = await db
     .from('cases')
-    .select('company_name, industry, strategic_intent')
+    .select('company_name, industry, strategic_intent, strategic_notes')
     .eq('id', caseId)
     .eq('account_id', account.id)
     .maybeSingle()
@@ -76,6 +76,7 @@ Genera una propuesta comercial profesional en español para el siguiente caso:
 ${caseData.company_name} (${caseData.industry ?? 'Logística/Servicios'})
 
 ${briefContext}
+${caseData.strategic_notes?.trim() ? `\n## Contexto / motivo del diagnóstico (según el consultor)\n${caseData.strategic_notes.trim()}\n` : ''}
 
 ## Propuesta para
 - Prospecto: ${prospectName}

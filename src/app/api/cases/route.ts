@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const { companyName, industry, description, strategicIntent } = await request.json();
+  const { companyName, industry, description, strategicIntent, strategicNotes } = await request.json();
 
   if (!companyName) {
     return NextResponse.json({ error: 'companyName es requerido' }, { status: 400 });
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await db
     .from('cases')
-    .insert({ account_id: account.id, company_name: companyName, industry, description, strategic_intent: strategicIntent ?? 'mixed' })
+    .insert({ account_id: account.id, company_name: companyName, industry, description, strategic_intent: strategicIntent ?? 'mixed', strategic_notes: strategicNotes?.trim() || null })
     .select()
     .single();
 

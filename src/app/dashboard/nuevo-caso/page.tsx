@@ -38,6 +38,7 @@ export default function NuevoCasoPage() {
     industry: '',
     description: '',
     intent: 'mixed',
+    strategicNotes: '',
     directorEmail: '',
     directorJobTitle: 'Director General',
   })
@@ -60,6 +61,7 @@ export default function NuevoCasoPage() {
         industry: form.industry,
         description: form.description,
         strategicIntent: form.intent,
+        strategicNotes: form.strategicNotes,
       }),
     })
     const data = await res.json()
@@ -173,6 +175,20 @@ export default function NuevoCasoPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="label-text">Motivo del diagnóstico / dolores del cliente</label>
+                <textarea
+                  value={form.strategicNotes}
+                  onChange={e => set('strategicNotes', e.target.value)}
+                  rows={4}
+                  placeholder="¿Qué los llevó a buscar este diagnóstico ahora? ¿Qué decisión o problema está en juego? Ej: 'Crecieron 40% pero la operación no aguanta y el dueño está al borde del burnout; quieren saber si profesionalizar o frenar.'"
+                  className="input-field resize-none"
+                />
+                <p className="text-xs text-faint mt-1">
+                  Tu hipótesis inicial. El diagnóstico la usará para enfocar las preguntas y la contrastará con la evidencia.
+                </p>
               </div>
             </div>
 
