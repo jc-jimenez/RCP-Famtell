@@ -12,8 +12,10 @@ export default function RecuperarPage() {
     e.preventDefault()
     setLoading(true)
     const supabase = createSupabaseBrowserClient()
+    // Usar el origin actual del navegador en vez de una env var (que en
+    // producción puede faltar o apuntar a localhost).
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/nueva-password`,
+      redirectTo: `${window.location.origin}/nueva-password`,
     })
     setSent(true)
     setLoading(false)

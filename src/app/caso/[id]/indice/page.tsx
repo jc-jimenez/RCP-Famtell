@@ -14,6 +14,16 @@ export default async function IndicePage({ params }: { params: Promise<{ id: str
 
   const db = supabase as any
 
+  const { data: caseData } = await db
+    .from('cases')
+    .select('id, company_name, industry, account_id')
+    .eq('id', id)
+    .single()
+
+  if (!caseData) redirect('/dashboard')
+
+  // El acceso lo tiene un miembro del caso (director/colaborador) O el
+  // consultor dueño del caso (que no está en case_users, sino en accounts).
   const { data: caseUser } = await db
     .from('case_users')
     .select('role')
@@ -21,13 +31,18 @@ export default async function IndicePage({ params }: { params: Promise<{ id: str
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  const { data: caseData } = await db
-    .from('cases')
-    .select('id, company_name, industry')
-    .eq('id', id)
-    .single()
+  let role: string | undefined = caseUser?.role
+  if (!role && caseData.account_id) {
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .eq('id', caseData.account_id)
+      .maybeSingle()
+    if (account) role = 'consultant'
+  }
 
-  if (!caseData || !caseUser) redirect('/login')
+  if (!role) redirect('/dashboard')
 
   // Cargar todas las señales de agenda oculta del caso
   const { data: signals } = await db
@@ -64,7 +79,7 @@ export default async function IndicePage({ params }: { params: Promise<{ id: str
     <IndiceClient
       caseId={id}
       companyName={caseData.company_name}
-      role={caseUser.role}
+      role={role}
       email={session.user.email!}
       signals={allSignals}
       byModule={byModule}

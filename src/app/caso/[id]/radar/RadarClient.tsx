@@ -91,7 +91,11 @@ function estratoLabel(e: string) {
 }
 
 export default function RadarClient({ caseId, companyName }: Props) {
-  const defaultProfile = RADAR_PROFILES[0] // Famtell 3PL
+  // Arrancar en "Personalizado" (sin códigos preseleccionados). El radar busca
+  // prospectos para el cliente de ESTE caso, así que no se impone un perfil fijo;
+  // el consultor usa "Sugerir sectores con IA" (analiza el diagnóstico del caso)
+  // o selecciona manualmente.
+  const defaultProfile = RADAR_PROFILES.find(p => p.id === 'custom') ?? RADAR_PROFILES[0]
 
   // IA sugerencias
   const [aiLoading, setAiLoading]   = useState(false)
@@ -594,7 +598,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
           <p className="text-3xl mb-3">🎯</p>
           <p className="text-sm font-medium text-ink">Selecciona sectores y busca prospectos</p>
           <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-            El perfil <strong>Famtell 3PL</strong> ya tiene pre-seleccionados los subsectores con mayor potencial de necesitar operación logística tercerizada.
+            Usa <strong>✨ Sugerir sectores con IA</strong> para que el radar analice el diagnóstico de <strong>{companyName}</strong> y recomiende los sectores con mayor potencial, o selecciona los subsectores manualmente.
           </p>
         </div>
       )}

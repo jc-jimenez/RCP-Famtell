@@ -12,6 +12,14 @@ export default async function EscenariosPage({ params }: { params: Promise<{ id:
 
   const db = supabase as any
 
+  const { data: caseData } = await db
+    .from('cases')
+    .select('id, company_name, account_id')
+    .eq('id', id)
+    .single()
+
+  if (!caseData) redirect('/dashboard')
+
   const { data: caseUser } = await db
     .from('case_users')
     .select('role')
@@ -19,19 +27,25 @@ export default async function EscenariosPage({ params }: { params: Promise<{ id:
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  const { data: caseData } = await db
-    .from('cases')
-    .select('id, company_name')
-    .eq('id', id)
-    .single()
+  // Acceso: miembro del caso (director/colaborador) o consultor dueño
+  let role: string | undefined = caseUser?.role
+  if (!role && caseData.account_id) {
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .eq('id', caseData.account_id)
+      .maybeSingle()
+    if (account) role = 'consultant'
+  }
 
-  if (!caseData || !caseUser) redirect('/login')
+  if (!role) redirect('/dashboard')
 
   return (
     <EscenariosClient
       caseId={id}
       companyName={caseData.company_name}
-      role={caseUser.role}
+      role={role}
       email={session.user.email!}
     />
   )
