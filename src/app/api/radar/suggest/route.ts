@@ -51,9 +51,11 @@ export async function POST(request: Request) {
     sector.subsectors.map(s => `  - ${s.code}: ${s.name}`).join('\n')
   ).join('\n\n')
 
-  const prompt = `Eres un experto en prospección comercial para operadores logísticos 3PL en México.
+  const prompt = `Eres un experto en prospección comercial B2B en México.
 
-Tu tarea: analizar el perfil de un cliente de consultoría y seleccionar los subsectores SCIAN del directorio DENUE/INEGI donde es más probable encontrar empresas que necesiten los servicios del cliente.
+Tu tarea: analizar el perfil de un cliente de consultoría y seleccionar los subsectores SCIAN del directorio DENUE/INEGI donde es más probable encontrar PROSPECTOS (clientes potenciales) que compren los productos o servicios que ofrece ESTE cliente.
+
+Primero infiere a qué se dedica el cliente (su giro y propuesta de valor) a partir de su perfil; luego elige los sectores que serían sus compradores naturales. No asumas un giro específico: adáptate a lo que el cliente realmente ofrece.
 
 ## Perfil del cliente
 ${clientContext}
@@ -62,9 +64,9 @@ ${clientContext}
 ${scianTree}
 
 ## Instrucciones
-1. Selecciona entre 8 y 20 códigos SCIAN de 4 dígitos que sean más relevantes para que este cliente encuentre prospectos
-2. Para cada código, da una razón concisa (máx 10 palabras) de por qué es relevante
-3. Prioriza sectores donde el cliente tiene ventaja competitiva o experiencia documentada
+1. Selecciona entre 8 y 20 códigos SCIAN de 4 dígitos donde este cliente encontraría prospectos para lo que ofrece
+2. Para cada código, da una razón concisa (máx 10 palabras) de por qué ese sector compraría sus productos/servicios
+3. Prioriza sectores acordes a la ventaja competitiva o experiencia documentada del cliente
 4. Responde ÚNICAMENTE con JSON válido, sin markdown, sin explicaciones extra
 
 ## Formato de respuesta

@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   SCIAN_SECTORS,
-  RADAR_PROFILES,
   type SCIANSector,
-  type SCIANSubsector,
 } from '@/lib/radar-profiles'
 
 const ESTADOS = [
@@ -91,11 +89,9 @@ function estratoLabel(e: string) {
 }
 
 export default function RadarClient({ caseId, companyName }: Props) {
-  // Arrancar en "Personalizado" (sin códigos preseleccionados). El radar busca
-  // prospectos para el cliente de ESTE caso, así que no se impone un perfil fijo;
-  // el consultor usa "Sugerir sectores con IA" (analiza el diagnóstico del caso)
-  // o selecciona manualmente.
-  const defaultProfile = RADAR_PROFILES.find(p => p.id === 'custom') ?? RADAR_PROFILES[0]
+  // El radar es agnóstico al giro: no impone un perfil fijo. El consultor usa
+  // "Sugerir sectores con IA" (analiza el diagnóstico de ESTE caso) o selecciona
+  // los subsectores manualmente.
 
   // IA sugerencias
   const [aiLoading, setAiLoading]   = useState(false)
@@ -133,7 +129,6 @@ export default function RadarClient({ caseId, companyName }: Props) {
   const [searchMode, setSearchMode] = useState<'scian' | 'nombre'>('scian')
 
   // Filtros SCIAN
-  const [profileId, setProfileId]       = useState(defaultProfile.id)
   const [selectedSector, setSelectedSector] = useState<SCIANSector | null>(null)
   const [selectedCodes, setSelectedCodes]   = useState<string[]>([])
   const [entidad, setEntidad]               = useState('00')
@@ -156,8 +151,6 @@ export default function RadarClient({ caseId, companyName }: Props) {
   const mapRef    = useRef<HTMLDivElement>(null)
   const leafletRef = useRef<any>(null)
 
-  const profile = RADAR_PROFILES.find(p => p.id === profileId) ?? defaultProfile
-
   function toggleCode(code: string) {
     setSelectedCodes(prev =>
       prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
@@ -171,17 +164,6 @@ export default function RadarClient({ caseId, companyName }: Props) {
       return [...new Set([...prev, ...codes])]
     })
   }
-
-  // Al cambiar perfil, pre-seleccionar códigos recomendados
-  useEffect(() => {
-    const p = RADAR_PROFILES.find(r => r.id === profileId)
-    if (p && p.recommendedCodes.length > 0) {
-      setSelectedCodes(p.recommendedCodes)
-    } else {
-      setSelectedCodes([])
-    }
-    setSelectedSector(null)
-  }, [profileId])
 
   async function search() {
     if (searchMode === 'scian' && selectedCodes.length === 0) return
@@ -318,29 +300,17 @@ export default function RadarClient({ caseId, companyName }: Props) {
         {searchMode === 'scian' && (
           <div className="space-y-4">
 
-            {/* Perfil */}
+            {/* Sugerencia con IA */}
             <div>
-              <p className="text-xs font-medium text-muted mb-1.5">Perfil de búsqueda</p>
-              <div className="flex gap-2 flex-wrap">
-                {RADAR_PROFILES.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setProfileId(p.id)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${profileId === p.id ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:text-ink hover:border-accent/40'}`}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-              {profile.description && (
-                <p className="text-xs text-muted mt-1.5 italic">{profile.description}</p>
-              )}
+              <p className="text-xs font-medium text-muted mb-1.5">
+                Deja que la IA recomiende sectores según el diagnóstico de {companyName}, o selecciona los subsectores manualmente.
+              </p>
 
               {/* Botón IA */}
               <button
                 onClick={suggestWithAI}
                 disabled={aiLoading}
-                className="mt-2 flex items-center gap-2 text-xs px-3 py-2 rounded-xl border border-accent/30 text-accent bg-accent-soft hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+                className="mt-1 flex items-center gap-2 text-xs px-3 py-2 rounded-xl border border-accent/30 text-accent bg-accent-soft hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
               >
                 {aiLoading
                   ? <><span className="animate-spin">⟳</span> Analizando el diagnóstico…</>
@@ -418,7 +388,6 @@ export default function RadarClient({ caseId, companyName }: Props) {
                       {isOpen && (
                         <div className="px-3 pb-3 pt-1 grid grid-cols-1 gap-1 border-t border-subtle bg-white">
                           {sector.subsectors.map(sub => {
-                            const isRec = profile.recommendedCodes.includes(sub.code)
                             const isAI  = aiReasoning.some(r => r.code === sub.code)
                             const isSelected = selectedCodes.includes(sub.code)
                             return (
@@ -439,13 +408,7 @@ export default function RadarClient({ caseId, companyName }: Props) {
                                     {isAI && (
                                       <span className="text-xs bg-accent/10 text-accent px-1.5 rounded-full font-medium">✨ IA</span>
                                     )}
-                                    {isRec && !isAI && (
-                                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 rounded-full">★ Perfil</span>
-                                    )}
                                   </div>
-                                  {sub.pitch && (
-                                    <p className="text-xs text-muted mt-0.5">{sub.pitch}</p>
-                                  )}
                                 </div>
                               </label>
                             )
