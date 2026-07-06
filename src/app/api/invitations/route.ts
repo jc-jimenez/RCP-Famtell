@@ -9,10 +9,13 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, email, role, jobTitle, permissions, whatsappPhone } = await request.json()
+  const { caseId, email, role, jobTitle, jobPositionId, permissions, whatsappPhone } = await request.json()
 
   if (!caseId || !email || !role) {
     return NextResponse.json({ error: 'caseId, email y role son requeridos' }, { status: 400 })
+  }
+  if (!jobPositionId) {
+    return NextResponse.json({ error: 'Debes asignar un puesto del catálogo del caso' }, { status: 400 })
   }
   if (!['director', 'collaborator'].includes(role)) {
     return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
@@ -62,6 +65,7 @@ export async function POST(request: Request) {
       user_id: null,
       role,
       job_title: jobTitle ?? null,
+      job_position_id: jobPositionId,
       permissions_json: permissions ?? null,
       invitation_email: email,
       invitation_token: token,

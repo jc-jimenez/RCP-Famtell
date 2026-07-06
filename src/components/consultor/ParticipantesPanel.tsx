@@ -13,31 +13,17 @@ const MODULES = [
 ]
 const ALL_CODES = MODULES.map(m => m.code)
 
-// Perfiles con módulos pre-seleccionados
-const PROFILES = [
-  { id: 'director_general',    label: 'Director General',       icon: '★', modules: ALL_CODES,                         description: 'Acceso completo a todos los módulos' },
-  { id: 'gerente_comercial',   label: 'Gerente Comercial',      icon: '◎', modules: ['M1', 'M3', 'M5'],                description: 'Comercial, Contactos, Competencia' },
-  { id: 'gerente_operativo',   label: 'Gerente Operativo',      icon: '⚙', modules: ['M2', 'M6'],                      description: 'Operaciones, Procesos internos' },
-  { id: 'cfo_contador',        label: 'CFO / Contador',         icon: '₿', modules: ['M4'],                            description: 'Radiografía Financiera' },
-  { id: 'rrhh_admin',          label: 'RRHH / Administración',  icon: '◑', modules: ['M6'],                            description: 'Cultura y estructura interna' },
-  { id: 'gerente_marketing',   label: 'Gerente de Marketing',   icon: '✦', modules: ['M1', 'M5'],                      description: 'Comercial y Competencia' },
-  { id: 'personalizado',       label: 'Personalizado',          icon: '✎', modules: [],                                description: 'Selecciona los módulos manualmente' },
-]
-
-const ROLE_LABEL: Record<string, string> = {
-  director_general:  'Director General',
-  gerente_comercial: 'Gerente Comercial',
-  gerente_operativo: 'Gerente Operativo',
-  cfo_contador:      'CFO / Contador',
-  rrhh_admin:        'RRHH / Administración',
-  gerente_marketing: 'Gerente de Marketing',
-  personalizado:     'Colaborador',
+interface Position {
+  id: string
+  name: string
+  job_description: string
 }
 
 interface Participant {
   id: string
   role: string
   job_title: string | null
+  job_position_id: string | null
   invitation_email: string | null
   permissions_json: { modules?: string[] } | null
   activated_at: string | null
@@ -46,6 +32,7 @@ interface Participant {
 interface Props {
   caseId: string
   initialParticipants: Participant[]
+  initialPositions: Position[]
 }
 
 function assignedModules(p: Participant): string[] {
@@ -53,15 +40,9 @@ function assignedModules(p: Participant): string[] {
   return p.permissions_json?.modules ?? []
 }
 
-function roleLabel(p: Participant): string {
-  if (p.role === 'director') return 'Director General'
-  if (p.job_title && ROLE_LABEL[p.job_title]) return ROLE_LABEL[p.job_title]
-  if (p.job_title) return p.job_title
-  return 'Colaborador'
-}
-
-export default function ParticipantesPanel({ caseId, initialParticipants }: Props) {
+export default function ParticipantesPanel({ caseId, initialParticipants, initialPositions }: Props) {
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants)
+  const [positions] = useState<Position[]>(initialPositions)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,15 +50,20 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
 
   const [form, setForm] = useState({
     email: '',
-    profileId: 'director_general',
+    positionId: '',
+    platformRole: 'collaborator' as 'director' | 'collaborator',
     customModules: [] as string[],
     whatsapp: '',
   })
 
-  const selectedProfile = PROFILES.find(p => p.id === form.profileId)!
-  const isCustom = form.profileId === 'personalizado'
-  const effectiveModules = isCustom ? form.customModules : selectedProfile.modules
-  const isDirector = form.profileId === 'director_general'
+  const isDirector = form.platformRole === 'director'
+  const effectiveModules = isDirector ? ALL_CODES : form.customModules
+  const noPositions = positions.length === 0
+
+  function positionName(p: Participant): string {
+    const pos = positions.find(x => x.id === p.job_position_id)
+    return pos?.name ?? p.job_title ?? 'Sin puesto'
+  }
 
   function toggleCustomModule(code: string) {
     setForm(f => ({
@@ -91,14 +77,16 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
   async function handleInvite() {
     setSaving(true)
     setError(null)
+    const selectedPositionName = positions.find(p => p.id === form.positionId)?.name ?? null
     const res = await fetch('/api/invitations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         caseId,
         email: form.email,
-        role: isDirector ? 'director' : 'collaborator',
-        jobTitle: form.profileId,
+        role: form.platformRole,
+        jobPositionId: form.positionId,
+        jobTitle: selectedPositionName,
         permissions: { modules: effectiveModules },
         whatsappPhone: form.whatsapp.trim() || null,
       }),
@@ -112,13 +100,14 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
       id: cu.id,
       role: cu.role,
       job_title: cu.job_title,
+      job_position_id: cu.job_position_id,
       invitation_email: cu.invitation_email,
       permissions_json: cu.permissions_json,
       activated_at: null,
     }])
     setLastInviteUrl(data.activationUrl ?? null)
     setShowModal(false)
-    setForm({ email: '', profileId: 'director_general', customModules: [], whatsapp: '' })
+    setForm({ email: '', positionId: '', platformRole: 'collaborator', customModules: [], whatsapp: '' })
   }
 
   return (
@@ -148,7 +137,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
         <div className="space-y-2">
           {participants.map(p => {
             const mods = assignedModules(p)
-            const label = roleLabel(p)
+            const label = positionName(p)
             return (
               <div key={p.id} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted">
@@ -159,7 +148,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
                   <p className="text-xs text-faint">
                     {label}
                     {' · '}
-                    {isDirectorRole(p.role) ? 'Módulos 1-7' : `Módulos ${mods.map(m => m.replace('M', '')).join(', ') || '—'}`}
+                    {p.role === 'director' ? 'Módulos 1-7' : `Módulos ${mods.map(m => m.replace('M', '')).join(', ') || '—'}`}
                   </p>
                 </div>
                 <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
@@ -177,113 +166,146 @@ export default function ParticipantesPanel({ caseId, initialParticipants }: Prop
           <div className="card w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-ink">Invitar participante</h3>
 
-            <div>
-              <label className="label-text">Correo electrónico</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                className="input-field"
-                placeholder="persona@empresa.com"
-              />
-            </div>
-
-            <div>
-              <label className="label-text">WhatsApp (opcional)</label>
-              <input
-                type="tel"
-                value={form.whatsapp}
-                onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
-                className="input-field"
-                placeholder="+52 55 1234 5678"
-              />
-              <p className="text-xs text-faint mt-1">Se usará para recordatorios de check-in cada lunes</p>
-            </div>
-
-            {/* Selector de perfil */}
-            <div>
-              <label className="label-text">Perfil / Rol en la empresa</label>
-              <div className="grid grid-cols-1 gap-1.5 mt-1">
-                {PROFILES.map(profile => (
-                  <label
-                    key={profile.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
-                      form.profileId === profile.id
-                        ? 'border-accent bg-accent-soft'
-                        : 'border-subtle bg-surface-2 hover:border-accent/30'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="profile"
-                      value={profile.id}
-                      checked={form.profileId === profile.id}
-                      onChange={() => setForm(f => ({ ...f, profileId: profile.id }))}
-                      className="sr-only"
-                    />
-                    <span className="text-base w-5 text-center">{profile.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ink">{profile.label}</p>
-                      <p className="text-xs text-muted">{profile.description}</p>
-                    </div>
-                    {form.profileId === profile.id && (
-                      <span className="text-accent text-xs font-bold">✓</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Módulos custom */}
-            {isCustom && (
-              <div>
-                <label className="label-text">Selecciona los módulos</label>
-                <div className="grid grid-cols-1 gap-1.5 mt-1">
-                  {MODULES.map(m => (
-                    <label key={m.code} className="flex items-center gap-2 text-sm text-ink cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
-                      <input
-                        type="checkbox"
-                        checked={form.customModules.includes(m.code)}
-                        onChange={() => toggleCustomModule(m.code)}
-                        className="accent-brand"
-                      />
-                      <span className="font-medium text-xs w-6 text-faint">{m.code}</span>
-                      <span className="text-muted text-xs">{m.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Preview de módulos */}
-            {!isCustom && effectiveModules.length > 0 && (
-              <div className="bg-surface-2 rounded-xl px-4 py-3">
-                <p className="text-xs text-muted mb-1">Módulos asignados automáticamente:</p>
-                <p className="text-xs font-semibold text-ink">
-                  {effectiveModules.join(' · ')}
+            {noPositions ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+                <p className="text-sm font-semibold text-amber-800">Todavía no hay puestos en el catálogo de este caso</p>
+                <p className="text-xs text-amber-700">
+                  Antes de invitar participantes, ve a "Plan de Diagnóstico" y da de alta los puestos reales de la empresa
+                  (con su descriptivo) — cada participante se asigna a uno de esos puestos.
                 </p>
               </div>
+            ) : (
+              <>
+                <div>
+                  <label className="label-text">Correo electrónico</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    className="input-field"
+                    placeholder="persona@empresa.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="label-text">WhatsApp (opcional)</label>
+                  <input
+                    type="tel"
+                    value={form.whatsapp}
+                    onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+                    className="input-field"
+                    placeholder="+52 55 1234 5678"
+                  />
+                  <p className="text-xs text-faint mt-1">Se usará para recordatorios de check-in cada lunes</p>
+                </div>
+
+                {/* Puesto (catálogo del caso) */}
+                <div>
+                  <label className="label-text">Puesto en la empresa (catálogo de este caso)</label>
+                  <div className="grid grid-cols-1 gap-1.5 mt-1">
+                    {positions.map(pos => (
+                      <label
+                        key={pos.id}
+                        className={`flex items-start gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+                          form.positionId === pos.id
+                            ? 'border-accent bg-accent-soft'
+                            : 'border-subtle bg-surface-2 hover:border-accent/30'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="position"
+                          value={pos.id}
+                          checked={form.positionId === pos.id}
+                          onChange={() => setForm(f => ({ ...f, positionId: pos.id }))}
+                          className="sr-only"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-ink">{pos.name}</p>
+                          <p className="text-xs text-muted line-clamp-2">{pos.job_description}</p>
+                        </div>
+                        {form.positionId === pos.id && (
+                          <span className="text-accent text-xs font-bold">✓</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rol de plataforma — independiente del puesto */}
+                <div>
+                  <label className="label-text">Rol de plataforma</label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, platformRole: 'director' }))}
+                      className={`text-sm px-3 py-2 rounded-xl border transition-colors ${
+                        isDirector ? 'border-accent bg-accent-soft text-accent font-medium' : 'border-subtle text-muted hover:border-accent/30'
+                      }`}
+                    >
+                      Director General
+                      <p className="text-xs font-normal mt-0.5">Ve el Brief y los KPIs, acceso a todos los módulos</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, platformRole: 'collaborator' }))}
+                      className={`text-sm px-3 py-2 rounded-xl border transition-colors ${
+                        !isDirector ? 'border-accent bg-accent-soft text-accent font-medium' : 'border-subtle text-muted hover:border-accent/30'
+                      }`}
+                    >
+                      Colaborador
+                      <p className="text-xs font-normal mt-0.5">Solo responde los módulos que le asignes</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Módulos custom (solo colaborador) */}
+                {!isDirector && (
+                  <div>
+                    <label className="label-text">Selecciona los módulos</label>
+                    <div className="grid grid-cols-1 gap-1.5 mt-1">
+                      {MODULES.map(m => (
+                        <label key={m.code} className="flex items-center gap-2 text-sm text-ink cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
+                          <input
+                            type="checkbox"
+                            checked={form.customModules.includes(m.code)}
+                            onChange={() => toggleCustomModule(m.code)}
+                            className="accent-brand"
+                          />
+                          <span className="font-medium text-xs w-6 text-faint">{m.code}</span>
+                          <span className="text-muted text-xs">{m.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isDirector && (
+                  <div className="bg-surface-2 rounded-xl px-4 py-3">
+                    <p className="text-xs text-muted mb-1">Módulos asignados automáticamente:</p>
+                    <p className="text-xs font-semibold text-ink">{ALL_CODES.join(' · ')}</p>
+                  </div>
+                )}
+              </>
             )}
 
             {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{error}</p>}
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => { setShowModal(false); setError(null) }} className="btn-secondary flex-1">Cancelar</button>
-              <button
-                onClick={handleInvite}
-                disabled={saving || !form.email || effectiveModules.length === 0}
-                className="btn-primary flex-1 disabled:opacity-50"
-              >
-                {saving ? 'Invitando…' : 'Enviar invitación'}
-              </button>
+              {!noPositions && (
+                <button
+                  onClick={handleInvite}
+                  disabled={saving || !form.email || !form.positionId || effectiveModules.length === 0}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {saving ? 'Invitando…' : 'Enviar invitación'}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function isDirectorRole(role: string) {
-  return role === 'director'
 }
