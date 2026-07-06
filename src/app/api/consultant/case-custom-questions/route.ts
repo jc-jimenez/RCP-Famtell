@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, sectionId, text, novaHint, suggestedRoles } = await req.json()
+  const { caseId, sectionId, text, novaHint, suggestedRoles, jobPositionIds } = await req.json()
   if (!caseId || !sectionId || !text?.trim()) {
     return NextResponse.json({ error: 'caseId, sectionId y text son requeridos' }, { status: 400 })
   }
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       text: text.trim(),
       nova_hint: novaHint?.trim() ?? null,
       suggested_roles: suggestedRoles ?? [],
+      job_position_ids: jobPositionIds ?? [],
     })
     .select()
     .single()
@@ -61,7 +62,7 @@ export async function PATCH(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, questionId, text, suggestedRoles, isActive } = await req.json()
+  const { caseId, questionId, text, suggestedRoles, isActive, jobPositionIds } = await req.json()
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
@@ -70,6 +71,7 @@ export async function PATCH(req: Request) {
   if (text !== undefined) updates.text = text.trim()
   if (suggestedRoles !== undefined) updates.suggested_roles = suggestedRoles
   if (isActive !== undefined) updates.is_active = isActive
+  if (jobPositionIds !== undefined) updates.job_position_ids = jobPositionIds
 
   const { data, error } = await db
     .from('case_custom_questions')

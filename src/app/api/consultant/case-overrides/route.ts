@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const db = supabase as any
   const { data } = await db
     .from('case_question_overrides')
-    .select('question_id, is_active, custom_text, roles_override')
+    .select('question_id, is_active, custom_text, roles_override, job_position_ids')
     .eq('case_id', caseId)
 
   return NextResponse.json(data ?? [])
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, questionId, isActive, customText, rolesOverride } = await req.json()
+  const { caseId, questionId, isActive, customText, rolesOverride, jobPositionIds } = await req.json()
   const db = supabase as any
 
   // Verificar que el caso pertenece al consultor
@@ -54,6 +54,7 @@ export async function POST(req: Request) {
     custom_text: customText ?? null,
   }
   if (rolesOverride !== undefined) upsertPayload.roles_override = rolesOverride
+  if (jobPositionIds !== undefined) upsertPayload.job_position_ids = jobPositionIds
 
   const { data, error } = await db
     .from('case_question_overrides')

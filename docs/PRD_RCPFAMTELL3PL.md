@@ -83,6 +83,8 @@ Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fij
 - `build-from-catalog.ts` deja de comparar `job_title` contra `suggested_roles` (enum) y pasa a resolver, por caso, qué preguntas están mapeadas al `job_position_id` del usuario — y si una pregunta no tiene ningún puesto mapeado en este caso, se excluye del guion (no se le pregunta a nadie).
 - Pantalla nueva de consultor (no existe hoy): "Puestos y mapeo de preguntas" dentro del caso, para crear el catálogo de puestos y hacer el mapeo, antes de invitar participantes.
 
+**✅ Paso 1-2 de la Fase 2 completados y verificados en navegador (2026-07-06):** migración 023 corrida en Supabase; panel "Puestos" agregado a `/dashboard/caso/[id]/plan` (crear/editar/borrar puesto con descriptivo obligatorio); mapeo pregunta↔puesto vía `job_position_ids` en `case_question_overrides`/`case_custom_questions`. Probado end-to-end con la cuenta de consultor real: crear puesto → mapear pregunta → recargar página → el mapeo persiste. El toggle de roles (enum viejo) se dejó visible en paralelo, marcado como legado — se retira en el paso 4 cuando el filtro de Nova use `job_position_ids` en vez de `suggested_roles`. Pendiente: paso 3 (invitación de participantes con puesto del catálogo) y paso 4 (filtro de Nova).
+
 ### Flujo resultante para el consultor (Famtell)
 
 1. Crear el caso → dar de alta el catálogo de puestos de Famtell.
