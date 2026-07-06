@@ -25,7 +25,7 @@ const PLANS = [
     price: '$699/mes',
     credits: 500,
     highlight: true,
-    features: ['500 créditos/mes', 'Casos ilimitados', 'Módulos M1–M7 + Premium', 'Soporte prioritario', 'Brief PDF incluido'],
+    features: ['500 créditos/mes', 'Casos ilimitados', 'Módulos M1–M7', 'Soporte prioritario', 'Brief PDF incluido'],
   },
   {
     id: 'enterprise',

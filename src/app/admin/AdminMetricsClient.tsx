@@ -79,12 +79,11 @@ export default function AdminMetricsClient({ totalConsultants, totalCases, recen
       </div>
 
       {/* Nav rápida */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: 'Consultores', href: '/admin/consultores', desc: 'Crear y gestionar cuentas' },
           { label: 'Casos globales', href: '/admin/casos', desc: 'Ver todos los casos' },
           { label: 'Créditos', href: '/admin/creditos', desc: 'Monitor de tokens' },
-          { label: 'Premium', href: '/admin/premium', desc: 'Activar módulos A-G' },
         ].map((nav) => (
           <Link key={nav.href} href={nav.href as any}
             className="card p-4 hover:shadow-card-hover transition-shadow group">

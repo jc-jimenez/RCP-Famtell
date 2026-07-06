@@ -6,7 +6,6 @@ export type PlanType = 'starter' | 'consultant' | 'agency' | 'white_label'
 
 // ─── Módulos ──────────────────────────────────────────────────────────────────
 export type ModuleCode = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7'
-export type PremiumModuleCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
 export type ModuleStatus = 'locked' | 'active' | 'completed'
 
 // ─── Agenda Oculta ────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ export interface ChatMessage {
 export interface CaseModule {
   id: string
   case_id: string
-  module_code: ModuleCode | PremiumModuleCode
+  module_code: ModuleCode
   status: ModuleStatus
   credits_used: number
   unlocked_at: string | null
@@ -49,7 +48,7 @@ export interface CaseModule {
 export interface Session {
   id: string
   case_id: string
-  module_code: ModuleCode | PremiumModuleCode
+  module_code: ModuleCode
   user_id: string
   messages: ChatMessage[]
   last_message_at: string | null
@@ -188,16 +187,6 @@ export interface Notification {
   status: 'sent' | 'failed' | 'pending'
   sent_at: string | null
   created_at: string
-}
-
-// ─── Módulos Premium ──────────────────────────────────────────────────────────
-export interface PremiumModule {
-  id: string
-  case_id: string
-  module_code: PremiumModuleCode
-  activated_by: string
-  activated_at: string
-  credits_cost: number
 }
 
 // ─── Intención estratégica ────────────────────────────────────────────────────

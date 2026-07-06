@@ -38,13 +38,14 @@ Esto ya está construido y funcionando: `plan_90d`, `plan_1a`, `plan_3a` en el B
 
 ## 4. Qué se corta (cero costo, cero valor hoy)
 
-- **Premium A-G** (Valuación, Palancas financieras, Riesgo, M&A, Proyección, Brechas de rol, Capital humano) — son toggles sin sesiones, sin lógica de Nova, sin tablas propias. Cascarón puro. **Se elimina del PRD**; si algún día un cliente lo pide, se re-evalúa como módulo nuevo, no se rescata este código.
-- **WhatsApp Business (8.12)** — endpoint placeholder, Twilio nunca integrado de verdad.
-- **Integración SAT/ERP (8.13)** — no existe en código, solo era concepto.
+- **Premium A-G** (Valuación, Palancas financieras, Riesgo, M&A, Proyección, Brechas de rol, Capital humano) — **CORTADO (2026-07-06).** Tenían routing y toggle real en BD, pero verificado en código: sin `module_templates` ni prompts estáticos para A-G (`prompts/index.ts` solo cubre M1-M7), el chat se abría sin ningún guion de Nova. Cascarón real bajo una plomería que parecía completa. Eliminados: `src/app/premium/*`, `src/app/admin/premium/*`, `src/app/api/premium/route.ts`, `src/app/api/admin/premium/route.ts`, tipo `PremiumModuleCode`/`PremiumModule`, `PREMIUM_CREDITS`. La tabla `premium_modules` en Supabase se deja intacta (no se dropeó, bajo riesgo dejarla sin usar). Si algún día un cliente lo pide, se re-evalúa como módulo nuevo con su propio catálogo de preguntas, no se rescata este código.
+- **Facturación en Admin** — **CORTADO (2026-07-06).** Verificado: era una página estática (redirección a Stripe Dashboard + precios hardcoded), sin lógica propia. Eliminado `src/app/admin/facturacion/page.tsx`. El checkout de Stripe real (`/api/billing/checkout`, webhook) no se tocó, sigue funcionando.
+- **Integración SAT/ERP (8.13)** — no existe en código, solo era concepto. Nada que cortar.
 - **Brief de Cierre Semana 12 (8.14)** — no existe en código. Si se necesita un cierre a semana 12, es una variante del Brief existente, no una pieza nueva.
-- **Facturación en Admin** — UI vacía, Stripe no conectado ahí (el checkout de Stripe que sí funciona se queda, solo se corta la pantalla de admin).
 - **Radar de Prospectos agnóstico a giro (8.7)** — mantenido pero fuera del núcleo: es una herramienta de prospección para el consultor, no alimenta el Plan 90d/1a/3a de Famtell directamente. Se conserva como utilidad secundaria, no se invierte más en generalizarlo.
 - **Portal del Cliente (8.11)** — se mantiene mínimo (login + ver Brief), no se expande.
+
+> ⚠️ **Corrección (2026-07-06):** este documento decía que WhatsApp Business (8.12) era placeholder — **era un error de la auditoría inicial.** Verificado en código: `sendWhatsApp` (`src/lib/twilio.ts`) es una integración real con la API de Twilio, usada de verdad en invitaciones (`api/invitations/route.ts`) y recordatorios de check-in semanal (`api/cron/checkin-reminder/route.ts`). **No se corta — es parte del núcleo**, coherente con lo que ya indicaba la memoria del proyecto (Fase 2 completada). Se mueve a la sección 3 (núcleo) mentalmente; no se repite la tabla completa aquí.
 
 ## 5. Roles (sin cambio de fondo, recorte de pantallas)
 
@@ -125,8 +126,8 @@ Escenarios de crecimiento (8.9 — los 3 escenarios son fijos pero sus valores y
 
 Orden por dependencia real, no por importancia — cada fase deja el terreno listo para la siguiente. No se arranca una fase sin cerrar la anterior.
 
-### Fase 0 — Limpieza (cortar lo descartado en la sección 4)
-Eliminar código y rutas de Premium A-G, WhatsApp placeholder, Facturación en Admin, referencias muertas a SAT/ERP y Brief de Cierre Semana 12. Bajo riesgo, no depende de nada. Se hace primero para reducir la superficie de código antes de tocar permisos y el modelo de datos — menos cosas que arrastrar por accidente en los refactors siguientes.
+### Fase 0 — Limpieza (cortar lo descartado en la sección 4) ✅ COMPLETADA (2026-07-06)
+Eliminado: Premium A-G (páginas, rutas API, tipos, costos de crédito) y Facturación en Admin. WhatsApp se verificó como núcleo real durante la ejecución y no se tocó (ver corrección en sección 4). SAT/ERP y Brief de Cierre Semana 12 no existían en código, no había nada que cortar. `npx tsc --noEmit` limpio tras la limpieza.
 
 ### Fase 1 — Refactor de permisos de plataforma (sección 8)
 Módulo central de capacidades por rol, reemplazando los checks de rol dispersos. Sin cambio visible para el usuario. Se hace antes de construir las pantallas nuevas de la Fase 2 para no construirlas dos veces (una con checks viejos, otra ya refactorizada).

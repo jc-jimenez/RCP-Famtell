@@ -1,4 +1,4 @@
-import type { ModuleCode, PremiumModuleCode } from '@/types'
+import type { ModuleCode } from '@/types'
 
 export const MODULE_CREDITS: Record<ModuleCode, number> = {
   M1: 10,
@@ -8,16 +8,6 @@ export const MODULE_CREDITS: Record<ModuleCode, number> = {
   M5: 10,
   M6: 10, // +3 por colaborador
   M7: 15, // +20 al generar el brief
-}
-
-export const PREMIUM_CREDITS: Record<PremiumModuleCode, number> = {
-  A: 25,
-  B: 15,
-  C: 15,
-  D: 30,
-  E: 15,
-  F: 10,
-  G: 15,
 }
 
 export const CREDIT_COSTS = {
