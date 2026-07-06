@@ -13,205 +13,100 @@ interface Props {
   industry: string
   role: string
   email: string
+  initialTemplates: Template[]
 }
 
 // ── Plantillas ──────────────────────────────────────────────────────────────
+// Ver docs/PRD_RCPFAMTELL3PL.md sección 9.3 — antes hardcoded aquí mismo,
+// ahora catálogo editable por cuenta de consultor (communication_templates).
 
 interface Template {
   id: string
   category: string
   label: string
   channel: 'email' | 'whatsapp'
-  subject?: string
+  subject?: string | null
   body: string
+  is_active: boolean
 }
-
-const TEMPLATES: Template[] = [
-  // ── PROSPECCIÓN ──
-  {
-    id: 'prosp_email_1',
-    category: 'Prospección',
-    label: 'Primer contacto (email)',
-    channel: 'email',
-    subject: 'Una idea para {{empresa_prospecto}}',
-    body: `Hola {{nombre}},
-
-Soy {{consultor}} de {{empresa_consultor}}. Trabajamos con empresas de {{sector}} ayudándoles a identificar oportunidades de crecimiento que no siempre son visibles desde adentro.
-
-Vi que {{empresa_prospecto}} {{gancho}} y me pareció que podría tener sentido conversar.
-
-¿Tienes 20 minutos esta semana para una llamada breve? No hay presentación ni pitch — solo una conversación para ver si hay algo en lo que pueda aportarte.
-
-Quedo al pendiente,
-{{consultor}}
-{{telefono}}`,
-  },
-  {
-    id: 'prosp_wa_1',
-    category: 'Prospección',
-    label: 'Primer contacto (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}, soy {{consultor}} de {{empresa_consultor}}.
-
-Trabajo con empresas de {{sector}} en diagnósticos de crecimiento. Vi lo que hace {{empresa_prospecto}} y me gustaría platicar 20 minutos contigo — sin presentación, solo para ver si hay algo en lo que pueda aportar.
-
-¿Cuándo te queda bien esta semana? 🙏`,
-  },
-  {
-    id: 'prosp_wa_2',
-    category: 'Prospección',
-    label: 'Seguimiento prospecto frío (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}, te escribí hace unos días pero entiendo que el timing no fue el mejor.
-
-Solo quería cerrar el loop: si en algún momento quieres explorar cómo otras empresas de {{sector}} han resuelto {{problema}}, con gusto platicamos.
-
-Sin compromiso. 👍`,
-  },
-
-  // ── REACTIVACIÓN ──
-  {
-    id: 'react_email_1',
-    category: 'Reactivación',
-    label: 'Cliente inactivo (email)',
-    channel: 'email',
-    subject: '{{empresa_prospecto}} — ¿cómo va el año?',
-    body: `Hola {{nombre}},
-
-Han pasado {{meses}} meses desde que trabajamos juntos y quería escribirte para saber cómo va {{empresa_prospecto}}.
-
-En ese tiempo hemos visto a varias empresas de {{sector}} enfrentar {{reto_actual}}. Me pregunto si algo de eso resuena contigo.
-
-Si en algún momento quieres retomar la conversación, con gusto me siento contigo. Sin agenda fija — solo para ver dónde están y si hay algo en lo que pueda ayudar.
-
-Saludos,
-{{consultor}}`,
-  },
-  {
-    id: 'react_wa_1',
-    category: 'Reactivación',
-    label: 'Cliente inactivo (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}! Han pasado un rato desde que hablamos.
-
-¿Cómo va {{empresa_prospecto}}? Me gustaría saber cómo resultó {{accion_previa}}.
-
-Si en algún momento quieres platicar, aquí estoy. 👋`,
-  },
-
-  // ── PROPUESTA ──
-  {
-    id: 'prop_email_1',
-    category: 'Propuesta',
-    label: 'Envío de propuesta (email)',
-    channel: 'email',
-    subject: 'Propuesta RCP · {{empresa_prospecto}}',
-    body: `Hola {{nombre}},
-
-Tal como acordamos, te comparto la propuesta para {{empresa_prospecto}}.
-
-El documento incluye:
-• Diagnóstico inicial de {{modulos}} módulos
-• Metodología y tiempos estimados
-• Inversión y condiciones
-
-En resumen, la propuesta está diseñada para {{objetivo_principal}} en un horizonte de {{plazo}}.
-
-Quedo disponible para resolver cualquier duda. Si quieres, podemos agendar una llamada esta semana para revisar el documento juntos.
-
-Saludos,
-{{consultor}}
-{{telefono}}`,
-  },
-  {
-    id: 'prop_wa_1',
-    category: 'Propuesta',
-    label: 'Seguimiento post-propuesta (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}, te envié la propuesta por correo. ¿La pudiste revisar?
-
-Si tienes alguna duda o quieres que revisemos algo juntos, dime y lo vemos. 🙌`,
-  },
-  {
-    id: 'prop_wa_2',
-    category: 'Propuesta',
-    label: 'Cierre de propuesta (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}, quería hacer un último seguimiento a la propuesta.
-
-Entiendo que hay muchas cosas en el día a día. Solo dime si:
-a) ¿Quieres que la revisemos juntos?
-b) ¿El timing no es el correcto aún?
-c) ¿Decidieron no continuar?
-
-Cualquier respuesta me ayuda para saber cómo seguir. ¡Gracias! 🙏`,
-  },
-
-  // ── DIAGNÓSTICO EN CURSO ──
-  {
-    id: 'diag_wa_1',
-    category: 'Diagnóstico activo',
-    label: 'Recordatorio de módulo pendiente (WhatsApp)',
-    channel: 'whatsapp',
-    body: `Hola {{nombre}}, quería recordarte que tienes pendiente el {{modulo}} de tu diagnóstico en RCP.ai.
-
-Son aproximadamente {{tiempo}} minutos de conversación con Nova — puedes hacerlo desde tu celular cuando tengas un rato.
-
-Aquí el link: {{link_modulo}} 🔗`,
-  },
-  {
-    id: 'diag_email_1',
-    category: 'Diagnóstico activo',
-    label: 'Reporte de avance semanal (email)',
-    channel: 'email',
-    subject: 'Avance diagnóstico {{empresa_prospecto}} — Semana {{semana}}',
-    body: `Hola {{nombre}},
-
-Te comparto el avance del diagnóstico de {{empresa_prospecto}} al cierre de la semana {{semana}}:
-
-✅ Módulos completados: {{modulos_completados}}/7
-⏳ Pendientes: {{modulos_pendientes}}
-📊 Próximo paso: {{siguiente_accion}}
-
-{{comentario_consultor}}
-
-Cualquier duda, escríbeme.
-
-{{consultor}}`,
-  },
-
-  // ── CIERRE ──
-  {
-    id: 'cierre_email_1',
-    category: 'Cierre',
-    label: 'Entrega de diagnóstico final (email)',
-    channel: 'email',
-    subject: 'Diagnóstico completo · {{empresa_prospecto}}',
-    body: `Hola {{nombre}},
-
-¡Listo! El diagnóstico de {{empresa_prospecto}} está completo.
-
-En RCP.ai ya puedes revisar el Brief ejecutivo con los hallazgos principales, el plan de acción a 90 días y el Índice de Intención Estratégica.
-
-El siguiente paso es la sesión de presentación de resultados. ¿Cuándo te queda bien esta semana o la próxima?
-
-Fue un placer trabajar en esto contigo.
-
-{{consultor}}`,
-  },
-]
-
-const CATEGORIES = ['Todos', ...Array.from(new Set(TEMPLATES.map(t => t.category)))]
 
 // ── Componente ───────────────────────────────────────────────────────────────
 
-export default function ComunicacionClient({ caseId, companyName, industry, role, email }: Props) {
+export default function ComunicacionClient({ caseId, companyName, industry, role, email, initialTemplates }: Props) {
   const shellRole: UserRole = role === 'consultant' ? 'consultant' : 'director'
+  const isConsultant = role === 'consultant'
+
+  const [templates, setTemplates] = useState<Template[]>(initialTemplates)
+  const activeTemplates = useMemo(() => templates.filter(t => t.is_active), [templates])
+  const CATEGORIES = useMemo(() => ['Todos', ...Array.from(new Set(activeTemplates.map(t => t.category)))], [activeTemplates])
 
   const [category, setCategory] = useState('Todos')
   const [channel, setChannel]   = useState<'all' | 'email' | 'whatsapp'>('all')
-  const [selectedId, setSelected] = useState(TEMPLATES[0].id)
+  const [selectedId, setSelected] = useState(initialTemplates[0]?.id ?? null)
   const [copied, setCopied]     = useState(false)
+
+  // Gestión del catálogo — solo consultor
+  const [showManage, setShowManage] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)
+  const [editTplId, setEditTplId] = useState<string | null>(null)
+  const [tplForm, setTplForm] = useState({ category: '', label: '', channel: 'email' as 'email' | 'whatsapp', subject: '', body: '' })
+
+  function resetTplForm() {
+    setTplForm({ category: '', label: '', channel: 'email', subject: '', body: '' })
+    setEditTplId(null)
+  }
+
+  async function createTemplate() {
+    if (!tplForm.category.trim() || !tplForm.label.trim() || !tplForm.body.trim()) return
+    setSavingTpl(true)
+    const res = await fetch('/api/consultant/communication-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...tplForm, sortOrder: templates.length }),
+    })
+    const data = await res.json()
+    if (data.template) setTemplates(prev => [...prev, data.template])
+    resetTplForm()
+    setSavingTpl(false)
+  }
+
+  function startEditTemplate(t: Template) {
+    setEditTplId(t.id)
+    setTplForm({ category: t.category, label: t.label, channel: t.channel, subject: t.subject ?? '', body: t.body })
+  }
+
+  async function saveEditTemplate() {
+    if (!editTplId) return
+    setSavingTpl(true)
+    const res = await fetch('/api/consultant/communication-templates', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: editTplId, ...tplForm }),
+    })
+    const data = await res.json()
+    if (data.template) setTemplates(prev => prev.map(t => t.id === editTplId ? data.template : t))
+    resetTplForm()
+    setSavingTpl(false)
+  }
+
+  async function toggleTemplateActive(t: Template) {
+    const res = await fetch('/api/consultant/communication-templates', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId: t.id, isActive: !t.is_active }),
+    })
+    const data = await res.json()
+    if (data.template) setTemplates(prev => prev.map(x => x.id === t.id ? data.template : x))
+  }
+
+  async function deleteTemplate(templateId: string) {
+    await fetch('/api/consultant/communication-templates', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateId }),
+    })
+    setTemplates(prev => prev.filter(t => t.id !== templateId))
+  }
 
   // Variables del usuario
   const [vars, setVars] = useState({
@@ -243,13 +138,13 @@ export default function ComunicacionClient({ caseId, companyName, industry, role
     setVars(prev => ({ ...prev, [key]: val }))
   }
 
-  const filtered = useMemo(() => TEMPLATES.filter(t => {
+  const filtered = useMemo(() => activeTemplates.filter(t => {
     if (category !== 'Todos' && t.category !== category) return false
     if (channel !== 'all' && t.channel !== channel) return false
     return true
-  }), [category, channel])
+  }), [activeTemplates, category, channel])
 
-  const selected = TEMPLATES.find(t => t.id === selectedId) ?? filtered[0]
+  const selected = activeTemplates.find(t => t.id === selectedId) ?? filtered[0]
 
   function fillVars(text: string) {
     return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key as keyof typeof vars] || `[${key}]`)
@@ -299,11 +194,104 @@ export default function ComunicacionClient({ caseId, companyName, industry, role
     <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={tabBar}>
       <div className="max-w-5xl mx-auto space-y-4">
 
-        <div>
-          <h1 className="text-xl font-bold text-ink">Motor de Comunicación</h1>
-          <p className="text-sm text-muted mt-1">Plantillas de email y WhatsApp para cada etapa del proceso comercial</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-ink">Motor de Comunicación</h1>
+            <p className="text-sm text-muted mt-1">Plantillas de email y WhatsApp para cada etapa del proceso comercial</p>
+          </div>
+          {isConsultant && (
+            <button onClick={() => setShowManage(v => !v)} className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
+              {showManage ? 'Ocultar gestión' : '⚙ Gestionar plantillas'}
+            </button>
+          )}
         </div>
 
+        {/* Gestión del catálogo — solo consultor (sección 9.3 del PRD) */}
+        {isConsultant && showManage && (
+          <div className="card p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-ink">Plantillas de {companyName.length > 0 ? 'tu cuenta' : 'tu cuenta'}</h2>
+            <p className="text-xs text-muted -mt-2">Se reutilizan en todos tus casos. Desactivar una no la borra, solo la oculta del uso diario.</p>
+
+            <div className="space-y-2">
+              {templates.map(t => (
+                <div key={t.id} className={`rounded-xl border p-3 ${t.is_active ? 'border-subtle' : 'border-subtle bg-surface-2 opacity-60'}`}>
+                  {editTplId === t.id ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={tplForm.category} onChange={e => setTplForm(f => ({ ...f, category: e.target.value }))} className="input-field text-sm" placeholder="Categoría" />
+                        <input value={tplForm.label} onChange={e => setTplForm(f => ({ ...f, label: e.target.value }))} className="input-field text-sm" placeholder="Nombre" />
+                      </div>
+                      <div className="flex gap-2">
+                        {(['email', 'whatsapp'] as const).map(ch => (
+                          <button key={ch} type="button" onClick={() => setTplForm(f => ({ ...f, channel: ch }))}
+                            className={`text-xs px-2.5 py-1 rounded-lg border ${tplForm.channel === ch ? 'border-accent bg-accent text-white' : 'border-subtle text-muted'}`}>
+                            {ch === 'email' ? '✉ Email' : '💬 WhatsApp'}
+                          </button>
+                        ))}
+                      </div>
+                      {tplForm.channel === 'email' && (
+                        <input value={tplForm.subject} onChange={e => setTplForm(f => ({ ...f, subject: e.target.value }))} className="input-field text-sm w-full" placeholder="Asunto" />
+                      )}
+                      <textarea value={tplForm.body} onChange={e => setTplForm(f => ({ ...f, body: e.target.value }))} rows={5} className="input-field text-sm w-full resize-none" placeholder="Cuerpo del mensaje (usa {{variable}} para campos dinámicos)" />
+                      <div className="flex gap-2">
+                        <button onClick={saveEditTemplate} disabled={savingTpl} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">{savingTpl ? 'Guardando…' : 'Guardar'}</button>
+                        <button onClick={resetTplForm} className="btn-secondary text-xs px-3 py-1.5">Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">{t.channel === 'email' ? '✉' : '💬'} {t.label}</p>
+                        <p className="text-xs text-muted">{t.category}</p>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button onClick={() => startEditTemplate(t)} className="text-xs px-2.5 py-1.5 rounded-lg border border-subtle hover:bg-surface-2 text-muted hover:text-ink transition-colors">✎</button>
+                        <button onClick={() => toggleTemplateActive(t)} className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${t.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-subtle text-faint'}`}>
+                          {t.is_active ? '✓ Activa' : '○ Inactiva'}
+                        </button>
+                        <button onClick={() => deleteTemplate(t.id)} className="text-xs px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors">🗑</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {editTplId === null && (
+                <div className="border-2 border-dashed border-subtle rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-semibold text-ink">Nueva plantilla</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={tplForm.category} onChange={e => setTplForm(f => ({ ...f, category: e.target.value }))} className="input-field text-sm" placeholder="Categoría (ej. Prospección)" />
+                    <input value={tplForm.label} onChange={e => setTplForm(f => ({ ...f, label: e.target.value }))} className="input-field text-sm" placeholder="Nombre" />
+                  </div>
+                  <div className="flex gap-2">
+                    {(['email', 'whatsapp'] as const).map(ch => (
+                      <button key={ch} type="button" onClick={() => setTplForm(f => ({ ...f, channel: ch }))}
+                        className={`text-xs px-2.5 py-1 rounded-lg border ${tplForm.channel === ch ? 'border-accent bg-accent text-white' : 'border-subtle text-muted'}`}>
+                        {ch === 'email' ? '✉ Email' : '💬 WhatsApp'}
+                      </button>
+                    ))}
+                  </div>
+                  {tplForm.channel === 'email' && (
+                    <input value={tplForm.subject} onChange={e => setTplForm(f => ({ ...f, subject: e.target.value }))} className="input-field text-sm w-full" placeholder="Asunto" />
+                  )}
+                  <textarea value={tplForm.body} onChange={e => setTplForm(f => ({ ...f, body: e.target.value }))} rows={5} className="input-field text-sm w-full resize-none" placeholder="Cuerpo del mensaje (usa {{variable}} para campos dinámicos)" />
+                  <button onClick={createTemplate} disabled={!tplForm.category.trim() || !tplForm.label.trim() || !tplForm.body.trim() || savingTpl} className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50">
+                    {savingTpl ? 'Guardando…' : '+ Agregar plantilla'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTemplates.length === 0 ? (
+          <div className="card p-12 text-center">
+            <p className="text-muted font-medium">No hay plantillas activas todavía</p>
+            <p className="text-faint text-sm mt-1">
+              {isConsultant ? 'Agrégalas arriba en "Gestionar plantillas"' : 'Tu consultor todavía no ha definido plantillas de comunicación'}
+            </p>
+          </div>
+        ) : (
         <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
 
           {/* ── Lista de plantillas ── */}
@@ -407,6 +395,7 @@ export default function ComunicacionClient({ caseId, companyName, industry, role
             </div>
           )}
         </div>
+        )}
       </div>
     </AppShell>
   )

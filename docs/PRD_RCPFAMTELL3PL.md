@@ -147,6 +147,14 @@ Hoy es un array `TEMPLATES` hardcoded en el propio componente de frontend — ni
 - Tabla `communication_templates` (o `case_communication_templates` si son por caso) con CRUD real vía API, igual que preguntas/secciones.
 - El consultor puede crear, editar y desactivar sus propias plantillas de email/WhatsApp para Famtell, en vez de depender de las que vienen fijas en código.
 
+**✅ Completado y verificado (2026-07-06):** migración 026 crea `communication_templates`, por CUENTA de consultor (no global entre consultores, no por caso individual — el consultor arma su propia librería y la reutiliza en todos sus casos). Se migran las 11 plantillas hardcoded como seed a cada cuenta existente para no perder el punto de partida. `ComunicacionClient.tsx` reescrito con panel "Gestionar plantillas" (crear/editar/activar-desactivar/borrar) visible solo para el consultor; el directivo solo ve y usa las plantillas activas.
+
+Verificado end-to-end en navegador: las 11 plantillas migradas se ven correctamente agrupadas por categoría; desactivar una plantilla la saca de la lista de uso (confirmado por API); crear una plantilla nueva persiste correctamente. Nueva API `communication-templates` (CRUD).
+
+**Limitación conocida:** cuentas de consultor creadas después de esta migración no reciben las 11 plantillas de seed automáticamente — empiezan con la librería vacía. Automatizar el seed en el alta de cuenta queda fuera de alcance de este paso.
+
+Con esto, los 3 catálogos priorizados de la sección 9 quedan completos: Módulos, KPIs, Plantillas de comunicación.
+
 ### Quedan fuera por ahora (sin necesidad real todavía)
 Escenarios de crecimiento (8.9 — los 3 escenarios son fijos pero sus valores ya son editables en pantalla, suficiente por ahora), tipos de contacto/etapas de pipeline del CRM (8.1 — bajo impacto, son etiquetas internas), costos de créditos por módulo/acción (catálogo de precios, no de diagnóstico). Se re-evalúan si aparece una necesidad concreta.
 
@@ -170,7 +178,7 @@ Módulo central de capacidades por rol, reemplazando los checks de rol dispersos
 
 Esta fase es la más grande y es bloqueante: mientras no esté lista, cualquier caso nuevo (incluido Famtell) seguiría operando con el modelo viejo de 6 perfiles fijos.
 
-### Fase 3 — Catálogos configurables restantes (sección 9)
+### Fase 3 — Catálogos configurables restantes (sección 9) ✅ COMPLETADA (2026-07-06)
 En este orden porque el de KPIs es el más grande y el más ligado al north star, y conviene que esté listo antes de que Famtell llegue a la etapa de seguimiento (semana 1 de ejecución post-Brief):
 1. Módulos del diagnóstico — `sort_order`/`credit_cost` en `module_templates`, init dinámico. (Aislado, sin dependencias, se puede hacer en paralelo con Fase 2 si hay capacidad.)
 2. KPIs del Tablero — de columnas fijas a catálogo + valores, conectado al Plan 90d del Brief.
