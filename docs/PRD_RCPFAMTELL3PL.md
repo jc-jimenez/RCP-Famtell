@@ -128,6 +128,12 @@ Ya existe una tabla `module_templates` (code, name, description, is_active) de l
 - Agregar `sort_order` y `credit_cost` a `module_templates`.
 - `/api/modules` inicializa los módulos del caso leyendo `module_templates` activos ordenados por `sort_order`, no del array hardcoded.
 
+**✅ Completado y verificado (2026-07-06):** migración 024 agrega `credit_cost` (`sort_order` ya existía desde la migración 011). `api/modules/route.ts` y `api/sessions/route.ts` reescritos para leer orden y costo desde `module_templates` en vez de los arrays `MODULE_ORDER`/`MODULE_CREDITS` (este último se eliminó de `credits.ts`, ya no se usa). `ModuleStartClient.tsx` ahora muestra el costo real devuelto por la API en el 402, no un valor estático. Verificado end-to-end con un caso nuevo real: init de módulos correcto (M1 activo, resto bloqueado, orden de `module_templates`), sesión creada, módulo M1 completado con `credits_used: 10` desde `module_templates.credit_cost`, M2 desbloqueado automáticamente.
+
+**Regresión encontrada y corregida en el camino:** el asistente de "Nuevo caso" (`dashboard/nuevo-caso/page.tsx`) tenía su propio paso de invitación al directivo que nunca mandaba `jobPositionId` — con el requisito agregado en la Fase 2 (paso 3), esa invitación habría fallado siempre. Se corrigió para que ese paso cree el puesto en el catálogo del caso (con descriptivo, ahora campo obligatorio en ese formulario) antes de invitar. Verificado end-to-end: puesto creado, `case_users.job_position_id` apunta correctamente a él.
+
+**Limitación conocida, no resuelta en este paso:** el orden de módulos (`MODULE_ORDER`) sigue duplicado como array literal en 3 lugares de solo-visualización (`portal/[token]/page.tsx`, `caso/[id]/page.tsx`, `dashboard/caso/[id]/page.tsx`) — no afecta la lógica de negocio (secuencia, créditos), solo la lista de progreso que se muestra. No se tocó por alcance: unificarlo requeriría que esas pantallas también consulten `module_templates`, que es un cambio de UI más amplio, no lo que pedía esta sección del PRD.
+
 ### 9.3 Plantillas de comunicación (8.8)
 Hoy es un array `TEMPLATES` hardcoded en el propio componente de frontend — ni siquiera vive en base de datos. Se necesita:
 - Tabla `communication_templates` (o `case_communication_templates` si son por caso) con CRUD real vía API, igual que preguntas/secciones.

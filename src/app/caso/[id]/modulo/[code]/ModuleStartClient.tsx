@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AppShell from '@/components/shared/AppShell'
 import NovaChat from '@/components/shared/NovaChat'
-import { MODULE_CREDITS } from '@/lib/credits'
 import type { ChatMessage, ModuleCode } from '@/types'
 
 interface Props {
@@ -51,6 +50,7 @@ export default function ModuleStartClient({
   const [starting, setStarting] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
   const [noCredits, setNoCredits] = useState(false)
+  const [requiredCredits, setRequiredCredits] = useState<number | null>(null)
 
   const backHref = userRole === 'collaborator' ? '/mis-modulos' : `/caso/${caseId}`
 
@@ -62,6 +62,8 @@ export default function ModuleStartClient({
       body: JSON.stringify({ caseId, moduleCode }),
     })
     if (res.status === 402) {
+      const errData = await res.json().catch(() => null)
+      setRequiredCredits(errData?.cost ?? null)
       setNoCredits(true)
       setStarting(false)
       return
@@ -187,7 +189,7 @@ export default function ModuleStartClient({
             <p className="text-2xl">⚠️</p>
             <p className="text-sm font-semibold text-amber-800">Créditos insuficientes</p>
             <p className="text-xs text-amber-700">
-              Necesitas al menos {MODULE_CREDITS[moduleCode] ?? 10} créditos para iniciar este módulo.
+              Necesitas al menos {requiredCredits ?? 10} créditos para iniciar este módulo.
             </p>
             <a href="/dashboard/creditos" className="btn-primary inline-block text-sm px-5 py-2.5">
               Ver plan y créditos →

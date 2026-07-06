@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { MODULE_CREDITS, deductCredits } from '@/lib/credits'
+import { deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import type { ModuleCode } from '@/types'
 
 export const runtime = 'nodejs'
 
-const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
+// Catálogo de módulos activos del caso, en orden — fuente de verdad en
+// module_templates (sort_order, credit_cost), no un array hardcoded.
+// Ver docs/PRD_RCPFAMTELL3PL.md sección 9.2.
+async function getActiveModuleTemplates(db: any): Promise<{ code: ModuleCode; credit_cost: number }[]> {
+  const { data } = await db
+    .from('module_templates')
+    .select('code, credit_cost')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+  return data ?? []
+}
 
 async function extractAndSaveContacts(db: any, caseId: string, sessionId: string) {
   const { data: sess } = await db.from('sessions').select('messages').eq('id', sessionId).single()
@@ -98,9 +108,10 @@ export async function GET(request: Request) {
 
   // Si no hay módulos creados para el caso, inicializarlos
   if (!modules || modules.length === 0) {
-    const toInsert = MODULE_ORDER.map((code, i) => ({
+    const templates = await getActiveModuleTemplates(db)
+    const toInsert = templates.map((t, i) => ({
       case_id: caseId,
-      module_code: code,
+      module_code: t.code,
       status: i === 0 ? 'active' : 'locked',
     }))
 
@@ -166,8 +177,12 @@ export async function POST(request: Request) {
   // Marcar sesión como completada
   await db.from('sessions').update({ completed: true }).eq('id', sessionId)
 
+  // Orden y costo vienen del catálogo (module_templates), no de un array fijo
+  const templates = await getActiveModuleTemplates(db)
+  const currentIndex = templates.findIndex(t => t.code === moduleCode)
+  const creditsUsed = templates[currentIndex]?.credit_cost ?? 10
+
   // Marcar módulo como completado
-  const creditsUsed = MODULE_CREDITS[moduleCode] ?? 10
   await db.from('modules')
     .update({
       status: 'completed',
@@ -179,9 +194,8 @@ export async function POST(request: Request) {
     .eq('module_code', moduleCode)
 
   // Desbloquear el siguiente módulo
-  const currentIndex = MODULE_ORDER.indexOf(moduleCode)
-  if (currentIndex >= 0 && currentIndex < MODULE_ORDER.length - 1) {
-    const nextModule = MODULE_ORDER[currentIndex + 1]
+  if (currentIndex >= 0 && currentIndex < templates.length - 1) {
+    const nextModule = templates[currentIndex + 1].code
     await db.from('modules')
       .update({ status: 'active', unlocked_at: new Date().toISOString() })
       .eq('case_id', caseId)
@@ -206,5 +220,5 @@ export async function POST(request: Request) {
     extractAndSaveContacts(db, caseId, sessionId).catch(() => {})
   }
 
-  return NextResponse.json({ ok: true, unlockedNext: currentIndex < MODULE_ORDER.length - 1 })
+  return NextResponse.json({ ok: true, unlockedNext: currentIndex < templates.length - 1 })
 }

@@ -41,6 +41,7 @@ export default function NuevoCasoPage() {
     strategicNotes: '',
     directorEmail: '',
     directorJobTitle: 'Director General',
+    directorJobDescription: '',
   })
 
   function set(field: string, value: string) {
@@ -73,9 +74,24 @@ export default function NuevoCasoPage() {
 
   async function handleInviteDirector(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.directorEmail.trim() || !caseId) return
+    if (!form.directorEmail.trim() || !form.directorJobDescription.trim() || !caseId) return
     setLoading(true)
     setError(null)
+
+    // El puesto del directivo entra al catálogo de puestos de este caso
+    // (sección 7 del PRD) — cada invitación requiere un puesto real, no
+    // un texto libre.
+    const posRes = await fetch('/api/consultant/case-job-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caseId,
+        name: form.directorJobTitle,
+        jobDescription: form.directorJobDescription,
+      }),
+    })
+    const posData = await posRes.json()
+    if (!posRes.ok) { setError(posData.error ?? 'No se pudo crear el puesto'); setLoading(false); return }
 
     const res = await fetch('/api/invitations', {
       method: 'POST',
@@ -85,6 +101,7 @@ export default function NuevoCasoPage() {
         email: form.directorEmail,
         role: 'director',
         jobTitle: form.directorJobTitle,
+        jobPositionId: posData.position.id,
       }),
     })
     const data = await res.json()
@@ -243,6 +260,21 @@ export default function NuevoCasoPage() {
                 />
               </div>
 
+              <div>
+                <label className="label-text">Descriptivo de puesto *</label>
+                <textarea
+                  value={form.directorJobDescription}
+                  onChange={e => set('directorJobDescription', e.target.value)}
+                  rows={2}
+                  placeholder="Funciones y responsabilidades de este puesto"
+                  required
+                  className="input-field resize-none"
+                />
+                <p className="text-xs text-faint mt-1">
+                  Este puesto queda en el catálogo del caso — luego podrás editarlo y mapear preguntas a él en Plan de Diagnóstico.
+                </p>
+              </div>
+
               {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
               <div className="flex gap-3">
@@ -251,7 +283,7 @@ export default function NuevoCasoPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !form.directorEmail.trim()}
+                  disabled={loading || !form.directorEmail.trim() || !form.directorJobDescription.trim()}
                   className="btn-primary flex-1 disabled:opacity-50"
                 >
                   {loading ? 'Enviando…' : 'Enviar invitación ✉️'}

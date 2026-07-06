@@ -1,14 +1,5 @@
-import type { ModuleCode } from '@/types'
-
-export const MODULE_CREDITS: Record<ModuleCode, number> = {
-  M1: 10,
-  M2: 10,
-  M3: 10,
-  M4: 10, // +5 por documento procesado
-  M5: 10,
-  M6: 10, // +3 por colaborador
-  M7: 15, // +20 al generar el brief
-}
+// El costo por módulo (M1-M7) ya no es un mapa fijo aquí — vive en
+// module_templates.credit_cost (ver docs/PRD_RCPFAMTELL3PL.md sección 9.2).
 
 export const CREDIT_COSTS = {
   BRIEF_GENERATION:    20,
