@@ -5,21 +5,10 @@ import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
-const ALL_ROLES: { id: string; label: string }[] = [
-  { id: 'director_general',  label: 'Director General' },
-  { id: 'gerente_comercial', label: 'Gerente Comercial' },
-  { id: 'gerente_operativo', label: 'Gerente Operativo' },
-  { id: 'cfo_contador',      label: 'CFO / Contador' },
-  { id: 'rrhh_admin',        label: 'RRHH / Admin' },
-  { id: 'gerente_marketing', label: 'Gerente Marketing' },
-]
-
-const ROLE_LABEL: Record<string, string> = Object.fromEntries(ALL_ROLES.map(r => [r.id, r.label]))
-
-type Override = { is_active: boolean; custom_text: string | null; roles_override: string[] | null; job_position_ids: string[] }
-type Question = { id: string; text: string; nova_hint: string | null; suggested_roles: string[]; is_active: boolean }
-type CustomQuestion = { id: string; section_id: string; text: string; nova_hint: string | null; suggested_roles: string[]; is_active: boolean; is_custom: true; job_position_ids: string[] }
-type Section  = { id: string; code: string; name: string; suggested_roles: string[]; questions: Question[] }
+type Override = { is_active: boolean; custom_text: string | null; job_position_ids: string[] }
+type Question = { id: string; text: string; nova_hint: string | null; is_active: boolean }
+type CustomQuestion = { id: string; section_id: string; text: string; nova_hint: string | null; is_active: boolean; is_custom: true; job_position_ids: string[] }
+type Section  = { id: string; code: string; name: string; questions: Question[] }
 type Module   = { id: string; code: string; name: string; sections: Section[] }
 type Position = { id: string; name: string; job_description: string }
 
@@ -106,20 +95,17 @@ export default function PlanDiagnosticoClient({
   // Edición de pregunta del catálogo
   const [editId, setEditId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-  const [editRoles, setEditRoles] = useState<string[]>([])
   const [editPositionIds, setEditPositionIds] = useState<string[]>([])
 
   // Agregar pregunta custom
   const [addingSectionId, setAddingSectionId] = useState<string | null>(null)
   const [newText, setNewText] = useState('')
-  const [newRoles, setNewRoles] = useState<string[]>([])
   const [newHint, setNewHint] = useState('')
   const [newQPositionIds, setNewQPositionIds] = useState<string[]>([])
 
   // Edición de pregunta custom
   const [editCustomId, setEditCustomId] = useState<string | null>(null)
   const [editCustomText, setEditCustomText] = useState('')
-  const [editCustomRoles, setEditCustomRoles] = useState<string[]>([])
   const [editCustomPositionIds, setEditCustomPositionIds] = useState<string[]>([])
 
   const mod = modules.find(m => m.code === activeModule)!
@@ -134,16 +120,8 @@ export default function PlanDiagnosticoClient({
     return overrides[q.id]?.custom_text ?? q.text
   }
 
-  function effectiveRoles(q: Question): string[] {
-    return overrides[q.id]?.roles_override ?? q.suggested_roles
-  }
-
   function isCustomText(q: Question): boolean {
     return !!overrides[q.id]?.custom_text
-  }
-
-  function hasRolesOverride(q: Question): boolean {
-    return !!(overrides[q.id]?.roles_override)
   }
 
   function mappedPositionIds(q: Question): string[] {
@@ -161,7 +139,6 @@ export default function PlanDiagnosticoClient({
       body: JSON.stringify({
         caseId, questionId: q.id, isActive: newActive,
         customText: overrides[q.id]?.custom_text ?? null,
-        rolesOverride: overrides[q.id]?.roles_override ?? undefined,
         jobPositionIds: overrides[q.id]?.job_position_ids ?? [],
       }),
     })
@@ -171,7 +148,6 @@ export default function PlanDiagnosticoClient({
         ...prev[q.id],
         is_active: newActive,
         custom_text: prev[q.id]?.custom_text ?? null,
-        roles_override: prev[q.id]?.roles_override ?? null,
         job_position_ids: prev[q.id]?.job_position_ids ?? [],
       },
     }))
@@ -181,7 +157,6 @@ export default function PlanDiagnosticoClient({
   function startEdit(q: Question) {
     setEditId(q.id)
     setEditText(displayText(q))
-    setEditRoles(effectiveRoles(q))
     setEditPositionIds(mappedPositionIds(q))
   }
 
@@ -195,7 +170,6 @@ export default function PlanDiagnosticoClient({
         questionId: q.id,
         isActive: isActive(q),
         customText: editText !== q.text ? editText : null,
-        rolesOverride: JSON.stringify(editRoles) !== JSON.stringify(q.suggested_roles) ? editRoles : null,
         jobPositionIds: editPositionIds,
       }),
     })
@@ -204,7 +178,6 @@ export default function PlanDiagnosticoClient({
       [q.id]: {
         is_active: isActive(q),
         custom_text: editText !== q.text ? editText : null,
-        roles_override: JSON.stringify(editRoles) !== JSON.stringify(q.suggested_roles) ? editRoles : null,
         job_position_ids: editPositionIds,
       },
     }))
@@ -234,7 +207,7 @@ export default function PlanDiagnosticoClient({
     const res = await fetch('/api/consultant/case-custom-questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, sectionId, text: newText, novaHint: newHint || null, suggestedRoles: newRoles, jobPositionIds: newQPositionIds }),
+      body: JSON.stringify({ caseId, sectionId, text: newText, novaHint: newHint || null, jobPositionIds: newQPositionIds }),
     })
     const data = await res.json()
     if (data.question) {
@@ -246,7 +219,6 @@ export default function PlanDiagnosticoClient({
     setAddingSectionId(null)
     setNewText('')
     setNewHint('')
-    setNewRoles([])
     setNewQPositionIds([])
     setSaving(null)
   }
@@ -268,7 +240,7 @@ export default function PlanDiagnosticoClient({
     const res = await fetch('/api/consultant/case-custom-questions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, questionId: q.id, text: editCustomText, suggestedRoles: editCustomRoles, jobPositionIds: editCustomPositionIds }),
+      body: JSON.stringify({ caseId, questionId: q.id, text: editCustomText, jobPositionIds: editCustomPositionIds }),
     })
     const data = await res.json()
     if (data.question) {
@@ -300,35 +272,12 @@ export default function PlanDiagnosticoClient({
     const custom = m.sections.flatMap(s => customBySection[s.id] ?? [])
     const active = allQ.filter(q => isActive(q)).length + custom.filter(q => q.is_active).length
     const total = allQ.length + custom.length
-    const modified = allQ.filter(q => isCustomText(q) || hasRolesOverride(q)).length
+    const modified = allQ.filter(q => isCustomText(q)).length
     return { code: m.code, total, active, modified }
   })
 
-  function RoleToggle({ roles, onChange }: { roles: string[]; onChange: (r: string[]) => void }) {
-    return (
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        {ALL_ROLES.map(r => {
-          const sel = roles.includes(r.id)
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => onChange(sel ? roles.filter(x => x !== r.id) : [...roles, r.id])}
-              className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                sel ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:border-accent/40'
-              }`}
-            >
-              {r.label}
-            </button>
-          )
-        })}
-      </div>
-    )
-  }
-
   // Mapeo pregunta → puesto (catálogo de puestos del caso, sección 7 del PRD).
-  // Reemplaza a RoleToggle como mecanismo autoritativo — RoleToggle se conserva
-  // temporalmente hasta el paso 4 (filtro de Nova por puesto).
+  // Único mecanismo de filtro que usa Nova — el enum de roles anterior se retiró.
   function PositionToggle({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
     if (positions.length === 0) {
       return (
@@ -355,6 +304,22 @@ export default function PlanDiagnosticoClient({
           )
         })}
       </div>
+    )
+  }
+
+  function PositionBadges({ ids }: { ids: string[] }) {
+    if (ids.length === 0) {
+      return <span className="text-xs text-amber-600">⚠ Sin puesto mapeado — oculta para todos</span>
+    }
+    return (
+      <>
+        {ids.map(pid => {
+          const pos = positions.find(p => p.id === pid)
+          return pos ? (
+            <span key={pid} className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{pos.name}</span>
+          ) : null
+        })}
+      </>
     )
   }
 
@@ -493,13 +458,6 @@ export default function PlanDiagnosticoClient({
                     <span className="text-xs font-mono text-faint bg-surface-2 px-2 py-0.5 rounded">{sec.code}</span>
                     <h3 className="text-sm font-semibold text-ink flex-1">{sec.name}</h3>
                     <span className="text-xs text-muted">{activeSec}/{totalSec}</span>
-                    {sec.suggested_roles.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sec.suggested_roles.map(r => (
-                          <span key={r} className="badge text-xs">{ROLE_LABEL[r] ?? r}</span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   {/* Preguntas del catálogo */}
@@ -507,9 +465,8 @@ export default function PlanDiagnosticoClient({
                     {sec.questions.map((q, qi) => {
                       const active = isActive(q)
                       const text = displayText(q)
-                      const roles = effectiveRoles(q)
                       const isEditing = editId === q.id
-                      const modified = isCustomText(q) || hasRolesOverride(q)
+                      const modified = isCustomText(q)
 
                       return (
                         <div key={q.id} className={`rounded-xl border p-3 transition-all ${active ? 'border-subtle bg-surface' : 'border-subtle bg-surface-2 opacity-50'}`}>
@@ -528,10 +485,6 @@ export default function PlanDiagnosticoClient({
                                       className="input-field resize-none text-sm w-full"
                                       autoFocus
                                     />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted mb-1 font-medium">Roles (legado, se retira en el paso 4)</p>
-                                    <RoleToggle roles={editRoles} onChange={setEditRoles} />
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted mb-1 font-medium">Puestos que responden esta pregunta</p>
@@ -554,21 +507,7 @@ export default function PlanDiagnosticoClient({
                                   <p className={`text-sm leading-relaxed ${modified ? 'text-amber-800' : 'text-ink'}`}>{text}</p>
                                   {modified && <p className="text-xs text-amber-600 mt-0.5">✎ Modificada para este caso</p>}
                                   <div className="flex flex-wrap gap-1 mt-1.5">
-                                    {roles.map(r => (
-                                      <span key={r} className="text-xs bg-surface-2 text-muted px-1.5 py-0.5 rounded">{ROLE_LABEL[r] ?? r}</span>
-                                    ))}
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {mappedPositionIds(q).length === 0 ? (
-                                      <span className="text-xs text-amber-600">⚠ Sin puesto mapeado — oculta para todos</span>
-                                    ) : (
-                                      mappedPositionIds(q).map(pid => {
-                                        const pos = positions.find(p => p.id === pid)
-                                        return pos ? (
-                                          <span key={pid} className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{pos.name}</span>
-                                        ) : null
-                                      })
-                                    )}
+                                    <PositionBadges ids={mappedPositionIds(q)} />
                                   </div>
                                 </div>
                               )}
@@ -579,7 +518,7 @@ export default function PlanDiagnosticoClient({
                                 <button
                                   onClick={() => startEdit(q)}
                                   className="text-xs px-2.5 py-1.5 rounded-lg border border-subtle hover:bg-surface-2 text-muted hover:text-ink transition-colors"
-                                  title="Editar texto y roles"
+                                  title="Editar texto y puestos"
                                 >
                                   ✎ Editar
                                 </button>
@@ -621,10 +560,6 @@ export default function PlanDiagnosticoClient({
                                     autoFocus
                                   />
                                   <div>
-                                    <p className="text-xs text-muted mb-1 font-medium">Roles (legado, se retira en el paso 4)</p>
-                                    <RoleToggle roles={editCustomRoles} onChange={setEditCustomRoles} />
-                                  </div>
-                                  <div>
                                     <p className="text-xs text-muted mb-1 font-medium">Puestos que responden esta pregunta</p>
                                     <PositionToggle selected={editCustomPositionIds} onChange={setEditCustomPositionIds} />
                                   </div>
@@ -639,24 +574,8 @@ export default function PlanDiagnosticoClient({
                                 <div>
                                   <p className="text-sm text-ink leading-relaxed">{q.text}</p>
                                   <p className="text-xs text-accent mt-0.5">Pregunta personalizada</p>
-                                  {q.suggested_roles.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1.5">
-                                      {q.suggested_roles.map(r => (
-                                        <span key={r} className="text-xs bg-accent-soft text-accent px-1.5 py-0.5 rounded">{ROLE_LABEL[r] ?? r}</span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {(q.job_position_ids ?? []).length === 0 ? (
-                                      <span className="text-xs text-amber-600">⚠ Sin puesto mapeado — oculta para todos</span>
-                                    ) : (
-                                      (q.job_position_ids ?? []).map(pid => {
-                                        const pos = positions.find(p => p.id === pid)
-                                        return pos ? (
-                                          <span key={pid} className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{pos.name}</span>
-                                        ) : null
-                                      })
-                                    )}
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    <PositionBadges ids={q.job_position_ids ?? []} />
                                   </div>
                                 </div>
                               )}
@@ -665,7 +584,7 @@ export default function PlanDiagnosticoClient({
                             {!isEditingCustom && (
                               <div className="flex gap-1 flex-shrink-0">
                                 <button
-                                  onClick={() => { setEditCustomId(q.id); setEditCustomText(q.text); setEditCustomRoles(q.suggested_roles); setEditCustomPositionIds(q.job_position_ids ?? []) }}
+                                  onClick={() => { setEditCustomId(q.id); setEditCustomText(q.text); setEditCustomPositionIds(q.job_position_ids ?? []) }}
                                   className="text-xs px-2.5 py-1.5 rounded-lg border border-subtle hover:bg-surface-2 text-muted hover:text-ink transition-colors"
                                 >
                                   ✎ Editar
@@ -714,10 +633,6 @@ export default function PlanDiagnosticoClient({
                         className="input-field text-xs w-full"
                       />
                       <div>
-                        <p className="text-xs text-muted mb-1.5 font-medium">Roles (legado, se retira en el paso 4)</p>
-                        <RoleToggle roles={newRoles} onChange={setNewRoles} />
-                      </div>
-                      <div>
                         <p className="text-xs text-muted mb-1.5 font-medium">Puestos que responden esta pregunta</p>
                         <PositionToggle selected={newQPositionIds} onChange={setNewQPositionIds} />
                       </div>
@@ -730,7 +645,7 @@ export default function PlanDiagnosticoClient({
                           {saving === 'new-' + sec.id ? 'Guardando…' : 'Agregar pregunta'}
                         </button>
                         <button
-                          onClick={() => { setAddingSectionId(null); setNewText(''); setNewHint(''); setNewRoles([]) }}
+                          onClick={() => { setAddingSectionId(null); setNewText(''); setNewHint(''); setNewQPositionIds([]) }}
                           className="btn-secondary text-xs px-3 py-1.5"
                         >
                           Cancelar
@@ -739,7 +654,7 @@ export default function PlanDiagnosticoClient({
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingSectionId(sec.id); setNewText(''); setNewHint(''); setNewRoles([]) }}
+                      onClick={() => { setAddingSectionId(sec.id); setNewText(''); setNewHint(''); setNewQPositionIds([]) }}
                       className="w-full py-2 border-2 border-dashed border-subtle rounded-xl text-xs text-muted hover:border-accent/40 hover:text-accent transition-colors"
                     >
                       + Agregar pregunta a esta sección

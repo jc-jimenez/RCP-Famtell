@@ -87,7 +87,11 @@ Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fij
 
 **✅ Paso 3 completado y verificado (2026-07-06):** `ParticipantesPanel.tsx` reescrito — el consultor elige el puesto del catálogo del caso (no los 6 perfiles fijos) y por separado el rol de plataforma (Director General vs Colaborador, independientes). `api/invitations/route.ts` ahora exige `jobPositionId` y lo guarda en `case_users.job_position_id`. Probado end-to-end: invitación creada con puesto real, `job_position_id` confirmado vía API de Supabase apuntando al UUID correcto del puesto. Si el caso no tiene puestos creados todavía, el modal de invitar bloquea el envío y dirige a crear puestos primero en Plan de Diagnóstico.
 
-Pendiente: paso 4 (filtro de Nova por `job_position_id`, retirar el toggle de roles legado).
+**✅ Paso 4 completado (2026-07-06):** `api/ai/chat/route.ts` y `build-from-catalog.ts` reescritos — Nova ahora filtra por `job_position_id` del `case_user` (antes comparaba `job_title` contra un enum de roles). Una pregunta sin ningún puesto mapeado en `job_position_ids` queda excluida del guion, no se le pregunta a nadie. **De paso se corrigió un gap real**: las preguntas personalizadas del caso (`case_custom_questions`) nunca llegaban al chat de Nova — el endpoint solo leía el catálogo base; ahora se fusionan correctamente por sección. Se retiró el toggle de roles legado de `PlanDiagnosticoClient.tsx` (ya no tenía ningún efecto real).
+
+Verificado replicando la consulta exacta de `chat/route.ts` contra la base real: de 29 preguntas de M1, solo la única mapeada al puesto "Gerente de Almacén Fiscal" queda visible — confirma el filtrado a nivel de datos. **No verificado con una conversación real de Nova en navegador**: el link de activación de invitaciones apunta al dominio de producción (`NEXT_PUBLIC_APP_URL` fijo) en vez del origin de la request local, lo cual bloquea activar cuentas de prueba nuevas en desarrollo — bug preexistente no relacionado a esta fase, delegado como tarea aparte.
+
+Con esto, la Fase 2 completa (pasos 1-4) queda cerrada.
 
 ### Flujo resultante para el consultor (Famtell)
 
@@ -142,7 +146,7 @@ Eliminado: Premium A-G (páginas, rutas API, tipos, costos de crédito) y Factur
 ### Fase 1 — Refactor de permisos de plataforma (sección 8) ✅ COMPLETADA (2026-07-06)
 Módulo central de capacidades por rol, reemplazando los checks de rol dispersos. Sin cambio visible para el usuario. Se hace antes de construir las pantallas nuevas de la Fase 2 para no construirlas dos veces (una con checks viejos, otra ya refactorizada).
 
-### Fase 2 — Catálogo de puestos + mapeo de preguntas (sección 7) — el cambio de fondo
+### Fase 2 — Catálogo de puestos + mapeo de preguntas (sección 7) — el cambio de fondo ✅ COMPLETADA (2026-07-06)
 1. Migraciones: `case_job_positions`, `case_users.job_position_id`, tabla de mapeo pregunta↔puesto.
 2. Pantalla de consultor "Puestos y mapeo de preguntas": crear puestos (con descriptivo obligatorio), activar/desactivar/editar/agregar preguntas del caso (esto ya existe, se integra), mapear preguntas a puestos.
 3. Reescribir invitación de participantes (`ParticipantesPanel.tsx`): asignar puesto del catálogo del caso en vez de los 6 perfiles fijos.
