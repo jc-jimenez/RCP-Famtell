@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!isSuperAdminEmail(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
   const { section_id, text, nova_hint, sort_order, suggested_roles, response_type } = body
@@ -32,6 +34,7 @@ export async function PATCH(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!isSuperAdminEmail(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id, ...updates } = await req.json()
   const db = supabase as any
@@ -51,6 +54,7 @@ export async function DELETE(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!isSuperAdminEmail(session.user.email)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await req.json()
   const db = supabase as any

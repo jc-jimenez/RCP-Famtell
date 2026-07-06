@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
+import { hasCapability } from '@/lib/permissions'
 
 const MODULE_LABELS: Record<string, string> = {
   M1: 'Radiografía Comercial',
@@ -29,7 +30,7 @@ export default async function MisModulosPage() {
     .maybeSingle()
 
   if (!caseUser) redirect('/login')
-  if (caseUser.role !== 'collaborator') redirect('/login')
+  if (!hasCapability(caseUser.role, 'access_collaborator_workspace')) redirect('/login')
 
   const permissions = caseUser.permissions_json as { modules?: string[] } | null
   const caseData = caseUser.cases as any

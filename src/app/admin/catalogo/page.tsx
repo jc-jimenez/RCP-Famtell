@@ -4,11 +4,12 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import CatalogoAdminClient from './CatalogoAdminClient'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export default async function CatalogoAdminPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  if (!session || !isSuperAdminEmail(session.user.email)) redirect('/login')
 
   const db = supabase as any
   const { data: modules } = await db

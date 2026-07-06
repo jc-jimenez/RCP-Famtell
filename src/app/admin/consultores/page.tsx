@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import AppShell from '@/components/shared/AppShell'
 import ConsultoresClient from './ConsultoresClient'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,7 @@ export default async function ConsultoresPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session || session.user.email !== process.env.SUPER_ADMIN_EMAIL) {
+  if (!session || !isSuperAdminEmail(session.user.email)) {
     redirect('/login')
   }
 

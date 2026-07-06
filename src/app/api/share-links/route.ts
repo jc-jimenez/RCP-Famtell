@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { hasCapability } from '@/lib/permissions'
 
 // GET — listar links del caso
 export async function GET(request: Request) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  if (cu?.role !== 'consultant') {
+  if (!hasCapability(cu?.role, 'create_share_links')) {
     return NextResponse.json({ error: 'Solo el consultor puede generar links' }, { status: 403 })
   }
 

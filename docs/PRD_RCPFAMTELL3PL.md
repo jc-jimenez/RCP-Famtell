@@ -100,6 +100,10 @@ Se evaluó si el sistema de roles de plataforma (Super Admin, Consultor, Directi
 - **No se construye un catálogo de roles/permisos editable en base de datos ni una pantalla para crear roles nuevos.** Los 4 roles siguen fijos por diseño. Razón: es el mismo patrón que produjo los módulos Premium A-G (flexibilidad genérica construida sin un caso real que la necesite, terminó en cascarón — ver sección 4). Con un solo cliente ancla y 4 roles ya bien entendidos, el costo de un RBAC completo (más superficie de permisos que asegurar, más casos borde) no se justifica.
 - Si en el futuro un segundo cliente/caso de uso requiere de verdad un rol nuevo, se re-evalúa el RBAC dinámico con esa necesidad concreta enfrente, no antes.
 
+**✅ Fase 1 completada (2026-07-06).** Se creó `src/lib/permissions.ts` con `Capability` (7 capacidades: `manage_catalog`, `manage_consultores`, `view_platform_metrics`, `manage_platform_credits`, `send_manual_whatsapp`, `create_share_links`, `access_collaborator_workspace`), `hasCapability(role, capability)` e `isSuperAdminEmail(email)` como única fuente de verdad. Se refactorizaron 11 archivos que comparaban rol/email directamente.
+
+**🔴 Hallazgo de seguridad corregido durante el refactor:** `/admin/catalogo` (página) y sus rutas API (`api/admin/catalogo/questions`, `api/admin/catalogo/sections`, verbos POST/PATCH/DELETE) **no verificaban que el usuario fuera Super Admin** — solo exigían sesión válida. Cualquier consultor, directivo o colaborador autenticado podía editar el catálogo global de preguntas/secciones usado por todos los casos. Corregido agregando el check en las 3 rutas. Esto confirma el valor de centralizar los checks: estaba disperso y a alguien se le olvidó en estos 3 lugares.
+
 ## 9. Catálogos adicionales a hacer configurables (GAP — pendiente de construir)
 
 Mismo criterio de la sección 7 (nada configurable = costo de mantenimiento en código; todo configurable sin necesidad real = sobre-construcción). Se revisaron 6 catálogos hoy hardcodeados; se prioritizaron 3 para entrar al alcance ahora, ligados directamente al north star (sección 1):
@@ -129,7 +133,7 @@ Orden por dependencia real, no por importancia — cada fase deja el terreno lis
 ### Fase 0 — Limpieza (cortar lo descartado en la sección 4) ✅ COMPLETADA (2026-07-06)
 Eliminado: Premium A-G (páginas, rutas API, tipos, costos de crédito) y Facturación en Admin. WhatsApp se verificó como núcleo real durante la ejecución y no se tocó (ver corrección en sección 4). SAT/ERP y Brief de Cierre Semana 12 no existían en código, no había nada que cortar. `npx tsc --noEmit` limpio tras la limpieza.
 
-### Fase 1 — Refactor de permisos de plataforma (sección 8)
+### Fase 1 — Refactor de permisos de plataforma (sección 8) ✅ COMPLETADA (2026-07-06)
 Módulo central de capacidades por rol, reemplazando los checks de rol dispersos. Sin cambio visible para el usuario. Se hace antes de construir las pantallas nuevas de la Fase 2 para no construirlas dos veces (una con checks viejos, otra ya refactorizada).
 
 ### Fase 2 — Catálogo de puestos + mapeo de preguntas (sección 7) — el cambio de fondo

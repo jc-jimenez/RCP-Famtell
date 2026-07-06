@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { sendWhatsApp } from '@/lib/twilio'
+import { hasCapability } from '@/lib/permissions'
 
 // POST — enviar WhatsApp manual a un participante del caso
 export async function POST(request: Request) {
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  if (cu?.role !== 'consultant') {
+  if (!hasCapability(cu?.role, 'send_manual_whatsapp')) {
     return NextResponse.json({ error: 'Solo el consultor puede enviar mensajes' }, { status: 403 })
   }
 

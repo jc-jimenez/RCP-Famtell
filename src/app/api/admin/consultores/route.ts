@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +9,7 @@ async function assertSuperAdmin() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
-  return session.user.email === process.env.SUPER_ADMIN_EMAIL ? session : null
+  return isSuperAdminEmail(session.user.email) ? session : null
 }
 
 // Mapea una fila real de accounts al formato que espera la UI
