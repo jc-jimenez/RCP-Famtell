@@ -26,15 +26,18 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const body = await request.json()
-  const { caseId, week, ...kpiData } = body
+  const { caseId, week, values } = await request.json() as {
+    caseId: string
+    week: number
+    values: Record<string, number>
+  }
 
   if (!caseId || !week) return NextResponse.json({ error: 'caseId y week son requeridos' }, { status: 400 })
 
   const db = supabase as any
   const { data, error } = await db
     .from('kpi_records')
-    .upsert({ case_id: caseId, week, ...kpiData }, { onConflict: 'case_id,week' })
+    .upsert({ case_id: caseId, week, values: values ?? {} }, { onConflict: 'case_id,week' })
     .select()
     .single()
 

@@ -123,6 +123,14 @@ Hoy `kpi_records` tiene 6 columnas fijas (ingresos, clientes activos, clientes n
 - Cambio de esquema: de columnas fijas a modelo catálogo + valores — `case_kpi_definitions` (case_id, metric_key, label, target, unidad/formato, sort_order) + `kpi_records` pasa a guardar valores contra esas definiciones en vez de columnas fijas.
 - El consultor define qué KPIs trackear al armar el Plan 90d (probablemente al momento de generar/editar el Brief), y esos mismos KPIs alimentan el Tablero y el Check-in semanal.
 
+**✅ Completado y verificado (2026-07-06):** migración 025 crea `case_kpi_definitions` y agrega `values jsonb` a `kpi_records` (columnas viejas se dejan sin uso, no se dropean — `kpi_records` no tenía ninguna fila en todo el sistema, no hizo falta backfill). `KPIBoardClient.tsx` reescrito: el consultor define los KPIs del caso (nombre, meta, unidad) en un panel dentro del Tablero; el directivo captura valores semanales solo para los KPIs ya definidos; cards y gráficas se generan dinámicamente por cada KPI, no hardcoded. API nueva `case-kpi-definitions` (CRUD). `api/kpis` ahora guarda `values` como JSON en vez de columnas sueltas.
+
+Verificado end-to-end en navegador: creado KPI "Ocupación de almacén" (meta 80%), capturada semana 1 con valor 65%, card y gráfica reflejan el dato real con semáforo correcto (65/80 = 81% → ámbar).
+
+**Fuera de alcance, documentado como límite conocido:** el check-in semanal (`check_ins`, Módulo 8.5) sigue con sus propias columnas fijas (contactos, ocupación de almacén, progreso) — es una tabla de pulso cualitativo con análisis de IA, no una simple captura numérica; unificarla con el catálogo de KPIs sería un alcance mayor al pedido en esta sección, no se tocó.
+
+Con esto, 2 de los 3 catálogos priorizados de la sección 9 quedan completos (Módulos, KPIs). Sigue Plantillas de comunicación (9.3).
+
 ### 9.2 Módulos del diagnóstico (M1-M7)
 Ya existe una tabla `module_templates` (code, name, description, is_active) de la que se lee el contenido — pero el **orden de secuencia y el costo en créditos siguen hardcodeados** (`MODULE_ORDER` en `api/modules/route.ts`, `MODULE_CREDITS` en `credits.ts`). Para permitir que un caso agregue un módulo propio (ej. algo específico de Famtell) sin tocar código:
 - Agregar `sort_order` y `credit_cost` a `module_templates`.

@@ -23,9 +23,15 @@ export default async function KPIsPage({ params }: { params: Promise<{ id: strin
 
   const { data: kpis } = await db
     .from('kpi_records')
-    .select('*')
+    .select('week, values, recorded_at')
     .eq('case_id', id)
     .order('week', { ascending: true })
+
+  const { data: definitions } = await db
+    .from('case_kpi_definitions')
+    .select('id, metric_key, label, target, unit, sort_order')
+    .eq('case_id', id)
+    .order('sort_order', { ascending: true })
 
   const { data: caseUser } = await db
     .from('case_users')
@@ -42,7 +48,12 @@ export default async function KPIsPage({ params }: { params: Promise<{ id: strin
 
   return (
     <AppShell role={role} email={session.user.email!} caseCompanyName={caseData?.company_name} tabBar={tabBar}>
-      <KPIBoardClient caseId={id} initialKPIs={kpis ?? []} canEdit={role === 'director'} />
+      <KPIBoardClient
+        caseId={id}
+        role={role}
+        initialKPIs={kpis ?? []}
+        initialDefinitions={definitions ?? []}
+      />
     </AppShell>
   )
 }

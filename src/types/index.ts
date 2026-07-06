@@ -125,22 +125,23 @@ export interface CheckIn {
 }
 
 // ─── KPIs (Módulo 8.4) ────────────────────────────────────────────────────────
+// Catálogo por caso — ver docs/PRD_RCPFAMTELL3PL.md sección 9.1. Reemplaza el
+// set fijo de 6 métricas por KPIs que el consultor define por caso.
+export interface KPIDefinition {
+  id: string
+  case_id: string
+  metric_key: string
+  label: string
+  target: number
+  unit: string
+  sort_order: number
+}
+
 export interface KPIRecord {
   id: string
   case_id: string
   week: number
-  revenue_actual: number
-  revenue_target: number
-  active_clients: number
-  active_clients_target: number
-  new_clients: number
-  reactivated_clients: number
-  warehouse_occupancy: number
-  fiscal_warehouse_occupancy: number
-  commercial_contacts: number
-  proposals_sent: number
-  close_rate: number
-  overdue_recovered: number
+  values: Record<string, number>
   recorded_at: string
 }
 
