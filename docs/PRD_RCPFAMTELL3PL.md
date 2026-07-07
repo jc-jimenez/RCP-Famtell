@@ -217,3 +217,41 @@ Correr el flujo completo con el modelo nuevo: crear caso Famtell → dar de alta
 
 ### Qué puede avanzar en paralelo
 Fase 0 no bloquea nada más y puede ir en cualquier momento. Dentro de la Fase 3, Módulos y Plantillas son independientes entre sí y de KPIs — se pueden repartir en paralelo si hay más de una persona construyendo. Todo lo demás es secuencial por las dependencias reales del modelo de datos.
+
+## 11. Validación contra el Kit de Diagnóstico Famtell (2026-07-06)
+
+Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesis, ~30 instrumentos) contra el catálogo de 137 preguntas ya cargado. Hallazgo clave: **el Kit no es un cuestionario conversacional puro — mezcla 3 tipos de contenido en cada módulo:**
+
+1. **Entrevista narrativa/reflexiva** (visión, opinión) — ya cubierta por Nova. Confirmado 1:1: las preguntas 🔍 AGENDA (señales de crecimiento/redimensionamiento/salida) del documento coinciden literalmente con las ya cargadas en el catálogo.
+2. **Datos duros puntuales** (facturación, m², headcount) — Nova puede preguntarlos conversacionalmente, no es gap.
+3. **Tablas de muchas filas** (lista de clientes, competidores, costos por servicio, KPIs a 3 meses) — **no funciona como entrevista conversacional**, necesita otro mecanismo.
+
+### Mapeo por módulo (resumen)
+- **M1**: 1.1 entrevista → Nova. 1.2-1.5 (mapa de clientes, concentración 80/20, altas/bajas, servicios estrella) → tablas, gap.
+- **M2**: 2.1/2.4 (capacidad, turnos) → Nova, pero verificar que coincida con Tracker de Capacidad (8.6) ya construido. 2.2/2.3 (inventario de equipos, servicios no comercializados con costo/precio/margen) → tablas, gap. 2.5 → Nova (ya mapeada).
+- **M3**: 3.1-3.5 → 100% tabular, **ya lo resuelve el CRM (8.1)**, no se toca.
+- **M4**: 4.1/4.3/4.4 → Nova + adjuntar documento (M4 ya soporta attachments). 4.2 (rentabilidad por línea de servicio) → tabla, verificar si la cubre Calculadora de Tarifas (8.3). 4.5 → Nova.
+- **M5**: 5.1/5.2 (mapa de competidores, benchmark de tarifas) → tabla; **Monitor de Competencia (8.10) hoy es un radar de atributos 1-5, no una tabla de tarifas por servicio — posible desalineación a verificar**. 5.3-5.5 → Nova.
+- **M6**: 6.1 (cuestionario de clima) → **el documento pide explícitamente que sea ANÓNIMO** ("Google Forms por WhatsApp"), choca con el modelo de puesto identificado de la Fase 2 — requiere mecanismo aparte. 6.2-6.4 (talento, quick wins, riesgos) → tablas de evaluación, gap.
+- **M7**: 7.1/7.3B/7.4/7.5 → **ya automatizado** por el Brief (`plan_90d/1a/3a`, IER vía `agenda_signals`). La tabla 7.4 de KPIs coincide campo por campo con el catálogo de KPIs configurable recién construido en Fase 3.
+
+### 3 decisiones tomadas con el usuario (2026-07-06)
+
+**1. Tablas de listas largas → mecanismo genérico reutilizable, no una pantalla por tabla.**
+- `case_table_instruments` (case_id, module_code, name, columns jsonb — array de `{key, label, type}`) + `case_table_rows` (instrument_id, row_data jsonb, sort_order).
+- Un solo componente de tabla editable genérica (agregar/editar/borrar fila) que renderiza según las columnas del instrumento.
+- Botón "Subir documento" por tabla — reutiliza el patrón de adjuntar archivo a Claude que ya existe en M4: la IA extrae filas del documento y pre-llena la tabla; el consultor revisa antes de guardar. **Ambas vías conviven** (llenado manual + IA), decisión explícita del usuario.
+- Se mapea a puesto igual que las preguntas (mismo campo `job_position_ids`).
+- Cubre: mapa de clientes/concentración/altas-bajas/servicios (M1), inventario de equipos/servicios no comercializados (M2), rentabilidad por servicio (M4, si Tarifas no la cubre), competidores/benchmark (M5, si Competencia no la cubre), talento/quick wins/riesgos (M6). No toca M3 (CRM) ni M7 (KPIs).
+
+**2. Encuesta de clima (6.1) → anónima de verdad, sin rastreo de IP.**
+- Decisión explícita del usuario: confidencialidad real, no inferencia de identidad por IP (se le explicó el riesgo: si el equipo se entera de que la "encuesta anónima" registraba IPs, se rompe la confianza que la anonimidad busca dar — contraproducente).
+- En vez de eso: **preguntas sembradas de clasificación** al inicio del formulario (ej. "¿En qué área trabajas? Operación/Comercial/Administración/Dirección", "¿Tienes personal a tu cargo?") — el empleado autodeclara categoría amplia, nunca identidad.
+- Mecanismo: link público sin login (mismo patrón que Portal del Cliente) — `case_climate_surveys` (token, caso, abierta/cerrada) + `case_climate_responses` (sin user_id, sin IP, solo área/nivel autodeclarados + respuestas). El consultor ve agregados por área, nunca fila con nombre.
+
+**3. Alineación de campos (Capacidad de Almacén / Monitor de Competencia / Calculadora de Tarifas)** — auditar los campos reales del código contra lo que pide el Kit (secciones 2.1/2.2, 5.1/5.2, 4.2) antes de construir nada nuevo — puede que ya sirvan casi tal cual, o falten 2-3 campos. Pendiente de ejecutar.
+
+### Orden de ejecución acordado
+1. Auditoría de campos (rápida, puede reducir el trabajo de los otros dos) — **siguiente paso**.
+2. Encuesta de clima anónima (autocontenida).
+3. Tabla editable genérica + carga con IA (lo más grande, al final).
