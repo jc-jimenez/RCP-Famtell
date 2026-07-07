@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
+import { computeModuleCompletion } from '@/lib/moduleCompletion'
 import type { ModuleCode } from '@/types'
 
 export const runtime = 'nodejs'
@@ -174,7 +175,11 @@ export async function POST(request: Request) {
 
   if (!hasAccess) return NextResponse.json({ error: 'Acceso denegado al caso' }, { status: 403 })
 
-  // Marcar sesión como completada
+  // Marcar la sesión de ESTE participante como completada. El módulo del
+  // caso completo solo se marca 'completed' cuando TODOS los puestos con
+  // preguntas mapeadas en este módulo hayan terminado — ver moduleCompletion.ts.
+  // Antes esto se marcaba con el primer participante que terminaba, dejando
+  // el resto de los puestos sin contestar sin que nadie se enterara.
   await db.from('sessions').update({ completed: true }).eq('id', sessionId)
 
   // Orden y costo vienen del catálogo (module_templates), no de un array fijo
@@ -182,27 +187,32 @@ export async function POST(request: Request) {
   const currentIndex = templates.findIndex(t => t.code === moduleCode)
   const creditsUsed = templates[currentIndex]?.credit_cost ?? 10
 
-  // Marcar módulo como completado
-  await db.from('modules')
-    .update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-      session_id: sessionId,
-      credits_used: creditsUsed,
-    })
-    .eq('case_id', caseId)
-    .eq('module_code', moduleCode)
+  const completion = await computeModuleCompletion(db, caseId, moduleCode)
+  const moduleCompleted = completion.colorStatus === 'green'
 
-  // Desbloquear el siguiente módulo
-  if (currentIndex >= 0 && currentIndex < templates.length - 1) {
-    const nextModule = templates[currentIndex + 1].code
+  if (moduleCompleted) {
     await db.from('modules')
-      .update({ status: 'active', unlocked_at: new Date().toISOString() })
+      .update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        session_id: sessionId,
+        credits_used: creditsUsed,
+      })
       .eq('case_id', caseId)
-      .eq('module_code', nextModule)
+      .eq('module_code', moduleCode)
+
+    // Desbloquear el siguiente módulo
+    if (currentIndex >= 0 && currentIndex < templates.length - 1) {
+      const nextModule = templates[currentIndex + 1].code
+      await db.from('modules')
+        .update({ status: 'active', unlocked_at: new Date().toISOString() })
+        .eq('case_id', caseId)
+        .eq('module_code', nextModule)
+    }
   }
 
-  // Descontar créditos del account del consultor (función atómica con check de saldo)
+  // Los créditos se descuentan por la conversación de ESTE participante,
+  // independientemente de si el módulo ya quedó verde para todo el caso.
   if (caseData.account_id) {
     const credit = await deductCredits(db, caseData.account_id, creditsUsed)
     if (!credit.success) {
@@ -220,5 +230,10 @@ export async function POST(request: Request) {
     extractAndSaveContacts(db, caseId, sessionId).catch(() => {})
   }
 
-  return NextResponse.json({ ok: true, unlockedNext: currentIndex < templates.length - 1 })
+  return NextResponse.json({
+    ok: true,
+    moduleCompleted,
+    unlockedNext: moduleCompleted && currentIndex < templates.length - 1,
+    completion,
+  })
 }

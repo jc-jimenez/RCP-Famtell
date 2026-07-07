@@ -8,6 +8,7 @@ import AgendaPanel from '@/components/consultor/AgendaPanel'
 import ParticipantesPanel from '@/components/consultor/ParticipantesPanel'
 import CasoTabs from '@/components/consultor/CasoTabs'
 import SharePortalPanel from '@/components/consultor/SharePortalPanel'
+import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import type { ModuleCode } from '@/types'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
@@ -64,6 +65,10 @@ export default async function CasoDetallePage({
   ;(modules ?? []).forEach((m: any) => { moduleMap[m.module_code] = m })
   const completedCount = Object.values(moduleMap).filter((m: any) => m.status === 'completed').length
 
+  const completionList = tab === 'diagnostico' ? await computeAllModulesCompletion(db, id) : []
+  const completionMap: Record<string, { colorStatus: 'red' | 'amber' | 'green'; pending: { jobPositionName: string; hasOccupant: boolean }[] }> = {}
+  completionList.forEach(c => { completionMap[c.moduleCode] = c })
+
   const { data: participants } = await db
     .from('case_users')
     .select('id, role, job_title, job_position_id, invitation_email, permissions_json, activated_at')
@@ -111,26 +116,37 @@ export default async function CasoDetallePage({
               {MODULE_ORDER.map((code) => {
                 const m = moduleMap[code]
                 const status = m?.status ?? 'locked'
+                const completion = status === 'active' ? completionMap[code] : undefined
+                const colorStatus = completion?.colorStatus
                 return (
-                  <div key={code} className={`flex items-center gap-3 p-3 rounded-xl border ${
+                  <div key={code} className={`flex items-start gap-3 p-3 rounded-xl border ${
                     status === 'completed' ? 'bg-emerald-50/50 border-emerald-100' :
-                    status === 'active'    ? 'bg-accent-soft border-accent/20' :
+                    status === 'active' && colorStatus === 'amber' ? 'bg-amber-50 border-amber-200' :
+                    status === 'active' ? 'bg-rose-50 border-rose-200' :
                     'bg-surface-2 border-subtle'
                   }`}>
-                    <span className={`text-xs font-bold w-7 text-center ${
+                    <span className={`text-xs font-bold w-7 text-center pt-0.5 ${
                       status === 'completed' ? 'text-emerald-600' :
-                      status === 'active'    ? 'text-accent' :
+                      status === 'active' && colorStatus === 'amber' ? 'text-amber-600' :
+                      status === 'active' ? 'text-rose-600' :
                       'text-faint'
                     }`}>
                       {status === 'completed' ? '✓' : code}
                     </span>
-                    <span className={`text-sm flex-1 ${status === 'locked' ? 'text-faint' : 'text-ink'}`}>
-                      {MODULE_LABELS[code]}
-                    </span>
-                    <span className="text-xs text-faint">
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm block ${status === 'locked' ? 'text-faint' : 'text-ink'}`}>
+                        {MODULE_LABELS[code]}
+                      </span>
+                      {status === 'active' && completion && completion.pending.length > 0 && (
+                        <span className={`text-xs block mt-0.5 ${colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>
+                          Falta: {completion.pending.map(p => `${p.jobPositionName}${!p.hasOccupant ? ' (sin invitar)' : ''}`).join(', ')}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-faint flex-shrink-0">
                       {status === 'completed'
                         ? (m.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '')
-                        : status === 'active' ? 'En progreso' : 'Pendiente'}
+                        : status === 'active' ? (colorStatus === 'amber' ? 'Incompleto' : 'No iniciado') : 'Pendiente'}
                     </span>
                   </div>
                 )

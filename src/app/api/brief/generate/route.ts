@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { CREDIT_COSTS, deductCreditsByEmail } from '@/lib/credits'
+import { isCaseFullyComplete } from '@/lib/moduleCompletion'
 
 export const runtime = 'nodejs'
 
@@ -50,6 +51,22 @@ export async function POST(request: Request) {
   if (!caseData) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
 
   const db2 = supabase as any
+
+  // Bloqueo duro: el Brief no se genera con entrevistas incompletas — un
+  // hallazgo generado con voces faltantes queda sesgado hacia quien sí
+  // contestó y puede omitir por completo ángulos mapeados a un solo puesto.
+  // Ver docs/PRD_RCPFAMTELL3PL.md sección 7.1 (decisión del usuario, 2026-07-07).
+  const { complete, incomplete } = await isCaseFullyComplete(db2, caseId)
+  if (!complete) {
+    return NextResponse.json({
+      error: 'No se puede generar el Brief: hay entrevistas incompletas.',
+      incompleteModules: incomplete.map(m => ({
+        moduleCode: m.moduleCode,
+        colorStatus: m.colorStatus,
+        pending: m.pending,
+      })),
+    }, { status: 409 })
+  }
 
   // Señales IER
   const { data: signals } = await db2

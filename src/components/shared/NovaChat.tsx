@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNovaChat, type FileAttachment } from '@/hooks/useNovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
+import type { ModuleCompletion } from '@/lib/moduleCompletion'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
   M1: 'Radiografía Comercial',
@@ -17,14 +18,16 @@ const MODULE_LABELS: Record<ModuleCode, string> = {
 const ACCEPTED_TYPES = '.pdf,.png,.jpg,.jpeg,.csv,.txt,.xlsx'
 
 interface NovaChatProps {
+  caseId: string
   sessionId: string
   moduleCode: ModuleCode
   initialMessages?: ChatMessage[]
-  onModuleComplete?: () => void
+  onModuleComplete?: (result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) => void
   autoStart?: boolean
 }
 
 export default function NovaChat({
+  caseId,
   sessionId,
   moduleCode,
   initialMessages = [],
@@ -107,12 +110,21 @@ export default function NovaChat({
 
   async function handleComplete() {
     setCompleting(true)
-    await fetch('/api/modules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId: '', moduleCode, sessionId }),
-    })
-    onModuleComplete?.()
+    try {
+      const res = await fetch('/api/modules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId, moduleCode, sessionId }),
+      })
+      if (!res.ok) {
+        setCompleting(false)
+        return
+      }
+      const data = await res.json()
+      onModuleComplete?.({ moduleCompleted: !!data.moduleCompleted, completion: data.completion ?? null })
+    } catch {
+      setCompleting(false)
+    }
   }
 
   const visibleMessages = messages.filter(m => m.content !== '' || m.role === 'assistant')

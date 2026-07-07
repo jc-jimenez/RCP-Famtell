@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import AppShell from '@/components/shared/AppShell'
 import NovaChat from '@/components/shared/NovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
+import type { ModuleCompletion } from '@/lib/moduleCompletion'
 
 interface Props {
   caseId: string
@@ -51,6 +52,7 @@ export default function ModuleStartClient({
   const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
   const [noCredits, setNoCredits] = useState(false)
   const [requiredCredits, setRequiredCredits] = useState<number | null>(null)
+  const [completionResult, setCompletionResult] = useState<{ moduleCompleted: boolean; completion: ModuleCompletion | null } | null>(null)
 
   const backHref = userRole === 'collaborator' ? '/mis-modulos' : `/caso/${caseId}`
 
@@ -76,25 +78,47 @@ export default function ModuleStartClient({
     setStarting(false)
   }
 
-  function handleComplete() {
+  function handleComplete(result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) {
+    setCompletionResult(result)
     setView('completed')
   }
 
   // ── Vista: completado ──
   if (view === 'completed') {
+    const fullyComplete = completionResult?.moduleCompleted ?? isCompleted
+    const pending = completionResult?.completion?.pending ?? []
+
     return (
       <AppShell role={userRole} email={userEmail} caseCompanyName="">
         <div className="max-w-lg mx-auto text-center py-16 space-y-6">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-3xl text-emerald-600 mx-auto">
-            ✓
+          <div className={`w-16 h-16 rounded-full border flex items-center justify-center text-3xl mx-auto ${
+            fullyComplete ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-amber-100 border-amber-200 text-amber-600'
+          }`}>
+            {fullyComplete ? '✓' : '◐'}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-ink">{label} completado</h1>
+            <h1 className="text-xl font-bold text-ink">
+              {fullyComplete ? `${label} completado` : 'Tu parte quedó registrada'}
+            </h1>
             <p className="text-muted text-sm mt-2">
-              {userRole === 'collaborator'
-                ? 'Tus respuestas fueron guardadas. El consultor puede ver tu perspectiva.'
-                : 'La información fue guardada. Tu consultor ya puede ver los resultados.'}
+              {fullyComplete
+                ? (userRole === 'collaborator'
+                    ? 'Tus respuestas fueron guardadas. El consultor puede ver tu perspectiva.'
+                    : 'La información fue guardada. Tu consultor ya puede ver los resultados.')
+                : 'Tus respuestas se guardaron, pero este módulo todavía no está completo — faltan otros puestos por contestar.'}
             </p>
+            {!fullyComplete && pending.length > 0 && (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+                <p className="text-xs font-medium text-amber-800 mb-1.5">Todavía falta la entrevista de:</p>
+                <ul className="text-xs text-amber-700 space-y-0.5">
+                  {pending.map(p => (
+                    <li key={p.jobPositionId}>
+                      • {p.jobPositionName}{!p.hasOccupant && ' (sin participante invitado a este puesto)'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <button
             onClick={() => router.push(backHref as any)}
@@ -126,6 +150,7 @@ export default function ModuleStartClient({
         {/* Ventana de chat acotada y centrada (tipo WhatsApp) */}
         <div className="w-full max-w-2xl flex-1 min-h-0 card overflow-hidden">
           <NovaChat
+            caseId={caseId}
             sessionId={sessionId}
             moduleCode={moduleCode}
             initialMessages={existingMessages}
