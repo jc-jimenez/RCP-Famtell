@@ -262,7 +262,15 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 1. ~~Auditoría de campos~~ ✅ completada.
 2. ~~Encuesta de clima anónima~~ ✅ completada y validada (2026-07-07).
 3. ~~Tabla editable genérica + carga con IA~~ ✅ completada y validada (2026-07-07).
-4. Ajuste puntual al Tracker de Capacidad: sección de Almacén Fiscal separada + altura libre + andenes — pendiente.
+4. ~~Ajuste puntual al Tracker de Capacidad~~ ✅ completado y validado (2026-07-07).
+
+### 4. Ajuste al Tracker de Capacidad — implementación (✅ 2026-07-07)
+
+`CapacidadClient.tsx` es una calculadora 100% client-side (sin persistencia en BD, todo `useState` efímero) — el ajuste fue puramente de UI/cálculo, sin migración:
+- **Infraestructura física** agregada a la tarjeta "Superficie del almacén": altura libre (clear height, metros) y andenes de carga/descarga (totales + en uso, con % derivado).
+- **Nueva tarjeta "Almacén Fiscal"** (Kit 2.1, marcado como "activo diferencial escaso del corredor CTT — palanca de crecimiento #1 si está subutilizado"): estado habilitado/en trámite/no habilitado, m² habilitados/en uso (con % y m² libres derivados), régimen aduanero (Depósito Fiscal / Recinto Fiscalizado / Recinto Fiscalizado Estratégico / Otro), # clientes usando el fiscal, Sistema de Control de Inventarios autorizado (Sí/No), acreditación SAT vigente hasta (fecha).
+- Panel de resultados: tarjeta condicional de ocupación del Almacén Fiscal (barra + m² libres + clientes) cuando está habilitado/en trámite; tarjeta de alerta (fondo rosa) cuando no está habilitado, citando el hallazgo del Kit. Resumen ejecutivo actualizado con bullets de altura libre/andenes y del estado del Almacén Fiscal.
+- **Validado en navegador para ambos roles** (consultor y directivo, mismo componente compartido): los 3 estados del toggle (No/En trámite/Sí) cambian correctamente la UI condicional; con m²=300/uso=210 el cálculo derivado (70% en uso, 90 m² libres) es correcto tanto en la tarjeta de inputs como en la de resultados y en el resumen ejecutivo.
 
 ### 2. Encuesta de clima anónima — implementación (✅ 2026-07-07)
 
