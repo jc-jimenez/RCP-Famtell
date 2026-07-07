@@ -258,11 +258,20 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 
 **Conclusión:** de los 3, solo el Tracker de Capacidad necesita ajuste directo (sección de Almacén Fiscal). Los otros dos casos confirman que esos datos van a la tabla genérica del punto 1, no a las pantallas existentes — reduce el alcance real de "ajustar pantallas" a una sola.
 
-### Orden de ejecución acordado (orden real de construcción: 1, 3, luego 2 y 4 pendientes)
+### Orden de ejecución acordado (orden real de construcción: 1, 3, 2, 4 pendiente)
 1. ~~Auditoría de campos~~ ✅ completada.
-2. Encuesta de clima anónima (autocontenida) — pendiente.
+2. ~~Encuesta de clima anónima~~ ✅ completada y validada (2026-07-07).
 3. ~~Tabla editable genérica + carga con IA~~ ✅ completada y validada (2026-07-07).
 4. Ajuste puntual al Tracker de Capacidad: sección de Almacén Fiscal separada + altura libre + andenes — pendiente.
+
+### 2. Encuesta de clima anónima — implementación (✅ 2026-07-07)
+
+- Migración `029_case_climate_surveys.sql`: `case_climate_surveys` (case_id, token uuid único, title, questions jsonb, status draft/open/closed) + `case_climate_responses` (survey_id, `area` y `tiene_gente_a_cargo` autodeclarados, answers jsonb) — **sin user_id, sin ip_address, sin ninguna columna identificable, a propósito**. RLS: solo el consultor dueño gestiona/lee; el envío público NO pasa por INSERT directo ni por policy de `anon`, sino por la función `SECURITY DEFINER` `submit_climate_response(token, area, tiene_gente_a_cargo, answers)`, que valida server-side que la encuesta siga `open` antes de insertar (confirmado con test: POST directo a una encuesta ya cerrada devuelve 403 aunque se conozca el token). Lectura pública vía `get_climate_survey_by_token(token)`, mismo patrón que `client_share_links` (migración 016) pero de escritura, no solo lectura.
+- Preguntas sembradas por default = las 10 exactas del Kit 6.1, con 5 tipos de pregunta (`open`, `number`, `scale_1_5`, `choice`, `choice_text`) — `src/lib/climateQuestions.ts`.
+- UI consultor: `/caso/[id]/clima` (`ClimaClient.tsx`, tab "Clima" en `CasoTabs.tsx`) — crear encuesta (se siembra sola), abrir/cerrar, copiar link público, ver respuestas con 1 agregado numérico (promedio de comunicación interna) + lista de respuestas individuales (sin nombre, solo área/nivel + timestamp). Solo consultor gestiona (mismo criterio que Tablas — no se agregó a `DirectorTabs`).
+- UI pública: `/clima/[token]` (sin login, sin `AppShell`) — clasificación (área + ¿tiene gente a su cargo?) autodeclarada seguida de las preguntas dinámicas por tipo; si la encuesta está en `draft`/`closed` muestra mensaje en vez de formulario.
+- **Validado end-to-end en navegador real, incluyendo sesión verdaderamente anónima** (logout completo antes de visitar el link público): crear encuesta como consultor → abrir → visitar el link sin sesión → llenar clasificación + 4 preguntas de distintos tipos → enviar → confirmar en BD que la fila guardada solo tiene `area`, `tiene_gente_a_cargo`, `answers`, `created_at` (nada más) → ver el agregado y el detalle en el panel del consultor → cerrar encuesta → confirmar que un POST directo al mismo token ya devuelve 403.
+- Datos de prueba (encuesta + respuesta) borrados tras validar, mismo criterio que en Tablas.
 
 ### 3. Tablas editables genéricas — implementación (✅ 2026-07-07)
 

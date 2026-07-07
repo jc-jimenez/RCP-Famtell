@@ -23,6 +23,7 @@ const TABS: Tab[] = [
   { id: 'comunicacion', label: 'Comunicación',  external: true },
   { id: 'competencia',  label: 'Competencia',   external: true },
   { id: 'tablas',      label: 'Tablas',       external: true },
+  { id: 'clima',       label: 'Clima',        external: true },
   { id: 'kpis',        label: 'KPIs',         external: true },
   { id: 'checkin',     label: 'Check-in',     external: true },
   { id: 'brief',       label: 'Brief M7',     external: true },
