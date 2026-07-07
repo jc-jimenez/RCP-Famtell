@@ -24,7 +24,7 @@ const STEPS = [
   { id: 'jtbd',           label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
   { id: 'jtbd_comercial', label: 'JTBD Comercial', desc: 'Jobs de clientes validados' },
   { id: 'segmentos',     label: 'Segmentos',      desc: 'Segmentos validados y priorizados' },
-  { id: 'diagnostico',   label: 'Diagnóstico',    desc: 'Líneas prioritarias aprobadas' },
+  { id: 'diagnostico',   label: 'Prioridades',    desc: 'Líneas prioritarias aprobadas' },
   { id: 'plan',          label: 'Plan',           desc: 'Planes 90d/6m/1a/3a generados' },
   { id: 'publicado',     label: 'Publicado',      desc: 'Brief publicado al directivo' },
 ] as const

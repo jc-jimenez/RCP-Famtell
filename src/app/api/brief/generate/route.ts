@@ -406,17 +406,29 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
   try {
     const response = await anthropic.messages.create({
       model: NOVA_MODEL,
-      max_tokens: 3000,
+      // 3000 truncaba secciones largas (plan_90d con 12 semanas de acciones detalladas)
+      // a media generación, produciendo JSON cortado que fallaba al parsear.
+      max_tokens: 8000,
       system: systemPrompt,
       messages: [{ role: 'user', content: contentBlocks as any }],
     })
 
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
+
+    // executive_summary pide prosa plana, no JSON — las demás secciones sí son JSON.
+    if (section === 'executive_summary') {
+      return NextResponse.json({ result: text.trim() })
+    }
+
     const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/)?.[0]
     if (!jsonMatch) return NextResponse.json({ error: 'Nova no devolvió JSON válido', raw: text }, { status: 500 })
 
-    const parsed = JSON.parse(jsonMatch)
-    return NextResponse.json({ result: parsed })
+    try {
+      const parsed = JSON.parse(jsonMatch)
+      return NextResponse.json({ result: parsed })
+    } catch (parseErr: any) {
+      return NextResponse.json({ error: parseErr.message, raw: jsonMatch }, { status: 500 })
+    }
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

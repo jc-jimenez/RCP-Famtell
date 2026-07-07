@@ -101,6 +101,24 @@ Con esto, la Fase 2 completa (pasos 1-4) queda cerrada.
 4. Invitar participantes y asignar a cada uno su puesto del catálogo (independiente de si su rol de plataforma es directivo o colaborador).
 5. Nova solo pregunta a cada participante lo que está mapeado a su puesto.
 
+### Catálogo real de puestos de Famtell (2026-07-06, confirmado por el usuario)
+
+Los 13 puestos reales del organigrama de Famtell, para cargar cuando se arme el caso de producción:
+Director General · Gerente Comercial · Gerente de Operaciones · Gerente Administración · Asesor Comercial Interno · Asesor Comercial Externo · Gerente de Almacén · Analista Facturación · Coordinador General de Almacén · Analista Administrativo · Supervisor Mantenimiento y Seguridad · Operador Montacarguista · Auxiliar General.
+
+**Decisión de diseño (explícita del usuario):** qué puestos participan en las entrevistas y con qué preguntas es decisión del consultor con el equipo directivo — el sistema no lo predefine ni lo limita. Por eso los catálogos son configurables (altas/bajas/cambios) y las preguntas asignables por puesto. El sistema solo provee la mecánica.
+
+### 7.1 Seguimiento de avance de entrevistas (GAP — pendiente de construir)
+
+Requerimiento del usuario (2026-07-06): si un usuario está configurado con rol + puesto + preguntas asignadas, el sistema debe validar que **todos** los asignados hayan contestado, y el consultor necesita visibilidad y control sobre ese avance.
+
+Esto resuelve el hueco de diseño detectado en el recorrido conceptual: hoy `modules` tiene una sola fila por caso+módulo (`UNIQUE(case_id, module_code)`), así que **el primer participante que termina marca todo el módulo como completado** y desbloquea el siguiente, aunque otros puestos asignados no hayan empezado.
+
+Diseño acordado:
+- **Panel de avance de entrevistas** (pantalla de consultor): matriz participante × módulo con estado pendiente / en curso / completado, leyendo de `sessions` (que ya guarda `user_id`, `module_code`, `completed` — el dato existe, falta la vista agregada). Incluye acción de recordatorio (email/WhatsApp) por participante.
+- **Advertencia, no bloqueo**: al generar el Brief (M7) o al marcar un módulo del caso como cerrado, si hay entrevistas pendientes el sistema muestra "faltan X entrevistas de Y participantes" y el consultor decide explícitamente si continúa sin terminar o da seguimiento. El control queda en el humano, no en una regla rígida.
+- **Semántica de `modules.status`**: dejar de marcar el módulo del caso como `completed` con el primer participante — el estado del caso se deriva del conjunto de sesiones de los participantes asignados, o lo cierra el consultor manualmente.
+
 ## 8. Arquitectura de permisos de plataforma (decisión)
 
 Se evaluó si el sistema de roles de plataforma (Super Admin, Consultor, Directivo, Colaborador) debe volverse un RBAC dinámico (roles y permisos editables en runtime, como el catálogo de puestos). **Decisión: no por ahora.**
@@ -184,8 +202,18 @@ En este orden porque el de KPIs es el más grande y el más ligado al north star
 2. KPIs del Tablero — de columnas fijas a catálogo + valores, conectado al Plan 90d del Brief.
 3. Plantillas de comunicación — tabla nueva + CRUD. (El más chico y aislado, puede ir al final o en paralelo.)
 
-### Fase 4 — QA end-to-end con el caso real de Famtell
+### Fase 4 — QA end-to-end con el caso real de Famtell ✅ SIMULACIÓN COMPLETADA (2026-07-06)
 Correr el flujo completo con el modelo nuevo: crear caso Famtell → dar de alta puestos reales → mapear preguntas → invitar participantes reales de Famtell → completar módulos → generar Brief (Plan 90d/1a/3a + hallazgo de brechas de puesto) → seguimiento con KPIs/check-in semanal. No se considera terminado hasta validarlo con datos reales de Famtell, no solo con cuentas de prueba.
+
+**Resultado de la simulación (datos ficticios realistas de Famtell, decisión del usuario):**
+- Flujo completo verificado: caso Famtell creado → 6 puestos con descriptivo → 137 preguntas mapeadas por puesto → 6 participantes (2 activados, 4 invitaciones pendientes) → conversación REAL con Nova verificada en navegador (el Gerente de Operaciones solo recibe sus preguntas; la pregunta estratégica de M&A mapeada solo al Director General nunca le aparece) → 7 módulos completados con conversaciones reales de la API de Claude → desbloqueo secuencial y descuento de créditos correctos (el sistema incluso bloqueó M7 por créditos insuficientes: la validación funciona) → Brief completo generado (7 diagnósticos, 6 JTBD comerciales, 5 segmentos, 8 prioridades, 34 acciones 90d, 28 iniciativas 6m, 9 objetivos 1a, visión 3a) → wizard de 9 etapas aprobado → publicado → verificado que el Director General ve el Brief completo con los 4 planes.
+
+**3 bugs reales encontrados y corregidos durante el QA:**
+1. `executive_summary` nunca podía generarse — el endpoint parseaba como JSON una sección que pide prosa plana. Corregido en `api/brief/generate/route.ts`.
+2. `max_tokens: 3000` truncaba `plan_90d` a media generación (12 semanas de acciones no caben) — JSON cortado, fallaba siempre. Subido a 8000 y verificado.
+3. **La etapa "JTBD Comercial" del Brief no podía persistir jamás**: la columna `jtbd_comercial` no existía en `brief_documents` (ninguna migración la creó) Y `api/brief/route.ts` ignoraba el error de PostgREST devolviendo 200 con `brief: null` — pérdida de datos silenciosa. Corregidos ambos: migración 027 + manejo de error en el guardado.
+
+**Pendiente para cerrar la Fase 4 de verdad (con datos reales):** repetir el alta del caso con los 13 puestos reales del organigrama (sección 7), con los participantes reales de Famtell decididos por el consultor y el equipo directivo. Además quedaron como gaps documentados: el hallazgo de brechas descriptivo-vs-actividad en el Brief (sección 7, regla 3 — no construido aún), el panel de avance de entrevistas (sección 7.1) y el check-in semanal post-Brief (no ejercitado en esta simulación).
 
 ### Qué puede avanzar en paralelo
 Fase 0 no bloquea nada más y puede ir en cualquier momento. Dentro de la Fase 3, Módulos y Plantillas son independientes entre sí y de KPIs — se pueden repartir en paralelo si hay más de una persona construyendo. Todo lo demás es secuencial por las dependencias reales del modelo de datos.
