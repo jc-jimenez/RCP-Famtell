@@ -258,8 +258,17 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 
 **Conclusión:** de los 3, solo el Tracker de Capacidad necesita ajuste directo (sección de Almacén Fiscal). Los otros dos casos confirman que esos datos van a la tabla genérica del punto 1, no a las pantallas existentes — reduce el alcance real de "ajustar pantallas" a una sola.
 
-### Orden de ejecución acordado
+### Orden de ejecución acordado (orden real de construcción: 1, 3, luego 2 y 4 pendientes)
 1. ~~Auditoría de campos~~ ✅ completada.
-2. Encuesta de clima anónima (autocontenida) — **siguiente paso**.
-3. Tabla editable genérica + carga con IA (lo más grande, al final). Incluye ahora: benchmark de tarifas de competencia (5.2) y rentabilidad por línea de servicio de Famtell (4.2), además de lo ya listado.
-4. Ajuste puntual al Tracker de Capacidad: sección de Almacén Fiscal separada + altura libre + andenes.
+2. Encuesta de clima anónima (autocontenida) — pendiente.
+3. ~~Tabla editable genérica + carga con IA~~ ✅ completada y validada (2026-07-07).
+4. Ajuste puntual al Tracker de Capacidad: sección de Almacén Fiscal separada + altura libre + andenes — pendiente.
+
+### 3. Tablas editables genéricas — implementación (✅ 2026-07-07)
+
+- Migración `028_case_table_instruments.sql`: `case_table_instruments` (case_id, module_code, name, description, columns jsonb, job_position_ids uuid[], sort_order) + `case_table_rows` (instrument_id, row_data jsonb, sort_order). RLS: consultor dueño `FOR ALL`; case_user con puesto en `job_position_ids` también `FOR ALL` sobre `case_table_rows` (puede leer/escribir sus propias filas, no solo leer) — distinto del patrón de solo-lectura usado en preguntas, porque aquí el miembro del caso es quien captura el dato.
+- APIs: `api/consultant/case-table-instruments` (CRUD de definiciones, solo consultor), `api/table-rows` (CRUD de filas, sin chequeo de rol en código — RLS decide), `api/table-rows/extract` (IA extrae filas de un documento adjunto según el esquema de columnas del instrumento; devuelve para revisión, no autoguarda — mismo patrón de adjuntos que M4/Brief).
+- UI: `/caso/[id]/tablas` (`TablasClient.tsx`) — panel de gestión (solo consultor: crear tabla con builder de columnas tipo texto/número/moneda/porcentaje/selector, asignar puestos) + grid editable genérico (agregar/editar/borrar fila, inputs por tipo de columna) + botón "Subir documento" que llama a `extract`, muestra vista previa, y el usuario confirma antes de insertar cada fila real. Tab "Tablas" agregado a `CasoTabs.tsx` y `DirectorTabs.tsx`.
+- **Validado end-to-end en navegador real** (no solo API): como consultor — crear 2 instrumentos con columnas y puestos distintos, llenar fila manual, subir documento de texto plano y CSV con datos ficticios → IA extrajo correctamente 3 filas en ambos casos con el esquema exacto de columnas, confirmar inserción. Como directivo con puesto mapeado — solo ve el instrumento asignado a su puesto (el otro, mapeado a un puesto distinto, queda oculto), agregar fila y llenarla persiste correctamente tras recargar. RLS confirmada por API: puesto no mapeado recibe lista vacía en GET y 403 en POST/insert.
+- Cubre del Kit: mapa de clientes/concentración/altas-bajas/servicios (M1), inventario de equipos/servicios no comercializados (M2), rentabilidad por servicio (M4), benchmark de tarifas de competencia (M5), talento/quick wins/riesgos (M6).
+- Datos de prueba sembrados durante la validación fueron borrados del caso Famtell después de confirmar que todo funcionaba (para no dejar filas ficticias en el caso real).
