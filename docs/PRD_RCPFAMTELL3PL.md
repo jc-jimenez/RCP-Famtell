@@ -249,9 +249,17 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 - En vez de eso: **preguntas sembradas de clasificación** al inicio del formulario (ej. "¿En qué área trabajas? Operación/Comercial/Administración/Dirección", "¿Tienes personal a tu cargo?") — el empleado autodeclara categoría amplia, nunca identidad.
 - Mecanismo: link público sin login (mismo patrón que Portal del Cliente) — `case_climate_surveys` (token, caso, abierta/cerrada) + `case_climate_responses` (sin user_id, sin IP, solo área/nivel autodeclarados + respuestas). El consultor ve agregados por área, nunca fila con nombre.
 
-**3. Alineación de campos (Capacidad de Almacén / Monitor de Competencia / Calculadora de Tarifas)** — auditar los campos reales del código contra lo que pide el Kit (secciones 2.1/2.2, 5.1/5.2, 4.2) antes de construir nada nuevo — puede que ya sirvan casi tal cual, o falten 2-3 campos. Pendiente de ejecutar.
+**3. Alineación de campos (Capacidad de Almacén / Monitor de Competencia / Calculadora de Tarifas)** — auditar los campos reales del código contra lo que pide el Kit (secciones 2.1/2.2, 5.1/5.2, 4.2) antes de construir nada nuevo — puede que ya sirvan casi tal cual, o falten 2-3 campos.
+
+**✅ Auditoría completada (2026-07-07):**
+- **Tracker de Capacidad** (`CapacidadClient.tsx`): cubre bien lo genérico (m², posiciones de rack, ocupación, ingresos), pero modela UN solo almacén genérico — **falta el Almacén Fiscal como entidad separada** (¿habilitado?, m² propios, régimen aduanero, # clientes usándolo, acreditación SAT vigente), que el Kit marca como "el diferencial crítico" de Famtell. También faltan altura libre (clear height) y andenes de carga/descarga. **Gap real, requiere ajuste directo a esta pantalla** (no al mecanismo genérico, porque son cálculos/KPIs derivados, no una lista de filas).
+- **Monitor de Competencia** (`CompetenciaClient.tsx`): mide percepción cualitativa (radar 1-5: precio, calidad, velocidad...). El Kit 5.1/5.2 pide algo **distinto y complementario**: mapa de competidores con "¿tiene Almacén Fiscal? Sí/No" + benchmark de tarifas reales en pesos por servicio (almacenaje m²/mes, picking por pieza, etc.). No es el mismo instrumento con campos de menos — el benchmark de tarifas es candidato para la tabla genérica; agregar solo el campo booleano de Almacén Fiscal al radar existente.
+- **Calculadora de Tarifas** (`TarifasClient.tsx`): **desalineación de fondo, no de campos** — cotiza el trabajo de consultoría (horas del consultor × tarifa), mientras que el Kit 4.2 pide la rentabilidad de los servicios que Famtell vende a sus clientes (precio/costo/margen/volumen por servicio 3PL). Son dos herramientas distintas que comparten nombre. El 4.2 necesita su propia tabla — va al mecanismo genérico, no se toca la Calculadora existente.
+
+**Conclusión:** de los 3, solo el Tracker de Capacidad necesita ajuste directo (sección de Almacén Fiscal). Los otros dos casos confirman que esos datos van a la tabla genérica del punto 1, no a las pantallas existentes — reduce el alcance real de "ajustar pantallas" a una sola.
 
 ### Orden de ejecución acordado
-1. Auditoría de campos (rápida, puede reducir el trabajo de los otros dos) — **siguiente paso**.
-2. Encuesta de clima anónima (autocontenida).
-3. Tabla editable genérica + carga con IA (lo más grande, al final).
+1. ~~Auditoría de campos~~ ✅ completada.
+2. Encuesta de clima anónima (autocontenida) — **siguiente paso**.
+3. Tabla editable genérica + carga con IA (lo más grande, al final). Incluye ahora: benchmark de tarifas de competencia (5.2) y rentabilidad por línea de servicio de Famtell (4.2), además de lo ya listado.
+4. Ajuste puntual al Tracker de Capacidad: sección de Almacén Fiscal separada + altura libre + andenes.
