@@ -16,6 +16,7 @@ interface NavItem {
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   super_admin: [
     { label: 'Panel',          href: '/admin',                icon: '▦' },
+    { label: 'Usuarios',       href: '/admin/usuarios',       icon: '◉' },
     { label: 'Consultores',    href: '/admin/consultores',    icon: '◎' },
     { label: 'Casos',          href: '/admin/casos',          icon: '▣' },
     { label: 'Créditos',       href: '/admin/creditos',       icon: '◍' },
