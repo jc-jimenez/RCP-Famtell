@@ -58,7 +58,7 @@ Esto ya está construido y funcionando: `plan_90d`, `plan_1a`, `plan_3a` en el B
 
 Antes de construir algo nuevo, responder: *¿esto mejora directamente el Plan 90d, el Plan 1 año, o la Visión 3 años de Famtell — o el seguimiento de que se cumplan?* Si la respuesta es no, no entra al alcance ahora.
 
-## 7. Modelo de puestos y mapeo de preguntas (GAP — pendiente de construir)
+## 7. Modelo de puestos y mapeo de preguntas (✅ completado — Fase 2)
 
 Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fijo de 6 valores hardcodeado (`director_general`, `gerente_comercial`, `gerente_operativo`, `cfo_contador`, `rrhh_admin`, `gerente_marketing`), igual para cualquier caso — ver `ParticipantesPanel.tsx` (perfiles) y `questions.suggested_roles` (catálogo). Decisión: esto no sirve, el catálogo de puestos debe ser **específico de cada empresa/caso**, creado por el consultor.
 
@@ -138,7 +138,7 @@ Se evaluó si el sistema de roles de plataforma (Super Admin, Consultor, Directi
 
 **🔴 Hallazgo de seguridad corregido durante el refactor:** `/admin/catalogo` (página) y sus rutas API (`api/admin/catalogo/questions`, `api/admin/catalogo/sections`, verbos POST/PATCH/DELETE) **no verificaban que el usuario fuera Super Admin** — solo exigían sesión válida. Cualquier consultor, directivo o colaborador autenticado podía editar el catálogo global de preguntas/secciones usado por todos los casos. Corregido agregando el check en las 3 rutas. Esto confirma el valor de centralizar los checks: estaba disperso y a alguien se le olvidó en estos 3 lugares.
 
-## 9. Catálogos adicionales a hacer configurables (GAP — pendiente de construir)
+## 9. Catálogos adicionales a hacer configurables (✅ completado — Fase 3)
 
 Mismo criterio de la sección 7 (nada configurable = costo de mantenimiento en código; todo configurable sin necesidad real = sobre-construcción). Se revisaron 6 catálogos hoy hardcodeados; se prioritizaron 3 para entrar al alcance ahora, ligados directamente al north star (sección 1):
 
