@@ -55,7 +55,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-ink">
-            RCP<span className="text-accent">.ai</span>
+            www.bizdoctor<span className="text-accent">.site</span>
           </h1>
           <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
         </div>
@@ -132,6 +132,10 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+
+        <p className="text-center text-xs text-faint mt-6">
+          www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+        </p>
       </div>
     </main>
   )

@@ -107,7 +107,7 @@ export default function ActivatePage() {
     <main className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-ink">RCP<span className="text-accent">.ai</span></h1>
+          <h1 className="text-3xl font-bold text-ink">www.bizdoctor<span className="text-accent">.site</span></h1>
         </div>
 
         <div className="card p-8">
@@ -155,6 +155,10 @@ export default function ActivatePage() {
             </button>
           </form>
         </div>
+
+        <p className="text-center text-xs text-faint mt-6">
+          www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+        </p>
       </div>
     </main>
   )

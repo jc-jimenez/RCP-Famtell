@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   // 1. Enviar código por WhatsApp
   // México móvil: +521XXXXXXXXXX (no +52)
   const toPhone = phoneClean.length === 10 ? `+521${phoneClean}` : `+${phoneClean}`
-  const waMsg = `Tu código de verificación RCP.ai es: *${whatsappCode}*\n\nVálido por 10 minutos.`
+  const waMsg = `Tu código de verificación de www.bizdoctor.site es: *${whatsappCode}*\n\nVálido por 10 minutos.`
   const waSent = await sendWhatsApp(toPhone, waMsg)
   if (!waSent) {
     return NextResponse.json({ error: 'No se pudo enviar el código por WhatsApp' }, { status: 502 })
@@ -70,17 +70,17 @@ export async function POST(request: Request) {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: 'Verifica tu correo — RCP.ai',
+    subject: 'Verifica tu correo — www.bizdoctor.site',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
         <h1 style="font-size: 24px; color: #0f172a; margin-bottom: 8px;">
-          RCP<span style="color: #6366f1;">.ai</span>
+          www.bizdoctor<span style="color: #6366f1;">.site</span>
         </h1>
         <p style="color: #64748b; margin-bottom: 24px;">Diagnóstico empresarial con inteligencia artificial</p>
 
         <h2 style="font-size: 18px; color: #0f172a;">Hola ${nombre},</h2>
         <p style="color: #475569; line-height: 1.6;">
-          Para completar tu registro en RCP.ai necesitamos verificar tu correo electrónico.
+          Para completar tu registro en www.bizdoctor.site necesitamos verificar tu correo electrónico.
           Haz clic en el botón a continuación:
         </p>
 
@@ -92,12 +92,15 @@ export async function POST(request: Request) {
         </a>
 
         <p style="color: #94a3b8; font-size: 13px;">
-          Este enlace es válido por 24 horas. Si no creaste una cuenta en RCP.ai, ignora este mensaje.
+          Este enlace es válido por 24 horas. Si no creaste una cuenta en www.bizdoctor.site, ignora este mensaje.
         </p>
 
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="color: #cbd5e1; font-size: 12px;">
-          GoNextSales S.A. de C.V. · RCP.ai
+          GoNextSales S.A. de C.V. · www.bizdoctor.site
+        </p>
+        <p style="color: #e2e8f0; font-size: 11px;">
+          www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
         </p>
       </div>
     `,

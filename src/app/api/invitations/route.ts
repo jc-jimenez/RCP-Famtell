@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       subject: `Invitación a participar en el diagnóstico de ${caseData.company_name}`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0f172a; color: #e2e8f0; border-radius: 16px;">
-          <h1 style="color: #38bdf8; font-size: 24px; margin-bottom: 4px;">RCP.ai</h1>
+          <h1 style="color: #38bdf8; font-size: 24px; margin-bottom: 4px;">www.bizdoctor.site</h1>
           <p style="color: #64748b; font-size: 14px; margin-top: 0;">Diagnóstico empresarial con inteligencia artificial</p>
 
           <hr style="border-color: #1e293b; margin: 24px 0;" />
@@ -115,6 +115,9 @@ export async function POST(request: Request) {
           <p style="color: #475569; font-size: 12px; text-align: center;">
             Este enlace expira en 48 horas. Si no esperabas este correo, ignóralo.
           </p>
+          <p style="color: #334155; font-size: 11px; text-align: center; margin-top: 16px;">
+            www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+          </p>
         </div>
       `,
     })
@@ -129,7 +132,7 @@ export async function POST(request: Request) {
 
   // Enviar WhatsApp si tiene número registrado
   if (whatsappPhone) {
-    const waMsg = `Hola 👋 Fuiste invitado como *${roleLabel}* al diagnóstico empresarial de *${caseData.company_name}* en RCP.ai.\n\nActiva tu cuenta aquí:\n${activationUrl}\n\n_(Enlace válido 48 horas)_`
+    const waMsg = `Hola 👋 Fuiste invitado como *${roleLabel}* al diagnóstico empresarial de *${caseData.company_name}* en www.bizdoctor.site.\n\nActiva tu cuenta aquí:\n${activationUrl}\n\n_(Enlace válido 48 horas)_`
     await sendWhatsApp(whatsappPhone, waMsg)
   }
 

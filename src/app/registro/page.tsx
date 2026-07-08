@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 
 type Step = 'datos' | 'whatsapp' | 'revisa-correo' | 'listo'
 
-const PRIVACY_TEXT = `GoNextSales S.A. de C.V. ("RCP.ai") recopila tu nombre, correo electrónico, teléfono y empresa para brindar el servicio de diagnóstico empresarial con IA, enviarte comunicaciones relacionadas con tu cuenta y —con tu consentimiento— información comercial y campañas de marketing del producto por correo electrónico y WhatsApp. Puedes cancelar estas comunicaciones en cualquier momento. Tus datos se almacenan en servidores seguros y no se comparten con terceros sin tu consentimiento, salvo obligación legal. Al registrarte aceptas estos términos.`
+const PRIVACY_TEXT = `GoNextSales S.A. de C.V. ("www.bizdoctor.site") recopila tu nombre, correo electrónico, teléfono y empresa para brindar el servicio de diagnóstico empresarial con IA, enviarte comunicaciones relacionadas con tu cuenta y —con tu consentimiento— información comercial y campañas de marketing del producto por correo electrónico y WhatsApp. Puedes cancelar estas comunicaciones en cualquier momento. Tus datos se almacenan en servidores seguros y no se comparten con terceros sin tu consentimiento, salvo obligación legal. Al registrarte aceptas estos términos.`
 
 export default function RegistroPage() {
   const [step, setStep] = useState<string>('datos')
@@ -138,13 +138,16 @@ export default function RegistroPage() {
       <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
         <div className="w-full max-w-md text-center">
           <div className="text-5xl mb-6">🎉</div>
-          <h1 className="text-2xl font-bold text-ink mb-2">¡Bienvenido a RCP.ai!</h1>
+          <h1 className="text-2xl font-bold text-ink mb-2">¡Bienvenido a www.bizdoctor.site!</h1>
           <p className="text-muted mb-2">Tu cuenta ha sido activada con</p>
           <p className="text-3xl font-bold text-accent mb-6">100 créditos</p>
           <p className="text-sm text-muted mb-8">Ya puedes iniciar tu primer diagnóstico empresarial.</p>
           <a href="/" className="btn-primary inline-block px-8">
             Ir al dashboard →
           </a>
+          <p className="text-xs text-faint mt-8">
+            www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+          </p>
         </div>
       </main>
     )
@@ -157,7 +160,7 @@ export default function RegistroPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-ink">
-            RCP<span className="text-accent">.ai</span>
+            www.bizdoctor<span className="text-accent">.site</span>
           </h1>
           <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
         </div>

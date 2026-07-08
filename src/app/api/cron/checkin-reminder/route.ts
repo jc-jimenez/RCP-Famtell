@@ -75,7 +75,7 @@ export async function GET(request: Request) {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL ?? 'noreply@gonextsales.com',
+          from: process.env.RESEND_FROM_EMAIL ?? 'noreply@bizdoctor.site',
           to: email,
           subject: `⚡ Check-in semanal — ${c.company_name}`,
           html: `
@@ -89,7 +89,10 @@ export async function GET(request: Request) {
     Registrar check-in →
   </a>
   <p style="margin-top:24px;font-size:12px;color:#999">
-    RCP.ai · <a href="${getBaseUrl()}" style="color:#6366f1">rcp.gonextsales.com</a>
+    www.bizdoctor.site · <a href="${getBaseUrl()}" style="color:#6366f1">www.bizdoctor.site</a>
+  </p>
+  <p style="margin-top:4px;font-size:11px;color:#bbb">
+    www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
   </p>
 </div>`,
         }),

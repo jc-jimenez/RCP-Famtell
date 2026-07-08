@@ -102,7 +102,7 @@ export default function AppShell({
           {/* Logo / marca */}
           <div className="px-5 py-5 flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-ink">
-              RCP<span className={ROLE_DOT[role]}>.ai</span>
+              bizdoctor<span className={ROLE_DOT[role]}>.site</span>
             </span>
             <span className={`badge ${ROLE_PILL[role]} ml-auto`}>{ROLE_LABEL[role]}</span>
           </div>
@@ -150,7 +150,7 @@ export default function AppShell({
           <div className="flex items-center gap-3">
             {!showSidebar && (
               <span className="text-base font-bold text-ink">
-                RCP<span className={ROLE_DOT[role]}>.ai</span>
+                bizdoctor<span className={ROLE_DOT[role]}>.site</span>
               </span>
             )}
             {caseCompanyName && (

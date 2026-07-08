@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   let aiAnalysis: string | null = null
   try {
     const prompt = `
-Eres Nova, asistente de seguimiento de RCP.ai. Analiza el check-in semanal de la semana ${weekNumber}:
+Eres Nova, asistente de seguimiento de www.bizdoctor.site. Analiza el check-in semanal de la semana ${weekNumber}:
 - Contactos realizados: ${contactsMade}
 - Clientes nuevos: ${newClients ? `Sí — ${newClientsDetail}` : 'No'}
 - Obstáculos: ${obstacles ?? 'Ninguno reportado'}

@@ -206,8 +206,8 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold text-rose-600">Zona de peligro</h2>
           <p className="text-xs text-muted">
             Si deseas cancelar tu cuenta o eliminar todos tus datos, contáctanos en{' '}
-            <a href="mailto:soporte@gonextsales.com" className="text-accent underline">
-              soporte@gonextsales.com
+            <a href="mailto:soporte@bizdoctor.site" className="text-accent underline">
+              soporte@bizdoctor.site
             </a>
           </p>
         </section>

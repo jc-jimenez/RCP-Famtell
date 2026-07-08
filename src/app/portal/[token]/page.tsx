@@ -52,7 +52,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       {/* Header público */}
       <header className="bg-white border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-[#1e293b]">RCP<span className="text-[#4f46e5]">.ai</span></span>
+          <span className="text-lg font-bold text-[#1e293b]">bizdoctor<span className="text-[#4f46e5]">.site</span></span>
           <span className="text-[#94a3b8] text-sm">·</span>
           <span className="text-sm text-[#64748b]">Portal del Cliente</span>
         </div>
@@ -186,9 +186,12 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         )}
 
         {/* Footer */}
-        <div className="text-center pt-4 pb-8">
+        <div className="text-center pt-4 pb-8 space-y-1">
           <p className="text-xs text-[#94a3b8]">
-            Diagnóstico generado con RCP.ai · rcp.gonextsales.com
+            Diagnóstico generado con www.bizdoctor.site
+          </p>
+          <p className="text-xs text-[#cbd5e1]">
+            www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
           </p>
         </div>
 
