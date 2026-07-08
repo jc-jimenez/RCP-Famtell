@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   // Transcripciones de sesiones (para JTBD y segmentos)
   const { data: sessions } = await db2
     .from('sessions')
-    .select('module_code, messages')
+    .select('module_code, messages, user_id, completed')
     .eq('case_id', caseId)
 
   const transcripts = (sessions ?? []).map((s: any) => {
@@ -99,6 +99,40 @@ export async function POST(request: Request) {
     const text = msgs.map(m => `[${m.role === 'user' ? 'Directivo' : 'Nova'}]: ${m.content}`).join('\n')
     return `=== ${s.module_code} ===\n${text}`
   }).join('\n\n')
+
+  // Brechas descriptivo-vs-actividad: solo puestos con descriptivo capturado
+  // Y al menos una entrevista real completada por su ocupante (sección 7,
+  // regla 3 del PRD). No se generan para puestos sin descriptivo o sin
+  // entrevista — comparar contra vacío no produce un hallazgo válido.
+  const { data: jobPositions } = await db2
+    .from('case_job_positions')
+    .select('id, name, job_description')
+    .eq('case_id', caseId)
+    .not('job_description', 'is', null)
+
+  const { data: caseUsersForGap } = await db2
+    .from('case_users')
+    .select('user_id, job_position_id')
+    .eq('case_id', caseId)
+    .not('user_id', 'is', null)
+
+  const descriptivoVsActividadBlocks = (jobPositions ?? [])
+    .filter((p: any) => p.job_description?.trim())
+    .map((p: any) => {
+      const occupantIds = (caseUsersForGap ?? [])
+        .filter((cu: any) => cu.job_position_id === p.id)
+        .map((cu: any) => cu.user_id)
+      const ownSessions = (sessions ?? []).filter((s: any) => occupantIds.includes(s.user_id) && s.completed)
+      if (ownSessions.length === 0) return null
+      const ownTranscript = ownSessions.map((s: any) => {
+        const msgs: any[] = s.messages ?? []
+        const text = msgs.filter(m => m.role === 'user').map(m => `- ${m.content}`).join('\n')
+        return `[${s.module_code}]\n${text}`
+      }).join('\n\n')
+      return `--- ${p.name} ---\nDESCRIPTIVO DE PUESTO:\n${p.job_description}\n\nLO QUE DIJO EN SUS ENTREVISTAS:\n${ownTranscript}`
+    })
+    .filter(Boolean)
+    .join('\n\n')
 
   const sector = caseData.industry || '3PL / Logística'
   const company = caseData.company_name
@@ -131,6 +165,11 @@ Genera entre 4 y 7 diagnósticos clave. Para cada uno incluye:
 - urgency: "urgente" (hay que atacarlo en las primeras 4 semanas) / "importante" (semanas 5-12) / "deseable" (horizonte 6+ meses)
 - module_origin: código del módulo donde se evidenció (M1..M7)
 
+${descriptivoVsActividadBlocks ? `ADEMÁS, compara el DESCRIPTIVO DE PUESTO de cada persona (lo que se supone que debe hacer) contra lo que REALMENTE dijo que hace en sus entrevistas. Busca brechas significativas: funciones del descriptivo que la persona nunca menciona hacer, actividades reales que no están en su descriptivo, o contradicciones claras. Si encuentras una brecha real, agrégala como un diagnóstico más en el MISMO array, con "tag": "descriptivo_vs_actividad" y "puesto": "<nombre exacto del puesto>". Si un puesto no tiene brechas significativas, no generes nada para ese puesto — no inventes brechas donde no las hay. Los diagnósticos generales (los del párrafo anterior) NO llevan el campo "tag".
+
+PUESTOS A COMPARAR (descriptivo vs. entrevista real):
+${descriptivoVsActividadBlocks}` : ''}
+
 Responde ÚNICAMENTE con JSON:
 [{
   "id": "dk_1",
@@ -140,6 +179,18 @@ Responde ÚNICAMENTE con JSON:
   "pain_level": "alto",
   "urgency": "urgente",
   "module_origin": "M1",
+  "approved": false
+},
+{
+  "id": "dk_2",
+  "statement": "El Gerente Comercial nunca mencionó dar seguimiento a cuentas por cobrar, pese a que su descriptivo lo marca como responsable directo",
+  "evidence": "Su descriptivo dice: '...'. En su entrevista de M4 dijo: '...'",
+  "area": "Comercial",
+  "pain_level": "medio",
+  "urgency": "importante",
+  "module_origin": "M4",
+  "tag": "descriptivo_vs_actividad",
+  "puesto": "Gerente Comercial",
   "approved": false
 }]`,
 

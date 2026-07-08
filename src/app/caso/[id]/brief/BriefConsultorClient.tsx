@@ -417,7 +417,7 @@ export default function BriefConsultorClient({
             ) : (
               <div className="space-y-3">
                 {jtbdList.map((j: any) => (
-                  <div key={j.id} className={`card p-4 space-y-3 transition-all ${j.approved ? 'border-emerald-200 bg-emerald-50/30' : ''}`}>
+                  <div key={j.id} className={`card p-4 space-y-3 transition-all ${j.approved ? 'border-emerald-200 bg-emerald-50/30' : ''} ${j.tag === 'descriptivo_vs_actividad' ? 'border-l-4 border-l-violet-400' : ''}`}>
                     <div className="flex items-start gap-3">
                       <button onClick={() => toggleApproveItem('jtbd', j.id)}
                         className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center text-xs transition-colors ${
@@ -426,6 +426,11 @@ export default function BriefConsultorClient({
                         {j.approved ? '✓' : ''}
                       </button>
                       <div className="flex-1 space-y-2">
+                        {j.tag === 'descriptivo_vs_actividad' && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-medium inline-block">
+                            🪪 Brecha descriptivo vs. actividad real{j.puesto ? ` — ${j.puesto}` : ''}
+                          </span>
+                        )}
                         <textarea rows={2} className="input-field w-full text-sm resize-none font-medium"
                           value={j.statement}
                           onChange={e => updateItem('jtbd', j.id, { statement: e.target.value })}
