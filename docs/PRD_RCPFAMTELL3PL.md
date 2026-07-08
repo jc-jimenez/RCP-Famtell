@@ -89,7 +89,17 @@ Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fij
 
 **✅ Paso 4 completado (2026-07-06):** `api/ai/chat/route.ts` y `build-from-catalog.ts` reescritos — Nova ahora filtra por `job_position_id` del `case_user` (antes comparaba `job_title` contra un enum de roles). Una pregunta sin ningún puesto mapeado en `job_position_ids` queda excluida del guion, no se le pregunta a nadie. **De paso se corrigió un gap real**: las preguntas personalizadas del caso (`case_custom_questions`) nunca llegaban al chat de Nova — el endpoint solo leía el catálogo base; ahora se fusionan correctamente por sección. Se retiró el toggle de roles legado de `PlanDiagnosticoClient.tsx` (ya no tenía ningún efecto real).
 
-Verificado replicando la consulta exacta de `chat/route.ts` contra la base real: de 29 preguntas de M1, solo la única mapeada al puesto "Gerente de Almacén Fiscal" queda visible — confirma el filtrado a nivel de datos. **No verificado con una conversación real de Nova en navegador**: el link de activación de invitaciones apunta al dominio de producción (`NEXT_PUBLIC_APP_URL` fijo) en vez del origin de la request local, lo cual bloquea activar cuentas de prueba nuevas en desarrollo — bug preexistente no relacionado a esta fase, delegado como tarea aparte.
+Verificado replicando la consulta exacta de `chat/route.ts` contra la base real: de 29 preguntas de M1, solo la única mapeada al puesto "Gerente de Almacén Fiscal" queda visible — confirma el filtrado a nivel de datos. Nota histórica: en su momento esto no se pudo verificar con una conversación real de Nova en navegador porque el link de activación de invitaciones apuntaba al dominio de producción en vez de localhost — **corregido, ver sección 12**.
+
+## 12. Bug del link de activación en modo dev (✅ corregido 2026-07-08)
+
+`NEXT_PUBLIC_APP_URL` en `.env.local` está fijo a `https://rcp.gonextsales.com` (necesario para que el build de producción no dependa de una variable distinta). El problema: 5 lugares del código usaban esta variable directamente para construir links absolutos, así que corriendo `npm run dev` local cualquier link generado (invitación, checkout de Stripe, verificación de registro) apuntaba al sitio en producción en vez de `localhost:3000` — bloqueaba probar el flujo de activación de cuentas nuevas en desarrollo.
+
+**Corregido con `src/lib/baseUrl.ts`** (`getBaseUrl()`: `http://localhost:3000` si `NODE_ENV === 'development'`, si no `NEXT_PUBLIC_APP_URL`), aplicado en `api/invitations`, `api/billing/checkout`, `api/registro/send-code`, `api/cron/checkin-reminder`.
+
+**Bug relacionado encontrado y corregido de paso**: `caso/[id]/modulo/[code]/page.tsx` inicializaba los módulos de un caso nuevo con un `fetch()` HTTP a su propia API (`/api/modules?caseId=...`) usando esta misma variable — además de apuntar mal en dev, ese patrón nunca reenvía las cookies de sesión del usuario, así que la llamada interna siempre devolvía 401 en silencio (el error nunca se revisaba). Se extrajo la lógica de inicialización a `src/lib/modules.ts` (`ensureModulesInitialized`) y el server component la llama directo, sin HTTP de por medio.
+
+Validado: invitación real de prueba generó `activationUrl: http://localhost:3000/activar/...`, y la página `/activar/[token]` cargó y validó el token correctamente en el navegador local.
 
 Con esto, la Fase 2 completa (pasos 1-4) queda cerrada.
 

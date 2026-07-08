@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { sendWhatsApp } from '@/lib/twilio'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
+import { getBaseUrl } from '@/lib/baseUrl'
 import crypto from 'crypto'
 
 function generateCode(): string {
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Enviar email de verificación
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rcp.gonextsales.com'
+  const baseUrl = getBaseUrl()
   const verifyUrl = `${baseUrl}/api/registro/verify-email?token=${emailToken}`
 
   await resend.emails.send({

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
 import { sendWhatsApp } from '@/lib/twilio'
+import { getBaseUrl } from '@/lib/baseUrl'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
   }
 
   // Enviar email de invitación con Resend
-  const activationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/activar/${token}`
+  const activationUrl = `${getBaseUrl()}/activar/${token}`
   const roleLabel = role === 'director' ? 'Directivo' : 'Colaborador'
 
   try {

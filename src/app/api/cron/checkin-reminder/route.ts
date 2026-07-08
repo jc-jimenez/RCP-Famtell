@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsApp } from '@/lib/twilio'
+import { getBaseUrl } from '@/lib/baseUrl'
 
 // Llamado por Vercel Cron cada lunes a las 8AM (America/Mexico_City)
 // Vercel env: CRON_SECRET para autenticar la llamada
@@ -83,12 +84,12 @@ export async function GET(request: Request) {
   <p style="color:#555;margin-bottom:20px">
     Es lunes. Hora de registrar el avance semanal de <strong>${c.company_name}</strong>.
   </p>
-  <a href="${process.env.NEXT_PUBLIC_APP_URL}/caso/${c.id}/checkins"
+  <a href="${getBaseUrl()}/caso/${c.id}/checkins"
      style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
     Registrar check-in →
   </a>
   <p style="margin-top:24px;font-size:12px;color:#999">
-    RCP.ai · <a href="${process.env.NEXT_PUBLIC_APP_URL}" style="color:#6366f1">rcp.gonextsales.com</a>
+    RCP.ai · <a href="${getBaseUrl()}" style="color:#6366f1">rcp.gonextsales.com</a>
   </p>
 </div>`,
         }),
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
           .maybeSingle()
 
         if (director?.whatsapp_phone) {
-          const waMsg = `⚡ *Check-in semanal — ${c.company_name}*\n\nEs lunes. Hora de registrar el avance de esta semana.\n\n👉 ${process.env.NEXT_PUBLIC_APP_URL}/caso/${c.id}/checkin`
+          const waMsg = `⚡ *Check-in semanal — ${c.company_name}*\n\nEs lunes. Hora de registrar el avance de esta semana.\n\n👉 ${getBaseUrl()}/caso/${c.id}/checkin`
           await sendWhatsApp(director.whatsapp_phone, waMsg)
         }
       } else {

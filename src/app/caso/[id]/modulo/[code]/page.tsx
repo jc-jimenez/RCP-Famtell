@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { ensureModulesInitialized } from '@/lib/modules'
 import ModuleStartClient from './ModuleStartClient'
 import type { ModuleCode } from '@/types'
 
@@ -69,7 +70,7 @@ export default async function ModuloPage({
 
   // Si no existe el módulo aún (caso nuevo), inicializar todos
   if (!moduleData) {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/modules?caseId=${caseId}`)
+    await ensureModulesInitialized(db, caseId)
   }
 
   const status = moduleData?.status ?? 'active'

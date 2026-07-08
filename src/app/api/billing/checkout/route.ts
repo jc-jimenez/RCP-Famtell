@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { stripe } from '@/lib/stripe/client'
+import { getBaseUrl } from '@/lib/baseUrl'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   const priceId = PRICE_IDS[plan]
   if (!priceId) return NextResponse.json({ error: 'Plan inválido o no configurado' }, { status: 400 })
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl = getBaseUrl()
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: 'subscription',
