@@ -84,7 +84,7 @@ export async function GET(request: Request) {
   <p style="color:#555;margin-bottom:20px">
     Es lunes. Hora de registrar el avance semanal de <strong>${c.company_name}</strong>.
   </p>
-  <a href="${getBaseUrl()}/caso/${c.id}/checkins"
+  <a href="${getBaseUrl()}/caso/${c.id}/checkin"
      style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px">
     Registrar check-in →
   </a>
