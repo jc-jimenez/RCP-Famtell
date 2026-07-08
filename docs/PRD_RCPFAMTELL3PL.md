@@ -99,6 +99,16 @@ Validado: invitación real de prueba generó `activationUrl: http://localhost:30
 
 Con esto, la Fase 2 completa (pasos 1-4) queda cerrada.
 
+## 13. Bug crítico: login exitoso rebotaba a /login sin error (✅ corregido 2026-07-08)
+
+Reportado por el usuario en vivo, probando el sistema después de que se le indicara que ya estaba listo: entraba el usuario y contraseña correctos, daba clic en "Entrar", y "no hizo nada" — sin mensaje de error, sin navegar, el formulario simplemente volvía a quedar vacío. Reproducido de inmediato en navegador y con requests aislados.
+
+**Causa raíz**: `src/app/page.tsx` (la ruta `/`) tenía código placeholder que **redirigía siempre a `/login`, sin verificar sesión ni rol, para cualquier usuario**. El middleware sí tiene la lógica correcta para redirigir `/` según el rol (consultor→`/dashboard`, directivo→`/caso/[id]`, colaborador→`/mis-modulos`), pero no se pudo confirmar que esté interceptando esta ruta en este entorno de desarrollo (se probó con debug headers/query params — el redirect que llegaba al navegador no traía ningún rastro de haber pasado por el middleware, solo el de `page.tsx`). El resultado: **todo login exitoso, de cualquier usuario, en cualquier momento, terminaba de vuelta en la pantalla de login** — no era intermitente ni nuevo de hoy, es un bug de fondo que probablemente lleva ahí desde que se escribió ese archivo, enmascarado en las pruebas anteriores porque los scripts de QA de esta sesión siempre navegaban directo a una URL específica (`/dashboard`, `/caso/[id]/...`), nunca a `/`.
+
+**Corregido**: `page.tsx` ahora resuelve sesión/rol por sí mismo (mismo patrón que el resto de páginas de servidor de la app) y redirige correctamente, sin depender de que el middleware intercepte `/`. De paso, `login/page.tsx` ahora confirma con `getSession()` (reintentos cortos) que la sesión quedó escrita antes de navegar — refuerzo adicional, no la causa raíz de este bug puntual, pero reduce el riesgo de timing en general.
+
+**Validado** repetidamente en navegador real y con requests aislados (cookie fresca, sin contaminación de sesiones previas) para los 3 roles: consultor → `/dashboard`, directivo → `/caso/[id]`, colaborador → `/mis-modulos`. Consistente en múltiples intentos tras el fix, donde antes fallaba 100% de las veces.
+
 ### Flujo resultante para el consultor (Famtell)
 
 1. Crear el caso → dar de alta el catálogo de puestos de Famtell.
