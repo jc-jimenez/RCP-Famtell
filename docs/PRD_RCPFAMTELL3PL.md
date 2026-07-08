@@ -109,6 +109,17 @@ Reportado por el usuario en vivo, probando el sistema después de que se le indi
 
 **Validado** repetidamente en navegador real y con requests aislados (cookie fresca, sin contaminación de sesiones previas) para los 3 roles: consultor → `/dashboard`, directivo → `/caso/[id]`, colaborador → `/mis-modulos`. Consistente en múltiples intentos tras el fix, donde antes fallaba 100% de las veces.
 
+## 14. Rebranding: RCP.ai → www.bizdoctor.site (✅ 2026-07-08)
+
+Decisión del usuario: el nombre de marca visible del producto cambia de "RCP.ai" a "**www.bizdoctor.site**" en todas las superficies de cara al usuario — logo del header/sidebar/topbar, título de pestaña del navegador, páginas públicas (login, registro, recuperar contraseña, activar cuenta, portal del cliente, encuesta de clima), footer del Brief publicado, emails y mensajes de WhatsApp transaccionales (invitación, verificación de registro, recordatorio de check-in), remitente por default de correo (`noreply@bizdoctor.site`), y las instrucciones internas de Nova (se presenta como parte de www.bizdoctor.site).
+
+Se agregó la línea de crédito **"www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School"** en las superficies públicas: login, registro, activación de cuenta, portal del cliente, y los 3 templates de email/WhatsApp.
+
+**Deliberadamente NO se tocó:**
+- El nombre legal de la entidad operadora (GoNextSales S.A. de C.V.) en el texto de privacidad — solo el nombre de marca entre comillas dentro de ese mismo texto.
+- `package.json`, el nombre del repo/carpeta, ni ningún identificador interno de código — mismo criterio que la decisión original de mantener `rcpai`/`RCPFAMTELL3PL` como nombre de proyecto interno (sección 2), separado del nombre de marca visible.
+- El dominio real de despliegue: `NEXT_PUBLIC_APP_URL` en producción sigue apuntando a `rcp.gonextsales.com` — solo se actualizó el *fallback* en código (`src/lib/baseUrl.ts`) para cuando esa variable de entorno falta. Si se quiere que el sitio realmente viva en `www.bizdoctor.site`, eso requiere aprovisionar DNS/dominio en Vercel por separado — no se hizo aquí.
+
 ### Flujo resultante para el consultor (Famtell)
 
 1. Crear el caso → dar de alta el catálogo de puestos de Famtell.
