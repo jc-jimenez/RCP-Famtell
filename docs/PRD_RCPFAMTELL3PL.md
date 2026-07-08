@@ -70,7 +70,7 @@ Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fij
 3. **Preguntas base + mapeo por caso** — el sistema ya genera una serie de preguntas base por módulo (catálogo M1-M7 existente). Para cada caso, el consultor puede: activar/desactivar preguntas base (ya existe: `case_question_overrides.is_active`), modificar el texto (ya existe: `custom_text`), agregar preguntas nuevas propias del caso (ya existe: `case_custom_questions`) — y **además** asignar uno o más puestos del catálogo de ESE caso a cada pregunta (nuevo, no existe: hoy `suggested_roles` apunta al enum fijo, no a un catálogo dinámico).
 4. **Pregunta sin puesto asignado = oculta.** Si el consultor no mapeó una pregunta a ningún puesto del caso, esa pregunta no se le muestra a nadie. Esto obliga a completar el mapeo antes de lanzar el caso — es un cambio de comportamiento respecto a hoy (donde `suggested_roles` vacío = visible para todos).
 
-### Cambios de esquema necesarios (no construido aún)
+### Cambios de esquema necesarios (✅ todos construidos — Fase 2)
 
 - `case_job_positions` (id, case_id, name, job_description, created_at) — catálogo de puestos del caso. `job_description` obligatorio al crear.
 - `case_users.job_position_id` → FK a `case_job_positions`, en paralelo a `role` (no lo reemplaza). Los campos `job_description_text`/`job_description_url` que hoy existen en `case_users` quedan obsoletos para este flujo — el descriptivo vive en el puesto, no en el usuario — y se retiran una vez migrado.
@@ -278,7 +278,7 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 
 **Conclusión:** de los 3, solo el Tracker de Capacidad necesita ajuste directo (sección de Almacén Fiscal). Los otros dos casos confirman que esos datos van a la tabla genérica del punto 1, no a las pantallas existentes — reduce el alcance real de "ajustar pantallas" a una sola.
 
-### Orden de ejecución acordado (orden real de construcción: 1, 3, 2, 4 pendiente)
+### Orden de ejecución acordado (✅ los 4 completos, orden real de construcción: 1, 3, 2, 4)
 1. ~~Auditoría de campos~~ ✅ completada.
 2. ~~Encuesta de clima anónima~~ ✅ completada y validada (2026-07-07).
 3. ~~Tabla editable genérica + carga con IA~~ ✅ completada y validada (2026-07-07).
