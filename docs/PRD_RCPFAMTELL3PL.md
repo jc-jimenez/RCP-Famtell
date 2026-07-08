@@ -330,3 +330,26 @@ Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesi
 - **Validado end-to-end en navegador real** (no solo API): como consultor — crear 2 instrumentos con columnas y puestos distintos, llenar fila manual, subir documento de texto plano y CSV con datos ficticios → IA extrajo correctamente 3 filas en ambos casos con el esquema exacto de columnas, confirmar inserción. Como directivo con puesto mapeado — solo ve el instrumento asignado a su puesto (el otro, mapeado a un puesto distinto, queda oculto), agregar fila y llenarla persiste correctamente tras recargar. RLS confirmada por API: puesto no mapeado recibe lista vacía en GET y 403 en POST/insert.
 - Cubre del Kit: mapa de clientes/concentración/altas-bajas/servicios (M1), inventario de equipos/servicios no comercializados (M2), rentabilidad por servicio (M4), benchmark de tarifas de competencia (M5), talento/quick wins/riesgos (M6).
 - Datos de prueba sembrados durante la validación fueron borrados del caso Famtell después de confirmar que todo funcionaba (para no dejar filas ficticias en el caso real).
+
+## 15. Mejoras del rol Super-Admin (observaciones de QA, 2026-07-08)
+
+Tras probar el rol Super-Admin, el usuario levantó 7 observaciones. Estado y plan:
+
+| # | Observación | Estado |
+|---|---|---|
+| 1 | Login | ✅ Ya estaba |
+| 7 | El consultor asigna qué puesto responde cada pregunta | ✅ Ya estaba (pestaña Plan, `PositionToggle`) |
+| 2 | Gestión global de usuarios en admin (activar/bloquear, resetear contraseña, ajustar créditos) | ✅ Hecho |
+| 5 | Puestos: separar descripción del descriptivo + subir archivo del descriptivo para la IA | ⏳ Pendiente |
+| 3 | Ampliar creación de usuarios del consultor (Nombre, Password, Antigüedad, Tel. Fijo, WhatsApp obligatorio) | ⏳ Pendiente |
+| 4 | Catálogo de Roles editable por el super-admin | ⏳ Pendiente |
+| 6 | Clima Laboral en el catálogo + IA que propone secciones/preguntas/tablas | ⏳ Pendiente |
+
+**Decisiones del usuario (2026-07-08):**
+- **Obs 4 — catálogo de roles:** es una **etiqueta descriptiva** (nombre + descripción de funciones), NO un RBAC real; los permisos siguen usando los 4 roles fijos por debajo. El super-admin crea el catálogo global de roles; el consultor asigna un rol a cada **puesto**, y un rol + puesto a cada **usuario**.
+- **Obs 3 — creación de usuarios:** mantener **ambos** flujos (password directo que fija el consultor, o link de invitación).
+- Orden de construcción por dependencias: 2 (hecho) → 4 (catálogo de roles, prerequisito) → 5 (puestos) → 3 (usuarios) → 6 (clima+IA).
+
+### 15.2 Obs 2 — Gestión de usuarios en admin (✅ 2026-07-08)
+
+Nueva pantalla `/admin/usuarios` + `api/admin/usuarios`: lista unificada de TODOS los usuarios (consultores vía `accounts`, directivos/colaboradores vía `case_users`, más el super-admin), combinando con `auth.users`. Acciones de soporte: bloquear/desbloquear (ban real de Supabase auth, `ban_duration`), resetear contraseña (genera temporal y la muestra en modal — de paso resuelve el gap de que la creación de consultores no mostraba la contraseña), y ajustar créditos (solo consultores, porque el pool de créditos vive en la cuenta del consultor; directivos/colaboradores consumen de ahí). La cuenta de super-admin no puede auto-bloquearse ni auto-resetearse. Filtros por tipo + búsqueda. Solo el super-admin accede (403 para otros roles, verificado). Sin migración — todo con el service-role admin client.
