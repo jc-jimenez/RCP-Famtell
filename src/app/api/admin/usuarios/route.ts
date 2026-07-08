@@ -30,12 +30,16 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
   const db = admin as any
 
-  const [{ data: authList }, { data: accounts }, { data: caseUsers }, { data: cases }] = await Promise.all([
+  const [{ data: authList }, { data: accounts }, { data: caseUsers }, { data: cases }, { data: businessRoles }] = await Promise.all([
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     db.from('accounts').select('id, email, company_name, plan_id, credits_total, credits_used, status'),
-    db.from('case_users').select('user_id, role, job_title, case_id').not('user_id', 'is', null),
+    db.from('case_users').select('user_id, role, job_title, case_id, business_role_id, full_name').not('user_id', 'is', null),
     db.from('cases').select('id, company_name'),
+    db.from('business_roles').select('id, name'),
   ])
+
+  const roleNameById: Record<string, string> = {}
+  ;(businessRoles ?? []).forEach((r: any) => { roleNameById[r.id] = r.name })
 
   const accountByEmail: Record<string, any> = {}
   ;(accounts ?? []).forEach((a: any) => { if (a.email) accountByEmail[a.email.toLowerCase()] = a })
@@ -74,6 +78,8 @@ export async function GET() {
       // Participante (case_user)
       caseId: cu?.case_id ?? null,
       jobTitle: cu?.job_title ?? null,
+      fullName: cu?.full_name ?? null,
+      businessRole: cu?.business_role_id ? (roleNameById[cu.business_role_id] ?? null) : null,
     }
   })
 

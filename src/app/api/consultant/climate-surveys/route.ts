@@ -44,12 +44,28 @@ export async function POST(req: Request) {
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
   const db = supabase as any
+
+  // El banco de preguntas lo administra el super-admin desde el Catálogo
+  // (climate_question_bank, sección 15 del PRD). Si está vacío (nunca debería
+  // pasar tras la migración 034), cae al set fijo original como respaldo.
+  const { data: bank } = await db
+    .from('climate_question_bank')
+    .select('key, label, type, options, min_label, max_label')
+    .order('sort_order', { ascending: true })
+
+  const questions = (bank ?? []).length > 0
+    ? bank.map((q: any) => ({
+        key: q.key, label: q.label, type: q.type,
+        options: q.options ?? undefined, minLabel: q.min_label ?? undefined, maxLabel: q.max_label ?? undefined,
+      }))
+    : DEFAULT_CLIMATE_QUESTIONS
+
   const { data, error } = await db
     .from('case_climate_surveys')
     .insert({
       case_id: caseId,
       title: title?.trim() || 'Cuestionario de Clima y Diagnóstico Interno',
-      questions: DEFAULT_CLIMATE_QUESTIONS,
+      questions,
       status: 'draft',
       created_by: session.user.id,
     })

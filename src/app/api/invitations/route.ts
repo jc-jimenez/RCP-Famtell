@@ -10,10 +10,16 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, email, role, jobTitle, jobPositionId, permissions, whatsappPhone } = await request.json()
+  const {
+    caseId, email, role, jobTitle, jobPositionId, businessRoleId, permissions, whatsappPhone,
+    fullName, landlinePhone, seniority,
+  } = await request.json()
 
   if (!caseId || !email || !role) {
     return NextResponse.json({ error: 'caseId, email y role son requeridos' }, { status: 400 })
+  }
+  if (!whatsappPhone?.trim()) {
+    return NextResponse.json({ error: 'WhatsApp es obligatorio' }, { status: 400 })
   }
   if (!jobPositionId) {
     return NextResponse.json({ error: 'Debes asignar un puesto del catálogo del caso' }, { status: 400 })
@@ -67,11 +73,15 @@ export async function POST(request: Request) {
       role,
       job_title: jobTitle ?? null,
       job_position_id: jobPositionId,
+      business_role_id: businessRoleId ?? null,
       permissions_json: permissions ?? null,
       invitation_email: email,
       invitation_token: token,
       invitation_expires_at: expiresAt,
-      whatsapp_phone: whatsappPhone ?? null,
+      whatsapp_phone: whatsappPhone.trim(),
+      full_name: fullName?.trim() || null,
+      landline_phone: landlinePhone?.trim() || null,
+      seniority: seniority?.trim() || null,
     })
     .select()
     .single()

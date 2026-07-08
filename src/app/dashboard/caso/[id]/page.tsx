@@ -71,14 +71,19 @@ export default async function CasoDetallePage({
 
   const { data: participants } = await db
     .from('case_users')
-    .select('id, role, job_title, job_position_id, invitation_email, permissions_json, activated_at')
+    .select('id, role, job_title, job_position_id, business_role_id, invitation_email, full_name, permissions_json, activated_at')
     .eq('case_id', id)
 
   const { data: positions } = await db
     .from('case_job_positions')
-    .select('id, name, job_description')
+    .select('id, name, job_description, business_role_id')
     .eq('case_id', id)
     .order('created_at', { ascending: true })
+
+  const { data: businessRoles } = await db
+    .from('business_roles')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
 
   const { data: signals } = await db
     .from('agenda_signals')
@@ -156,7 +161,7 @@ export default async function CasoDetallePage({
         )}
 
         {tab === 'participantes' && (
-          <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} initialPositions={positions ?? []} />
+          <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} initialPositions={positions ?? []} businessRoles={businessRoles ?? []} />
         )}
 
         {tab === 'agenda' && (

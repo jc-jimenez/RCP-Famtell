@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import ClimaCatalogoPanel from './ClimaCatalogoPanel'
 
 const ROLE_OPTIONS = [
   { id: 'director_general',   label: 'Director General' },
@@ -24,6 +25,7 @@ type Module = {
 }
 
 export default function CatalogoAdminClient({ initialModules }: { initialModules: Module[] }) {
+  const [tab, setTab] = useState<'diagnostico' | 'clima'>('diagnostico')
   const [modules, setModules] = useState<Module[]>(initialModules)
   const [activeModule, setActiveModule] = useState<string>(initialModules[0]?.code ?? '')
   const [activeSection, setActiveSection] = useState<string | null>(null)
@@ -169,10 +171,28 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-ink">Catálogo de Diagnóstico</h1>
-        <p className="text-sm text-muted">Módulos, secciones y preguntas que Nova usa como guion</p>
+        <h1 className="text-xl font-bold text-ink">Catálogo</h1>
+        <p className="text-sm text-muted">Módulos y preguntas del diagnóstico, y el banco de preguntas de Clima Laboral</p>
       </div>
 
+      <div className="flex gap-2 border-b border-subtle">
+        <button
+          onClick={() => setTab('diagnostico')}
+          className={`text-sm px-4 py-2 border-b-2 transition-colors ${tab === 'diagnostico' ? 'border-accent text-accent font-medium' : 'border-transparent text-muted hover:text-ink'}`}
+        >
+          Diagnóstico
+        </button>
+        <button
+          onClick={() => setTab('clima')}
+          className={`text-sm px-4 py-2 border-b-2 transition-colors ${tab === 'clima' ? 'border-accent text-accent font-medium' : 'border-transparent text-muted hover:text-ink'}`}
+        >
+          Clima Laboral
+        </button>
+      </div>
+
+      {tab === 'clima' ? (
+        <ClimaCatalogoPanel />
+      ) : (
       <div className="grid gap-4 lg:grid-cols-[220px_260px_1fr]">
 
         {/* Col 1: módulos */}
@@ -277,6 +297,7 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
           )}
         </div>
       </div>
+      )}
 
       {/* Modal sección */}
       {modal === 'section' && (

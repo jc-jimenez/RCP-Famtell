@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   const db = supabase as any
   const { data, error } = await db
     .from('case_job_positions')
-    .select('id, name, job_description, created_at')
+    .select('id, name, description, job_description, job_description_source_file, business_role_id, created_at')
     .eq('case_id', caseId)
     .order('created_at', { ascending: true })
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, name, jobDescription } = await req.json()
+  const { caseId, name, description, jobDescription, jobDescriptionSourceFile, businessRoleId } = await req.json()
   if (!caseId || !name?.trim() || !jobDescription?.trim()) {
     return NextResponse.json({ error: 'caseId, name y jobDescription son requeridos' }, { status: 400 })
   }
@@ -47,7 +47,14 @@ export async function POST(req: Request) {
   const db = supabase as any
   const { data, error } = await db
     .from('case_job_positions')
-    .insert({ case_id: caseId, name: name.trim(), job_description: jobDescription.trim() })
+    .insert({
+      case_id: caseId,
+      name: name.trim(),
+      description: description?.trim() || null,
+      job_description: jobDescription.trim(),
+      job_description_source_file: jobDescriptionSourceFile ?? null,
+      business_role_id: businessRoleId ?? null,
+    })
     .select()
     .single()
 
@@ -55,13 +62,13 @@ export async function POST(req: Request) {
   return NextResponse.json({ position: data })
 }
 
-// PATCH — editar nombre/descriptivo de un puesto
+// PATCH — editar nombre/descripción/descriptivo/rol de un puesto
 export async function PATCH(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, positionId, name, jobDescription } = await req.json()
+  const { caseId, positionId, name, description, jobDescription, jobDescriptionSourceFile, businessRoleId } = await req.json()
   if (!caseId || !positionId) return NextResponse.json({ error: 'caseId y positionId son requeridos' }, { status: 400 })
 
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
@@ -69,7 +76,10 @@ export async function PATCH(req: Request) {
 
   const updates: Record<string, unknown> = {}
   if (name !== undefined) updates.name = name.trim()
+  if (description !== undefined) updates.description = description?.trim() || null
   if (jobDescription !== undefined) updates.job_description = jobDescription.trim()
+  if (jobDescriptionSourceFile !== undefined) updates.job_description_source_file = jobDescriptionSourceFile
+  if (businessRoleId !== undefined) updates.business_role_id = businessRoleId
 
   const db = supabase as any
   const { data, error } = await db

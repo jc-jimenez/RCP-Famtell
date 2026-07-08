@@ -106,7 +106,7 @@ export async function POST(request: Request) {
   // entrevista — comparar contra vacío no produce un hallazgo válido.
   const { data: jobPositions } = await db2
     .from('case_job_positions')
-    .select('id, name, job_description')
+    .select('id, name, job_description, business_role_id')
     .eq('case_id', caseId)
     .not('job_description', 'is', null)
 
@@ -115,6 +115,13 @@ export async function POST(request: Request) {
     .select('user_id, job_position_id')
     .eq('case_id', caseId)
     .not('user_id', 'is', null)
+
+  const { data: businessRolesForGap } = await db2
+    .from('business_roles')
+    .select('id, name')
+
+  const businessRoleNameById: Record<string, string> = {}
+  ;(businessRolesForGap ?? []).forEach((r: any) => { businessRoleNameById[r.id] = r.name })
 
   const descriptivoVsActividadBlocks = (jobPositions ?? [])
     .filter((p: any) => p.job_description?.trim())
@@ -129,7 +136,8 @@ export async function POST(request: Request) {
         const text = msgs.filter(m => m.role === 'user').map(m => `- ${m.content}`).join('\n')
         return `[${s.module_code}]\n${text}`
       }).join('\n\n')
-      return `--- ${p.name} ---\nDESCRIPTIVO DE PUESTO:\n${p.job_description}\n\nLO QUE DIJO EN SUS ENTREVISTAS:\n${ownTranscript}`
+      const roleName = p.business_role_id ? businessRoleNameById[p.business_role_id] : null
+      return `--- ${p.name}${roleName ? ` (Rol: ${roleName})` : ''} ---\nDESCRIPTIVO DE PUESTO:\n${p.job_description}\n\nLO QUE DIJO EN SUS ENTREVISTAS:\n${ownTranscript}`
     })
     .filter(Boolean)
     .join('\n\n')
@@ -165,7 +173,7 @@ Genera entre 4 y 7 diagnósticos clave. Para cada uno incluye:
 - urgency: "urgente" (hay que atacarlo en las primeras 4 semanas) / "importante" (semanas 5-12) / "deseable" (horizonte 6+ meses)
 - module_origin: código del módulo donde se evidenció (M1..M7)
 
-${descriptivoVsActividadBlocks ? `ADEMÁS, compara el DESCRIPTIVO DE PUESTO de cada persona (lo que se supone que debe hacer) contra lo que REALMENTE dijo que hace en sus entrevistas. Busca brechas significativas: funciones del descriptivo que la persona nunca menciona hacer, actividades reales que no están en su descriptivo, o contradicciones claras. Si encuentras una brecha real, agrégala como un diagnóstico más en el MISMO array, con "tag": "descriptivo_vs_actividad" y "puesto": "<nombre exacto del puesto>". Si un puesto no tiene brechas significativas, no generes nada para ese puesto — no inventes brechas donde no las hay. Los diagnósticos generales (los del párrafo anterior) NO llevan el campo "tag".
+${descriptivoVsActividadBlocks ? `ADEMÁS, compara el DESCRIPTIVO DE PUESTO de cada persona (lo que se supone que debe hacer) contra lo que REALMENTE dijo que hace en sus entrevistas. Busca brechas significativas: funciones del descriptivo que la persona nunca menciona hacer, actividades reales que no están en su descriptivo, o contradicciones claras. Cuando el puesto tenga un "Rol" indicado (Dirección / Mando Medio / Operativo), úsalo como contexto para calibrar pain_level y urgency: una brecha en un puesto de Dirección suele tener mayor impacto organizacional que la misma brecha en un puesto Operativo. Si encuentras una brecha real, agrégala como un diagnóstico más en el MISMO array, con "tag": "descriptivo_vs_actividad" y "puesto": "<nombre exacto del puesto>". Si un puesto no tiene brechas significativas, no generes nada para ese puesto — no inventes brechas donde no las hay. Los diagnósticos generales (los del párrafo anterior) NO llevan el campo "tag".
 
 PUESTOS A COMPARAR (descriptivo vs. entrevista real):
 ${descriptivoVsActividadBlocks}` : ''}

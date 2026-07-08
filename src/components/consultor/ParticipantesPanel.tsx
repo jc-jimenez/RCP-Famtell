@@ -17,6 +17,12 @@ interface Position {
   id: string
   name: string
   job_description: string
+  business_role_id: string | null
+}
+
+interface BusinessRole {
+  id: string
+  name: string
 }
 
 interface Participant {
@@ -24,7 +30,9 @@ interface Participant {
   role: string
   job_title: string | null
   job_position_id: string | null
+  business_role_id: string | null
   invitation_email: string | null
+  full_name: string | null
   permissions_json: { modules?: string[] } | null
   activated_at: string | null
 }
@@ -33,6 +41,7 @@ interface Props {
   caseId: string
   initialParticipants: Participant[]
   initialPositions: Position[]
+  businessRoles: BusinessRole[]
 }
 
 function assignedModules(p: Participant): string[] {
@@ -40,29 +49,50 @@ function assignedModules(p: Participant): string[] {
   return p.permissions_json?.modules ?? []
 }
 
-export default function ParticipantesPanel({ caseId, initialParticipants, initialPositions }: Props) {
+function generatePassword(): string {
+  return `Bd-${Math.random().toString(36).slice(2, 8)}-${Math.floor(Math.random() * 9000 + 1000)}`
+}
+
+export default function ParticipantesPanel({ caseId, initialParticipants, initialPositions, businessRoles }: Props) {
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants)
   const [positions] = useState<Position[]>(initialPositions)
   const [showModal, setShowModal] = useState(false)
+  const [mode, setMode] = useState<'invite' | 'direct'>('invite')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null)
 
-  const [form, setForm] = useState({
+  const emptyForm = {
     email: '',
+    fullName: '',
     positionId: '',
+    businessRoleId: '',
     platformRole: 'collaborator' as 'director' | 'collaborator',
     customModules: [] as string[],
     whatsapp: '',
-  })
+    landlinePhone: '',
+    seniority: '',
+    password: '',
+  }
+  const [form, setForm] = useState(emptyForm)
 
   const isDirector = form.platformRole === 'director'
   const effectiveModules = isDirector ? ALL_CODES : form.customModules
   const noPositions = positions.length === 0
+  const roleNameById = Object.fromEntries(businessRoles.map(r => [r.id, r.name]))
+
+  function participantLabel(p: Participant): string {
+    return p.full_name || p.invitation_email || '—'
+  }
 
   function positionName(p: Participant): string {
     const pos = positions.find(x => x.id === p.job_position_id)
     return pos?.name ?? p.job_title ?? 'Sin puesto'
+  }
+
+  function selectPosition(positionId: string) {
+    const pos = positions.find(x => x.id === positionId)
+    setForm(f => ({ ...f, positionId, businessRoleId: pos?.business_role_id ?? f.businessRoleId }))
   }
 
   function toggleCustomModule(code: string) {
@@ -74,26 +104,37 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
     }))
   }
 
-  async function handleInvite() {
+  const canSubmit = !!form.email && !!form.positionId && !!form.whatsapp.trim() && effectiveModules.length > 0
+    && (mode === 'invite' || form.password.length >= 8)
+
+  async function handleSubmit() {
     setSaving(true)
     setError(null)
     const selectedPositionName = positions.find(p => p.id === form.positionId)?.name ?? null
-    const res = await fetch('/api/invitations', {
+    const endpoint = mode === 'invite' ? '/api/invitations' : '/api/consultant/create-participant'
+    const body: Record<string, unknown> = {
+      caseId,
+      email: form.email,
+      role: form.platformRole,
+      jobPositionId: form.positionId,
+      jobTitle: selectedPositionName,
+      businessRoleId: form.businessRoleId || null,
+      permissions: { modules: effectiveModules },
+      whatsappPhone: form.whatsapp.trim(),
+      fullName: form.fullName.trim() || null,
+      landlinePhone: form.landlinePhone.trim() || null,
+      seniority: form.seniority.trim() || null,
+    }
+    if (mode === 'direct') body.password = form.password
+
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        caseId,
-        email: form.email,
-        role: form.platformRole,
-        jobPositionId: form.positionId,
-        jobTitle: selectedPositionName,
-        permissions: { modules: effectiveModules },
-        whatsappPhone: form.whatsapp.trim() || null,
-      }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     setSaving(false)
-    if (!res.ok) { setError(data.error ?? 'Error al invitar'); return }
+    if (!res.ok) { setError(data.error ?? 'Error al crear el participante'); return }
 
     const cu = data.caseUser
     setParticipants(prev => [...prev, {
@@ -101,13 +142,15 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
       role: cu.role,
       job_title: cu.job_title,
       job_position_id: cu.job_position_id,
+      business_role_id: cu.business_role_id,
       invitation_email: cu.invitation_email,
+      full_name: cu.full_name,
       permissions_json: cu.permissions_json,
-      activated_at: null,
+      activated_at: cu.activated_at ?? null,
     }])
     setLastInviteUrl(data.activationUrl ?? null)
     setShowModal(false)
-    setForm({ email: '', positionId: '', platformRole: 'collaborator', customModules: [], whatsapp: '' })
+    setForm(emptyForm)
   }
 
   return (
@@ -115,7 +158,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-ink">Participantes</h2>
         <button onClick={() => setShowModal(true)} className="text-xs text-accent hover:underline">
-          + Invitar
+          + Agregar
         </button>
       </div>
 
@@ -141,10 +184,15 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
             return (
               <div key={p.id} className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-full bg-surface-2 border border-subtle flex items-center justify-center text-xs font-bold text-muted">
-                  {label.charAt(0).toUpperCase()}
+                  {participantLabel(p).charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-ink font-medium truncate">{p.invitation_email ?? '—'}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-ink font-medium truncate">{participantLabel(p)}</p>
+                    {p.business_role_id && roleNameById[p.business_role_id] && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent flex-shrink-0">{roleNameById[p.business_role_id]}</span>
+                    )}
+                  </div>
                   <p className="text-xs text-faint">
                     {label}
                     {' · '}
@@ -164,20 +212,54 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
       {showModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-ink">Invitar participante</h3>
+            <h3 className="text-base font-bold text-ink">Agregar participante</h3>
 
             {noPositions ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
                 <p className="text-sm font-semibold text-amber-800">Todavía no hay puestos en el catálogo de este caso</p>
                 <p className="text-xs text-amber-700">
-                  Antes de invitar participantes, ve a "Plan de Diagnóstico" y da de alta los puestos reales de la empresa
+                  Antes de agregar participantes, ve a "Plan de Diagnóstico" y da de alta los puestos reales de la empresa
                   (con su descriptivo) — cada participante se asigna a uno de esos puestos.
                 </p>
               </div>
             ) : (
               <>
+                {/* Flujo: invitación por correo vs. alta directa con contraseña */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMode('invite')}
+                    className={`text-sm px-3 py-2 rounded-xl border transition-colors ${
+                      mode === 'invite' ? 'border-accent bg-accent-soft text-accent font-medium' : 'border-subtle text-muted hover:border-accent/30'
+                    }`}
+                  >
+                    Invitar por correo
+                    <p className="text-xs font-normal mt-0.5">Le llega un link, él fija su contraseña</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('direct')}
+                    className={`text-sm px-3 py-2 rounded-xl border transition-colors ${
+                      mode === 'direct' ? 'border-accent bg-accent-soft text-accent font-medium' : 'border-subtle text-muted hover:border-accent/30'
+                    }`}
+                  >
+                    Crear con contraseña
+                    <p className="text-xs font-normal mt-0.5">Tú fijas la contraseña, queda activo de inmediato</p>
+                  </button>
+                </div>
+
                 <div>
-                  <label className="label-text">Correo electrónico</label>
+                  <label className="label-text">Nombre del usuario</label>
+                  <input
+                    value={form.fullName}
+                    onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+                    className="input-field"
+                    placeholder="Nombre completo"
+                  />
+                </div>
+
+                <div>
+                  <label className="label-text">Correo electrónico *</label>
                   <input
                     type="email"
                     value={form.email}
@@ -187,8 +269,25 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                   />
                 </div>
 
+                {mode === 'direct' && (
+                  <div>
+                    <label className="label-text">Contraseña *</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={form.password}
+                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        className="input-field flex-1"
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <button type="button" onClick={() => setForm(f => ({ ...f, password: generatePassword() }))} className="btn-secondary text-xs whitespace-nowrap px-3">
+                        Generar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="label-text">WhatsApp (opcional)</label>
+                  <label className="label-text">WhatsApp *</label>
                   <input
                     type="tel"
                     value={form.whatsapp}
@@ -197,6 +296,28 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                     placeholder="+52 55 1234 5678"
                   />
                   <p className="text-xs text-faint mt-1">Se usará para recordatorios de check-in cada lunes</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label-text">Teléfono fijo</label>
+                    <input
+                      type="tel"
+                      value={form.landlinePhone}
+                      onChange={e => setForm(f => ({ ...f, landlinePhone: e.target.value }))}
+                      className="input-field"
+                      placeholder="55 1234 5678"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-text">Antigüedad</label>
+                    <input
+                      value={form.seniority}
+                      onChange={e => setForm(f => ({ ...f, seniority: e.target.value }))}
+                      className="input-field"
+                      placeholder="ej. 3 años"
+                    />
+                  </div>
                 </div>
 
                 {/* Puesto (catálogo del caso) */}
@@ -217,7 +338,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                           name="position"
                           value={pos.id}
                           checked={form.positionId === pos.id}
-                          onChange={() => setForm(f => ({ ...f, positionId: pos.id }))}
+                          onChange={() => selectPosition(pos.id)}
                           className="sr-only"
                         />
                         <div className="flex-1 min-w-0">
@@ -230,6 +351,21 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                       </label>
                     ))}
                   </div>
+                </div>
+
+                {/* Rol de negocio (catálogo global, sección 15 del PRD) — se sugiere del puesto pero se puede cambiar */}
+                <div>
+                  <label className="label-text">Rol (descriptivo, para el Brief)</label>
+                  <select
+                    value={form.businessRoleId}
+                    onChange={e => setForm(f => ({ ...f, businessRoleId: e.target.value }))}
+                    className="input-field"
+                  >
+                    <option value="">Sin rol asignado</option>
+                    {businessRoles.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Rol de plataforma — independiente del puesto */}
@@ -295,11 +431,11 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
               <button onClick={() => { setShowModal(false); setError(null) }} className="btn-secondary flex-1">Cancelar</button>
               {!noPositions && (
                 <button
-                  onClick={handleInvite}
-                  disabled={saving || !form.email || !form.positionId || effectiveModules.length === 0}
+                  onClick={handleSubmit}
+                  disabled={saving || !canSubmit}
                   className="btn-primary flex-1 disabled:opacity-50"
                 >
-                  {saving ? 'Invitando…' : 'Enviar invitación'}
+                  {saving ? 'Guardando…' : mode === 'invite' ? 'Enviar invitación' : 'Crear participante'}
                 </button>
               )}
             </div>

@@ -17,6 +17,8 @@ interface User {
   accountStatus: string | null
   caseId: string | null
   jobTitle: string | null
+  fullName: string | null
+  businessRole: string | null
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -94,7 +96,7 @@ export default function UsuariosAdminClient() {
     if (filterKind !== 'all' && u.kind !== filterKind) return false
     const q = query.toLowerCase().trim()
     if (!q) return true
-    return (u.email ?? '').toLowerCase().includes(q) || (u.companyName ?? '').toLowerCase().includes(q) || (u.jobTitle ?? '').toLowerCase().includes(q)
+    return (u.email ?? '').toLowerCase().includes(q) || (u.companyName ?? '').toLowerCase().includes(q) || (u.jobTitle ?? '').toLowerCase().includes(q) || (u.fullName ?? '').toLowerCase().includes(q)
   })
 
   const counts = users.reduce((acc: Record<string, number>, u) => { acc[u.kind] = (acc[u.kind] ?? 0) + 1; return acc }, {})
@@ -150,11 +152,17 @@ export default function UsuariosAdminClient() {
               {filtered.map(u => (
                 <tr key={u.id} className={u.banned ? 'bg-rose-50/40' : ''}>
                   <td className="px-4 py-3">
-                    <p className="text-ink font-medium">{u.email}</p>
+                    <p className="text-ink font-medium">{u.fullName || u.email}</p>
+                    {u.fullName && <p className="text-xs text-faint">{u.email}</p>}
                     {u.jobTitle && <p className="text-xs text-faint">{u.jobTitle}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${KIND_PILL[u.kind]}`}>{KIND_LABEL[u.kind]}</span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${KIND_PILL[u.kind]}`}>{KIND_LABEL[u.kind]}</span>
+                      {u.businessRole && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent">{u.businessRole}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted">{u.companyName ?? '—'}</td>
                   <td className="px-4 py-3 text-right font-mono">

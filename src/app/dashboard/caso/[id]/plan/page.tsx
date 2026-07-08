@@ -60,9 +60,15 @@ export default async function PlanDiagnosticoPage({
   // Catálogo de puestos de este caso (sección 7 del PRD)
   const { data: positions } = await db
     .from('case_job_positions')
-    .select('id, name, job_description, created_at')
+    .select('id, name, description, job_description, job_description_source_file, business_role_id, created_at')
     .eq('case_id', caseId)
     .order('created_at', { ascending: true })
+
+  // Catálogo global de roles de negocio (sección 15 del PRD — lo administra el super-admin)
+  const { data: businessRoles } = await db
+    .from('business_roles')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
 
   const sorted = (modules ?? []).map((m: any) => ({
     ...m,
@@ -98,6 +104,7 @@ export default async function PlanDiagnosticoPage({
       initialOverrides={overridesMap}
       initialCustomBySection={customBySection}
       initialPositions={positions ?? []}
+      businessRoles={businessRoles ?? []}
     />
   )
 }

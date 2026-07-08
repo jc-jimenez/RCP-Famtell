@@ -340,10 +340,12 @@ Tras probar el rol Super-Admin, el usuario levantó 7 observaciones. Estado y pl
 | 1 | Login | ✅ Ya estaba |
 | 7 | El consultor asigna qué puesto responde cada pregunta | ✅ Ya estaba (pestaña Plan, `PositionToggle`) |
 | 2 | Gestión global de usuarios en admin (activar/bloquear, resetear contraseña, ajustar créditos) | ✅ Hecho |
-| 5 | Puestos: separar descripción del descriptivo + subir archivo del descriptivo para la IA | ⏳ Pendiente |
-| 3 | Ampliar creación de usuarios del consultor (Nombre, Password, Antigüedad, Tel. Fijo, WhatsApp obligatorio) | ⏳ Pendiente |
-| 4 | Catálogo de Roles editable por el super-admin | ⏳ Pendiente |
-| 6 | Clima Laboral en el catálogo + IA que propone secciones/preguntas/tablas | ⏳ Pendiente |
+| 5 | Puestos: separar descripción del descriptivo + subir archivo del descriptivo para la IA | ✅ Hecho |
+| 3 | Ampliar creación de usuarios del consultor (Nombre, Password, Antigüedad, Tel. Fijo, WhatsApp obligatorio) | ✅ Hecho |
+| 4 | Catálogo de Roles editable por el super-admin | ✅ Hecho |
+| 6 | Clima Laboral en el catálogo + IA que propone secciones/preguntas/tablas | ✅ Hecho |
+
+**Las 7 observaciones quedaron resueltas el 2026-07-08.**
 
 **Decisiones del usuario (2026-07-08):**
 - **Obs 4 — catálogo de roles:** es una **etiqueta descriptiva** (nombre + descripción de funciones), NO un RBAC real; los permisos siguen usando los 4 roles fijos por debajo. El super-admin crea el catálogo global de roles; el consultor asigna un rol a cada **puesto**, y un rol + puesto a cada **usuario**.
@@ -353,3 +355,23 @@ Tras probar el rol Super-Admin, el usuario levantó 7 observaciones. Estado y pl
 ### 15.2 Obs 2 — Gestión de usuarios en admin (✅ 2026-07-08)
 
 Nueva pantalla `/admin/usuarios` + `api/admin/usuarios`: lista unificada de TODOS los usuarios (consultores vía `accounts`, directivos/colaboradores vía `case_users`, más el super-admin), combinando con `auth.users`. Acciones de soporte: bloquear/desbloquear (ban real de Supabase auth, `ban_duration`), resetear contraseña (genera temporal y la muestra en modal — de paso resuelve el gap de que la creación de consultores no mostraba la contraseña), y ajustar créditos (solo consultores, porque el pool de créditos vive en la cuenta del consultor; directivos/colaboradores consumen de ahí). La cuenta de super-admin no puede auto-bloquearse ni auto-resetearse. Filtros por tipo + búsqueda. Solo el super-admin accede (403 para otros roles, verificado). Sin migración — todo con el service-role admin client.
+
+### 15.3 Obs 4 — Catálogo de Roles de negocio (✅ 2026-07-08)
+
+Migración `031_business_roles.sql`: tabla global `business_roles` (nombre + descripción, gestionada por el super-admin en `/admin/roles`, API `api/admin/roles`). Es una etiqueta **descriptiva**, no un RBAC — los permisos siguen usando los 4 roles fijos de plataforma. FK `business_role_id` agregada a `case_job_positions` (el consultor asigna un rol a cada puesto en el Plan de Diagnóstico) y a `case_users` (el consultor asigna un rol a cada participante al invitarlo; se auto-sugiere del puesto seleccionado pero se puede cambiar). Se muestra en `ParticipantesPanel` y en `/admin/usuarios`. Se usa en el Brief: `api/brief/generate` incluye el rol de cada puesto en el bloque de comparación descriptivo-vs-actividad, y el prompt le pide a la IA calibrar `pain_level`/`urgency` según el rol (una brecha en Dirección pesa más que en Operativo).
+
+### 15.4 Obs 5 — Descripción corta + descriptivo por archivo (✅ 2026-07-08)
+
+Migración `032_case_job_positions_description_file.sql`: agrega `description` (corta, para listas) y `job_description_source_file` (nombre del archivo de origen) a `case_job_positions`. El campo `job_description` (obligatorio, ya usado por el Brief) ahora se puede llenar subiendo un archivo — botón "📎 Subir archivo" en el Plan de Diagnóstico, endpoint `api/consultant/case-job-positions/extract-descriptivo`: `.txt` se lee directo, `.docx` se extrae con `mammoth`, `.pdf` se transcribe vía Claude (bloque `document` nativo, sigue el patrón ya usado en `api/table-rows/extract`). No se persiste el archivo binario (no hay Storage en el proyecto) — solo el texto extraído (que el consultor revisa/edita antes de guardar) y el nombre del archivo como referencia.
+
+### 15.5 Obs 3 — Alta de usuarios ampliada (✅ 2026-07-08)
+
+Migración `033_case_users_full_profile.sql`: agrega `full_name`, `landline_phone`, `seniority` a `case_users`. `ParticipantesPanel` ahora tiene **dos flujos** (decisión del usuario: mantener ambos): "Invitar por correo" (existente, el usuario fija su contraseña al activar) y "Crear con contraseña" (nuevo, endpoint `api/consultant/create-participant`, el consultor la fija — botón "Generar" o manual, mínimo 8 caracteres — y el usuario queda `activated_at` de inmediato vía `admin.auth.admin.createUser`). WhatsApp pasa a obligatorio en ambos flujos (antes opcional). "Empresa o Caso" no requirió campo nuevo — ya está implícito por el caso donde se agrega al participante. `full_name` también se muestra en `/admin/usuarios`.
+
+### 15.6 Obs 6 — Clima Laboral en el Catálogo + IA (✅ 2026-07-08)
+
+Investigación previa: Clima Laboral ya existía como encuesta anónima (`case_climate_surveys`, Kit 6.1) pero con las 10 preguntas fijas en código (`src/lib/climateQuestions.ts`) y sin pantalla de edición — arquitectura separada del Catálogo de diagnóstico (`module_templates`/`sections`/`questions`), con acceso anónimo vía funciones `SECURITY DEFINER`. Se decidió (con el usuario) NO fusionarla al sistema de módulos M1-M7 — riesgo/esfuerzo innecesario — sino darle su propio editor dentro de la pantalla de Catálogo.
+
+Migración `034_climate_question_bank.sql`: tabla `climate_question_bank` (banco editable, sembrada con las 10 preguntas originales). `/admin/catalogo` ahora tiene dos tabs: "Diagnóstico" (como antes) y "Clima Laboral" (`ClimaCatalogoPanel`, API `api/admin/clima-catalogo`): agregar/editar/quitar preguntas del banco. Cada encuesta nueva se sigue sembrando en el momento de creación con una copia jsonb del banco (`api/consultant/climate-surveys` ahora lee de la tabla en vez de la constante fija; con fallback a la constante si el banco estuviera vacío). Editar el banco NO afecta encuestas ya creadas.
+
+Además — botón "✨ Proponer preguntas con IA" (`api/admin/clima-catalogo/suggest`): Claude propone 3-6 preguntas nuevas dado un enfoque opcional (ej. "seguridad en el almacén"), evitando duplicar las ya existentes; el super-admin revisa y agrega una por una. Primer patrón en el proyecto donde la IA genera contenido nuevo de catálogo (no solo extrae/analiza datos existentes).
