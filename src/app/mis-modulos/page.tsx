@@ -119,6 +119,16 @@ export default async function MisModulosPage() {
         <p className="text-xs text-faint text-center">
           {assignedInstruments.length} instrumento{assignedInstruments.length !== 1 ? 's' : ''} asignado{assignedInstruments.length !== 1 ? 's' : ''}
         </p>
+
+        {caseUser.case_id && (
+          <Link
+            href={`/caso/${caseUser.case_id}/checkin` as any}
+            className="block rounded-xl border border-subtle bg-surface hover:border-accent/30 hover:bg-accent-soft transition-colors p-4"
+          >
+            <p className="text-sm font-medium text-ink">📋 Check-in semanal del caso</p>
+            <p className="text-xs text-faint mt-0.5">Ver el avance semanal reportado por el directivo</p>
+          </Link>
+        )}
       </div>
     </AppShell>
   )

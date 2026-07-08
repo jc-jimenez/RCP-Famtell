@@ -1,147 +1,59 @@
-'use client'
+export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import AppShell from '@/components/shared/AppShell'
-import DirectorTabs from '@/components/director/DirectorTabs'
-import { useSupabaseUser } from '@/hooks/useSupabaseUser'
+import { redirect } from 'next/navigation'
+import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import CheckinClient from './CheckinClient'
 
-export default function CheckinPage() {
-  const { id: caseId } = useParams<{ id: string }>()
-  const router = useRouter()
-  const { email } = useSupabaseUser()
+export default async function CheckinPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createSupabaseServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) redirect('/login')
 
-  const [form, setForm] = useState({
-    weekNumber: 1,
-    contactsMade: 0,
-    newClients: false,
-    newClientsDetail: '',
-    obstacles: '',
-    warehouseOccupancy: 0,
-    progressScore: 5,
-  })
-  const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<{ aiAnalysis: string } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const db = supabase as any
 
-  function set(field: string, value: unknown) {
-    setForm(prev => ({ ...prev, [field]: value }))
+  const { data: caseData } = await db
+    .from('cases')
+    .select('id, company_name, account_id')
+    .eq('id', id)
+    .single()
+
+  if (!caseData) redirect('/dashboard')
+
+  const { data: caseUser } = await db
+    .from('case_users')
+    .select('role, job_title')
+    .eq('case_id', id)
+    .eq('user_id', session.user.id)
+    .maybeSingle()
+
+  // Acceso: miembro del caso (director/colaborador) o consultor dueño
+  let role: 'director' | 'collaborator' | 'consultant' | undefined = caseUser?.role
+  if (!role && caseData.account_id) {
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .eq('id', caseData.account_id)
+      .maybeSingle()
+    if (account) role = 'consultant'
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError(null)
-    const res = await fetch('/api/checkins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, ...form }),
-    })
-    const data = await res.json()
-    setSaving(false)
-    if (!res.ok) { setError(data.error); return }
-    setResult({ aiAnalysis: data.checkin.ai_analysis })
-  }
+  if (!role) redirect('/dashboard')
 
-  if (result) {
-    return (
-      <AppShell role="director" email={email ?? ''} tabBar={<DirectorTabs caseId={caseId} />}>
-        <div className="max-w-lg mx-auto py-12 space-y-6 text-center">
-          <div className="w-14 h-14 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-2xl mx-auto">✓</div>
-          <h1 className="text-xl font-bold text-ink">Check-in semana {form.weekNumber} registrado</h1>
-
-          {result.aiAnalysis && (
-            <div className="card p-5 text-left">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">N</div>
-                <span className="text-sm font-semibold text-accent">Análisis de Nova</span>
-              </div>
-              <p className="text-sm text-ink leading-relaxed">{result.aiAnalysis}</p>
-            </div>
-          )}
-
-          <button onClick={() => router.push(`/caso/${caseId}` as any)} className="btn-primary px-6">
-            Volver a mi caso
-          </button>
-        </div>
-      </AppShell>
-    )
-  }
+  const { data: checkins } = await db
+    .from('check_ins')
+    .select('*')
+    .eq('case_id', id)
+    .order('week_number', { ascending: false })
 
   return (
-    <AppShell role="director" email={email ?? ''} tabBar={<DirectorTabs caseId={caseId} />}>
-      <form onSubmit={handleSubmit} className="max-w-lg mx-auto py-6 space-y-5">
-        <div>
-          <h1 className="text-xl font-bold text-ink">Check-in semanal</h1>
-          <p className="text-muted text-sm mt-1">Registra el avance de esta semana. Nova analizará los resultados.</p>
-        </div>
-
-        <div className="card p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label-text">Semana #</label>
-              <input type="number" min={1} max={12} value={form.weekNumber}
-                onChange={e => set('weekNumber', Number(e.target.value))} className="input-field" />
-            </div>
-            <div>
-              <label className="label-text">Contactos realizados</label>
-              <input type="number" min={0} value={form.contactsMade}
-                onChange={e => set('contactsMade', Number(e.target.value))} className="input-field" />
-            </div>
-          </div>
-
-          <div>
-            <label className="label-text">¿Conseguiste clientes nuevos esta semana?</label>
-            <div className="flex gap-3 mt-1">
-              {[{ v: true, l: 'Sí' }, { v: false, l: 'No' }].map(({ v, l }) => (
-                <button key={l} type="button" onClick={() => set('newClients', v)}
-                  className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                    form.newClients === v ? 'border-accent bg-accent-soft text-ink' : 'border-subtle text-muted hover:border-accent/30'
-                  }`}>{l}</button>
-              ))}
-            </div>
-            {form.newClients && (
-              <input value={form.newClientsDetail} onChange={e => set('newClientsDetail', e.target.value)}
-                placeholder="¿Quiénes? ¿De qué sector?" className="input-field mt-2" />
-            )}
-          </div>
-
-          <div>
-            <label className="label-text">Obstáculos o bloqueos esta semana</label>
-            <textarea value={form.obstacles} onChange={e => set('obstacles', e.target.value)}
-              rows={2} placeholder="¿Qué te impidió avanzar más?" className="input-field resize-none" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label-text">Ocupación almacén (%)</label>
-              <input type="number" min={0} max={100} value={form.warehouseOccupancy}
-                onChange={e => set('warehouseOccupancy', Number(e.target.value))} className="input-field" />
-            </div>
-            <div>
-              <label className="label-text">Tu progreso esta semana</label>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-faint">1</span>
-                <input type="range" min={1} max={10} value={form.progressScore}
-                  onChange={e => set('progressScore', Number(e.target.value))} className="flex-1 accent-accent" />
-                <span className="text-xs text-faint">10</span>
-                <span className="text-sm font-bold text-ink w-5 text-center">{form.progressScore}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
-
-        <button type="submit" disabled={saving} className="btn-primary w-full disabled:opacity-50">
-          {saving ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Nova está analizando…
-            </span>
-          ) : 'Registrar check-in'}
-        </button>
-      </form>
-    </AppShell>
+    <CheckinClient
+      caseId={id}
+      companyName={caseData.company_name}
+      role={role}
+      email={session.user.email!}
+      initialCheckins={checkins ?? []}
+    />
   )
 }
