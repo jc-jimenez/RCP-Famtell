@@ -31,3 +31,9 @@ jobs:
 
       - name: Run build
         run: npm run build
+        env:
+          # Valores placeholder solo para que el prerender estático pueda
+          # construir el cliente de Supabase en build. No conectan a nada; en
+          # Vercel/producción se usan los valores reales del proyecto.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-for-ci-build
