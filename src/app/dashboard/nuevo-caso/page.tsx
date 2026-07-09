@@ -40,6 +40,7 @@ export default function NuevoCasoPage() {
     intent: 'mixed',
     strategicNotes: '',
     directorEmail: '',
+    directorWhatsapp: '',
     directorJobTitle: 'Director General',
     directorJobDescription: '',
   })
@@ -74,7 +75,7 @@ export default function NuevoCasoPage() {
 
   async function handleInviteDirector(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.directorEmail.trim() || !form.directorJobDescription.trim() || !caseId) return
+    if (!form.directorEmail.trim() || !form.directorWhatsapp.trim() || !form.directorJobDescription.trim() || !caseId) return
     setLoading(true)
     setError(null)
 
@@ -99,6 +100,7 @@ export default function NuevoCasoPage() {
       body: JSON.stringify({
         caseId,
         email: form.directorEmail,
+        whatsappPhone: form.directorWhatsapp,
         role: 'director',
         jobTitle: form.directorJobTitle,
         jobPositionId: posData.position.id,
@@ -251,6 +253,19 @@ export default function NuevoCasoPage() {
               </div>
 
               <div>
+                <label className="label-text">WhatsApp *</label>
+                <input
+                  type="tel"
+                  value={form.directorWhatsapp}
+                  onChange={e => set('directorWhatsapp', e.target.value)}
+                  placeholder="+52 55 1234 5678"
+                  required
+                  className="input-field"
+                />
+                <p className="text-xs text-faint mt-1">Se usará para recordatorios de check-in cada lunes</p>
+              </div>
+
+              <div>
                 <label className="label-text">Puesto</label>
                 <input
                   value={form.directorJobTitle}
@@ -283,7 +298,7 @@ export default function NuevoCasoPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !form.directorEmail.trim() || !form.directorJobDescription.trim()}
+                  disabled={loading || !form.directorEmail.trim() || !form.directorWhatsapp.trim() || !form.directorJobDescription.trim()}
                   className="btn-primary flex-1 disabled:opacity-50"
                 >
                   {loading ? 'Enviando…' : 'Enviar invitación ✉️'}
