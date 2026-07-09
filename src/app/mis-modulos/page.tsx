@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import { hasCapability } from '@/lib/permissions'
+import { getModulesForPosition } from '@/lib/moduleCompletion'
 
 const MODULE_LABELS: Record<string, string> = {
   M1: 'Radiografía Comercial',
@@ -16,6 +17,8 @@ const MODULE_LABELS: Record<string, string> = {
   M7: 'Síntesis y Plan RCP',
 }
 
+const ALL_MODULE_CODES = Object.keys(MODULE_LABELS)
+
 export default async function MisModulosPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
@@ -25,16 +28,26 @@ export default async function MisModulosPage() {
 
   const { data: caseUser } = await db
     .from('case_users')
-    .select('case_id, role, job_title, permissions_json, cases(company_name, industry)')
+    .select('case_id, role, job_title, job_position_id, cases(company_name, industry)')
     .eq('user_id', session.user.id)
     .maybeSingle()
 
   if (!caseUser) redirect('/login')
   if (!hasCapability(caseUser.role, 'access_collaborator_workspace')) redirect('/login')
 
-  const permissions = caseUser.permissions_json as { modules?: string[] } | null
   const caseData = caseUser.cases as any
-  const assignedInstruments: string[] = permissions?.modules ?? []
+  // Se recalcula en cada carga a partir del mapeo vigente en Plan de
+  // Diagnóstico — no se usa un snapshot guardado al invitar, porque el
+  // consultor puede remapear preguntas a puestos después de la invitación.
+  const derivedModules = caseUser.job_position_id
+    ? await getModulesForPosition(db, caseUser.case_id, caseUser.job_position_id)
+    : []
+  // Puesto sin preguntas mapeadas todavía: se le dan todos los módulos
+  // mientras tanto (mismo criterio que al invitar). Sin puesto asignado:
+  // no hay nada que mostrar.
+  const assignedInstruments: string[] = !caseUser.job_position_id
+    ? []
+    : derivedModules.length > 0 ? derivedModules : ALL_MODULE_CODES
 
   const { data: sessions } = await db
     .from('sessions')

@@ -5,6 +5,9 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import ModuleStartClient from '@/app/caso/[id]/modulo/[code]/ModuleStartClient'
 import type { ModuleCode } from '@/types'
 import { hasCapability } from '@/lib/permissions'
+import { getModulesForPosition } from '@/lib/moduleCompletion'
+
+const ALL_MODULE_CODES = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
 
 // Los colaboradores usan el mismo componente de chat que el directivo
 // pero con el moduleCode de su instrumento asignado
@@ -26,16 +29,21 @@ export default async function ColaboradorModuloPage({
   // Verificar acceso del colaborador al instrumento
   const { data: caseUser } = await db
     .from('case_users')
-    .select('role, permissions_json, job_title')
+    .select('role, job_position_id, job_title')
     .eq('case_id', caseId)
     .eq('user_id', session.user.id)
     .maybeSingle()
 
   if (!caseUser || !hasCapability(caseUser.role, 'access_collaborator_workspace')) redirect('/mis-modulos')
 
-  // permissions_json guardado como { modules: ['M6', 'M1', ...] }
-  const permissions = caseUser.permissions_json as { modules?: string[] } | null
-  const assignedModules = permissions?.modules ?? []
+  // Se recalcula en cada carga a partir del mapeo vigente en Plan de
+  // Diagnóstico (no un snapshot guardado al invitar) — ver mis-modulos/page.tsx
+  const derivedModules = caseUser.job_position_id
+    ? await getModulesForPosition(db, caseId, caseUser.job_position_id)
+    : []
+  const assignedModules = !caseUser.job_position_id
+    ? []
+    : derivedModules.length > 0 ? derivedModules : ALL_MODULE_CODES
   if (!assignedModules.includes(moduleCode)) redirect('/mis-modulos')
 
   // Sesión existente

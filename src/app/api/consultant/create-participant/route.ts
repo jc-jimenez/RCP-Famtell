@@ -57,19 +57,36 @@ export async function POST(req: Request) {
   const { data: existing } = await db.from('case_users').select('id').eq('case_id', caseId).or(`invitation_email.eq.${email}`).maybeSingle()
   if (existing) return NextResponse.json({ error: 'Este correo ya está registrado en este caso' }, { status: 409 })
 
+  // La misma persona (mismo correo) puede participar en varios casos —
+  // auth.users es una sola tabla global en Supabase, así que si el correo
+  // ya tiene cuenta (de otro caso), se reutiliza esa cuenta en vez de
+  // fallar. Mismo criterio que ya usa /api/auth/activate para el flujo de
+  // invitación por correo.
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
   })
-  if (authErr) return NextResponse.json({ error: authErr.message }, { status: 400 })
+
+  let userId: string
+  if (authErr || !authData.user) {
+    if (!authErr?.message?.includes('already')) {
+      return NextResponse.json({ error: authErr?.message ?? 'Error al crear la cuenta' }, { status: 400 })
+    }
+    const { data: { users } } = await admin.auth.admin.listUsers()
+    const existingUser = users.find((u: any) => u.email === email)
+    if (!existingUser) return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 500 })
+    userId = existingUser.id
+  } else {
+    userId = authData.user.id
+  }
 
   const adminDb = admin as any
   const { data: caseUser, error: insertError } = await adminDb
     .from('case_users')
     .insert({
       case_id: caseId,
-      user_id: authData.user.id,
+      user_id: userId,
       role,
       job_title: jobTitle ?? null,
       job_position_id: jobPositionId,
