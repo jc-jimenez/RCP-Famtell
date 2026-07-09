@@ -20,7 +20,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Consultores',    href: '/admin/consultores',    icon: '◎' },
     { label: 'Casos',          href: '/admin/casos',          icon: '▣' },
     { label: 'Créditos',       href: '/admin/creditos',       icon: '◍' },
-    { label: 'Catálogo',       href: '/admin/catalogo',       icon: '📋' },
+    { label: 'Módulos Diagnóstico', href: '/admin/catalogo', icon: '📋' },
     { label: 'Roles',          href: '/admin/roles',          icon: '⚑' },
   ],
   consultant: [

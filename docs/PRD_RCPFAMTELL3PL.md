@@ -375,3 +375,52 @@ Investigación previa: Clima Laboral ya existía como encuesta anónima (`case_c
 Migración `034_climate_question_bank.sql`: tabla `climate_question_bank` (banco editable, sembrada con las 10 preguntas originales). `/admin/catalogo` ahora tiene dos tabs: "Diagnóstico" (como antes) y "Clima Laboral" (`ClimaCatalogoPanel`, API `api/admin/clima-catalogo`): agregar/editar/quitar preguntas del banco. Cada encuesta nueva se sigue sembrando en el momento de creación con una copia jsonb del banco (`api/consultant/climate-surveys` ahora lee de la tabla en vez de la constante fija; con fallback a la constante si el banco estuviera vacío). Editar el banco NO afecta encuestas ya creadas.
 
 Además — botón "✨ Proponer preguntas con IA" (`api/admin/clima-catalogo/suggest`): Claude propone 3-6 preguntas nuevas dado un enfoque opcional (ej. "seguridad en el almacén"), evitando duplicar las ya existentes; el super-admin revisa y agrega una por una. Primer patrón en el proyecto donde la IA genera contenido nuevo de catálogo (no solo extrae/analiza datos existentes).
+
+## 16. Segunda ronda de observaciones del Super-Admin (2026-07-08/09)
+
+Tras cerrar la sección 15, el usuario levantó 6 observaciones nuevas. Estado y resumen:
+
+| # | Observación | Estado |
+|---|---|---|
+| 1 | Super-admin con acceso total a catálogos (usuarios, roles, puestos, módulos, secciones, preguntas, asignación puesto↔pregunta), con altas/bajas/modificaciones | ✅ Hecho |
+| 2 | Usuarios: falta poder crear/editar datos (nombre, correo, whatsapp) | ✅ Hecho |
+| 3 | Consultor: pedir nombre completo y whatsapp al crear | ✅ Hecho |
+| 4 | Casos: super-admin puede crear un caso como el consultor | ✅ Hecho |
+| 5 | Créditos: asignar manualmente a consultores desde `/admin/creditos` | ✅ Hecho |
+| 6 | Renombrar "Catálogo" → "Módulos Diagnóstico" | ✅ Hecho |
+
+### 16.1 Migración 035 — perfil completo de `accounts`
+
+`035_accounts_full_profile.sql`: agrega `full_name` y `whatsapp_phone` a `accounts` (consultores) — mismo perfil que `case_users` ya tenía desde la migración 033. Prerequisito de Obs 2 y 3.
+
+### 16.2 Obs 6 — Rename
+
+Nav (`AppShell.tsx`) y `<h1>` de `CatalogoAdminClient.tsx`: "Catálogo" → "Módulos Diagnóstico". La pestaña interna que decía "Diagnóstico" se renombró a "Módulos" para evitar redundancia con el nuevo título.
+
+### 16.3 Obs 5 — Créditos en `/admin/creditos`
+
+La pantalla era 100% de solo lectura. Se creó `CreditosAdminClient.tsx` (tabla interactiva con botón "Editar" por fila) que reusa el mismo endpoint `set_credits` de `api/admin/usuarios` — sin duplicar lógica.
+
+### 16.4 Obs 3 — Consultor: nombre y whatsapp obligatorios al crear
+
+`ConsultoresClient.tsx` + `api/admin/consultores/route.ts`: el formulario de alta ahora exige `fullName` y `whatsapp` (además de email y empresa). El PATCH de edición también permite modificarlos — cubre parte de Obs 2 de paso, porque un consultor también es un "usuario".
+
+### 16.5 Obs 2 — Usuarios: crear y editar datos
+
+`UsuariosAdminClient.tsx` + `api/admin/usuarios/route.ts`: nueva acción `update_profile` (nombre, correo, whatsapp) para cualquier fila que no sea super-admin — actualiza `accounts` (consultores) o `case_users` (participantes) según el tipo, y sincroniza el correo en `auth.users` si cambia. Botón "+ Crear consultor" enlaza a `/admin/consultores` en vez de duplicar el formulario — los participantes (directivos/colaboradores) no se pueden crear "sueltos" porque siempre pertenecen a un caso+puesto; esa creación vive en la Obs 1 (pantalla de soporte por caso).
+
+### 16.6 Obs 4 — Casos: alta desde admin
+
+`api/admin/casos/route.ts` (POST) + `CasosAdminClient.tsx`: mismo flujo de datos que `/dashboard/nuevo-caso` del consultor, pero con un selector explícito de "Consultor dueño del caso" (ya que el super-admin no tiene cuenta en `accounts`). Las filas de la tabla de casos ahora son clicables → llevan al detalle (Obs 1).
+
+### 16.7 Obs 1 — Acceso total del super-admin (la pieza grande)
+
+Alcance acordado con el usuario: **bypass real de permisos** (no solo lectura), reutilizando las mismas pantallas/componentes del consultor en vez de duplicar UI.
+
+- **Módulos**: nuevo endpoint `api/admin/catalogo/modules` (POST/PATCH/DELETE) + botón "+ Nuevo" en la columna de módulos del Catálogo. `ON DELETE CASCADE` ya existía en el esquema, así que borrar un módulo borra sus secciones/preguntas.
+- **Puestos + asignación puesto↔pregunta por caso**: nueva pantalla `/admin/casos/[id]` que reutiliza `PlanDiagnosticoClient` (el mismo componente que usa el consultor) — se le agregó un prop `role` (default `'consultant'`) para que el `AppShell` interno muestre el nav correcto, y un banner "Modo soporte — editando el caso de otro consultor" cuando `role === 'super_admin'`. La página server-side usa `getSupabaseAdmin()` (sin filtrar por dueño) para traer los datos.
+- **Bypass de autorización en los endpoints**: `verifyAccess()` en `case-job-positions`, `case-custom-questions`, y el chequeo inline en `case-overrides`, ahora regresan `true` de inmediato si `isSuperAdminEmail(email)`.
+
+**Bug real descubierto y corregido de paso (dos veces, mismo patrón):** el bypass de `verifyAccess` resuelve la autorización a nivel de aplicación, pero las mutaciones (`insert`/`update`/`delete`) seguían usando el cliente de sesión (`createSupabaseServerClient()`, anon key) — sujeto a RLS de Postgres. Como el super-admin no es dueño de ninguna cuenta en `accounts`, RLS rechazaba el `INSERT` con *"new row violates row-level security policy"*, aunque la app ya lo había autorizado. Se encontró primero en `api/admin/catalogo/sections` y `.../questions` (que ni siquiera tenían política de escritura — **cualquier intento de crear una sección o pregunta nueva en el Catálogo estaba roto desde antes de esta sesión**, no solo para el super-admin) y luego, por el mismo motivo, en `case-job-positions`, `case-overrides` y `case-custom-questions`. Fix: las 5 rutas ahora usan `getSupabaseAdmin()` (service-role) para las mutaciones, manteniendo la verificación de autorización a nivel de aplicación antes de tocar la BD. Verificado en vivo: creación de módulo, sección, puesto y mapeo puesto↔pregunta, los 4 con éxito tras el fix.
+
+Todo verificado end-to-end en navegador con login real, con datos de prueba creados y eliminados en cada paso. Typecheck y lint en 0 errores en cada tarea.

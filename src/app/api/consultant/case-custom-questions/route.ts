@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 async function verifyAccess(supabase: any, email: string, caseId: string) {
+  if (isSuperAdminEmail(email)) return true
   const db = supabase as any
   const { data: account } = await db.from('accounts').select('id').eq('email', email).maybeSingle()
   if (!account) return false
@@ -23,7 +26,10 @@ export async function POST(req: Request) {
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const { data, error } = await db
     .from('case_custom_questions')
     .insert({
@@ -51,7 +57,10 @@ export async function DELETE(req: Request) {
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   await db.from('case_custom_questions').delete().eq('id', questionId).eq('case_id', caseId)
   return NextResponse.json({ ok: true })
 }
@@ -66,7 +75,10 @@ export async function PATCH(req: Request) {
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const updates: Record<string, unknown> = {}
   if (text !== undefined) updates.text = text.trim()
   if (suggestedRoles !== undefined) updates.suggested_roles = suggestedRoles

@@ -32,8 +32,8 @@ export async function GET() {
 
   const [{ data: authList }, { data: accounts }, { data: caseUsers }, { data: cases }, { data: businessRoles }] = await Promise.all([
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-    db.from('accounts').select('id, email, company_name, plan_id, credits_total, credits_used, status'),
-    db.from('case_users').select('user_id, role, job_title, case_id, business_role_id, full_name').not('user_id', 'is', null),
+    db.from('accounts').select('id, email, company_name, full_name, whatsapp_phone, plan_id, credits_total, credits_used, status'),
+    db.from('case_users').select('id, user_id, role, job_title, case_id, business_role_id, full_name, whatsapp_phone').not('user_id', 'is', null),
     db.from('cases').select('id, company_name'),
     db.from('business_roles').select('id, name'),
   ])
@@ -76,9 +76,11 @@ export async function GET() {
       creditsBalance: account ? (account.credits_total ?? 0) - (account.credits_used ?? 0) : null,
       accountStatus: account?.status ?? null,
       // Participante (case_user)
+      caseUserId: cu?.id ?? null,
       caseId: cu?.case_id ?? null,
       jobTitle: cu?.job_title ?? null,
-      fullName: cu?.full_name ?? null,
+      fullName: account?.full_name ?? cu?.full_name ?? null,
+      whatsappPhone: account?.whatsapp_phone ?? cu?.whatsapp_phone ?? null,
       businessRole: cu?.business_role_id ? (roleNameById[cu.business_role_id] ?? null) : null,
     }
   })
@@ -100,18 +102,23 @@ export async function PATCH(req: Request) {
   if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
   const db = admin as any
 
-  const { userId, action, accountId, credits } = await req.json() as {
+  const { userId, action, accountId, credits, kind, caseUserId, fullName, email, whatsapp } = await req.json() as {
     userId?: string
-    action: 'ban' | 'unban' | 'reset_password' | 'set_credits'
+    action: 'ban' | 'unban' | 'reset_password' | 'set_credits' | 'update_profile'
     accountId?: string
     credits?: number
+    kind?: string
+    caseUserId?: string
+    fullName?: string
+    email?: string
+    whatsapp?: string
   }
 
   // No permitir que el super-admin se bloquee/resetee a sí mismo por accidente
   if (userId) {
     const { data: target } = await admin.auth.admin.getUserById(userId)
-    if (target?.user?.email && isSuperAdminEmail(target.user.email) && (action === 'ban' || action === 'reset_password')) {
-      return NextResponse.json({ error: 'No puedes bloquear ni resetear la cuenta de Super-Admin.' }, { status: 400 })
+    if (target?.user?.email && isSuperAdminEmail(target.user.email) && (action === 'ban' || action === 'reset_password' || (action === 'update_profile' && email?.trim()))) {
+      return NextResponse.json({ error: 'No puedes bloquear, resetear ni cambiar el correo de la cuenta de Super-Admin.' }, { status: 400 })
     }
   }
 
@@ -135,6 +142,38 @@ export async function PATCH(req: Request) {
     const { error } = await admin.auth.admin.updateUserById(userId, { password: tempPassword })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true, tempPassword })
+  }
+
+  if (action === 'update_profile') {
+    if (!userId) return NextResponse.json({ error: 'userId requerido' }, { status: 400 })
+
+    // Si cambió el correo, actualizarlo primero en auth (es la identidad de login)
+    if (email?.trim()) {
+      const { error: emailErr } = await admin.auth.admin.updateUserById(userId, { email: email.trim(), email_confirm: true })
+      if (emailErr) return NextResponse.json({ error: emailErr.message }, { status: 400 })
+    }
+
+    if (kind === 'consultant') {
+      if (!accountId) return NextResponse.json({ error: 'accountId requerido para consultores' }, { status: 400 })
+      const updates: Record<string, unknown> = {}
+      if (fullName !== undefined) updates.full_name = fullName?.trim() || null
+      if (whatsapp !== undefined) updates.whatsapp_phone = whatsapp?.trim() || null
+      if (email?.trim()) updates.email = email.trim()
+      const { error } = await db.from('accounts').update(updates).eq('id', accountId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else if (kind === 'director' || kind === 'collaborator') {
+      if (!caseUserId) return NextResponse.json({ error: 'caseUserId requerido para participantes' }, { status: 400 })
+      const updates: Record<string, unknown> = {}
+      if (fullName !== undefined) updates.full_name = fullName?.trim() || null
+      if (whatsapp !== undefined) updates.whatsapp_phone = whatsapp?.trim() || null
+      if (email?.trim()) updates.invitation_email = email.trim()
+      const { error } = await db.from('case_users').update(updates).eq('id', caseUserId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      return NextResponse.json({ error: 'kind inválido para editar datos' }, { status: 400 })
+    }
+
+    return NextResponse.json({ ok: true, fullName: fullName ?? null, email: email?.trim() ?? null, whatsappPhone: whatsapp ?? null })
   }
 
   if (action === 'set_credits') {

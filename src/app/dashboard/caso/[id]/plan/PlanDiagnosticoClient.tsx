@@ -28,10 +28,14 @@ interface Props {
   initialCustomBySection: Record<string, any[]>
   initialPositions: Position[]
   businessRoles: BusinessRole[]
+  /** 'super_admin' cuando el super-admin entra en modo soporte a un caso ajeno */
+  role?: 'consultant' | 'super_admin'
+  backHref?: string
 }
 
 export default function PlanDiagnosticoClient({
   caseId, companyName, modules, initialOverrides, initialCustomBySection, initialPositions, businessRoles,
+  role = 'consultant', backHref,
 }: Props) {
   const { email } = useSupabaseUser()
   const [overrides, setOverrides] = useState<Record<string, Override>>(initialOverrides)
@@ -395,13 +399,18 @@ export default function PlanDiagnosticoClient({
   }
 
   return (
-    <AppShell role="consultant" email={email ?? ''}>
+    <AppShell role={role} email={email ?? ''}>
       <div className="max-w-5xl mx-auto space-y-4">
 
         <div>
-          <Link href={`/dashboard/caso/${caseId}?tab=diagnostico` as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
+          <Link href={(backHref ?? `/dashboard/caso/${caseId}?tab=diagnostico`) as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
             ← {companyName}
           </Link>
+          {role === 'super_admin' && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 inline-block ml-2">
+              Modo soporte — editando el caso de otro consultor
+            </p>
+          )}
           <h1 className="text-xl font-bold text-ink">Plan de Diagnóstico</h1>
           <p className="text-sm text-muted">Activa/desactiva preguntas, edita su texto, mapea puestos o agrega preguntas propias</p>
         </div>

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
+// El super-admin tiene acceso de soporte a los puestos de cualquier caso
+// (sección 15 del PRD, Obs 1 ronda 2) — puede editar sin ser el dueño. Las
+// mutaciones usan el cliente service-role porque RLS de case_job_positions
+// solo permite al consultor dueño, no al super-admin.
 async function verifyAccess(supabase: any, email: string, caseId: string) {
+  if (isSuperAdminEmail(email)) return true
   const db = supabase as any
   const { data: account } = await db.from('accounts').select('id').eq('email', email).maybeSingle()
   if (!account) return false
@@ -19,7 +26,13 @@ export async function GET(req: Request) {
   const caseId = searchParams.get('caseId')
   if (!caseId) return NextResponse.json({ error: 'caseId requerido' }, { status: 400 })
 
-  const db = supabase as any
+  const ok = await verifyAccess(supabase, session.user.email!, caseId)
+  if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const { data, error } = await db
     .from('case_job_positions')
     .select('id, name, description, job_description, job_description_source_file, business_role_id, created_at')
@@ -44,7 +57,10 @@ export async function POST(req: Request) {
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const { data, error } = await db
     .from('case_job_positions')
     .insert({
@@ -81,7 +97,10 @@ export async function PATCH(req: Request) {
   if (jobDescriptionSourceFile !== undefined) updates.job_description_source_file = jobDescriptionSourceFile
   if (businessRoleId !== undefined) updates.business_role_id = businessRoleId
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const { data, error } = await db
     .from('case_job_positions')
     .update(updates)
@@ -106,7 +125,10 @@ export async function DELETE(req: Request) {
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
   if (!ok) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   await db.from('case_job_positions').delete().eq('id', positionId).eq('case_id', caseId)
   return NextResponse.json({ ok: true })
 }

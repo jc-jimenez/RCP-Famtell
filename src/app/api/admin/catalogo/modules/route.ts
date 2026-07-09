@@ -10,6 +10,7 @@ async function assertSuperAdmin() {
   return isSuperAdminEmail(session.user.email) ? session : null
 }
 
+// POST — crear un módulo de nivel superior (M8, M9, ...) en el catálogo de diagnóstico
 export async function POST(req: Request) {
   const session = await assertSuperAdmin()
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -18,19 +19,30 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
   const db = admin as any
 
-  const body = await req.json()
-  const { module_template_id, code, name, description, sort_order, suggested_roles } = body
+  const { code, name, description } = await req.json()
+  if (!code?.trim() || !name?.trim()) {
+    return NextResponse.json({ error: 'code y name son requeridos' }, { status: 400 })
+  }
+
+  const { data: maxRow } = await db
+    .from('module_templates')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextSort = (maxRow?.sort_order ?? -1) + 1
 
   const { data, error } = await db
-    .from('sections')
-    .insert({ module_template_id, code, name, description, sort_order: sort_order ?? 0, suggested_roles: suggested_roles ?? [] })
+    .from('module_templates')
+    .insert({ code: code.trim(), name: name.trim(), description: description?.trim() || null, sort_order: nextSort, is_active: true })
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  return NextResponse.json({ ...data, sections: [] })
 }
 
+// PATCH — editar nombre/descripción/estado de un módulo
 export async function PATCH(req: Request) {
   const session = await assertSuperAdmin()
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -40,10 +52,11 @@ export async function PATCH(req: Request) {
   const db = admin as any
 
   const { id, ...updates } = await req.json()
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
   const { data, error } = await db
-    .from('sections')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .from('module_templates')
+    .update(updates)
     .eq('id', id)
     .select()
     .single()
@@ -52,6 +65,7 @@ export async function PATCH(req: Request) {
   return NextResponse.json(data)
 }
 
+// DELETE — borrar un módulo (cascada borra sus secciones/preguntas)
 export async function DELETE(req: Request) {
   const session = await assertSuperAdmin()
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -61,7 +75,9 @@ export async function DELETE(req: Request) {
   const db = admin as any
 
   const { id } = await req.json()
-  const { error } = await db.from('sections').delete().eq('id', id)
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+
+  const { error } = await db.from('module_templates').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })
 }

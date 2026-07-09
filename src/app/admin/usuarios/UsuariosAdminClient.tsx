@@ -16,8 +16,10 @@ interface User {
   creditsBalance: number | null
   accountStatus: string | null
   caseId: string | null
+  caseUserId: string | null
   jobTitle: string | null
   fullName: string | null
+  whatsappPhone: string | null
   businessRole: string | null
 }
 
@@ -45,6 +47,10 @@ export default function UsuariosAdminClient() {
   const [tempPwFor, setTempPwFor] = useState<{ email: string; pw: string } | null>(null)
   const [creditsFor, setCreditsFor] = useState<User | null>(null)
   const [creditsValue, setCreditsValue] = useState(0)
+  const [editFor, setEditFor] = useState<User | null>(null)
+  const [editFullName, setEditFullName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editWhatsapp, setEditWhatsapp] = useState('')
 
   async function load() {
     setLoading(true)
@@ -92,6 +98,30 @@ export default function UsuariosAdminClient() {
     setCreditsFor(null)
   }
 
+  function openEdit(u: User) {
+    setEditFor(u)
+    setEditFullName(u.fullName ?? '')
+    setEditEmail(u.email ?? '')
+    setEditWhatsapp(u.whatsappPhone ?? '')
+  }
+  async function saveEdit() {
+    if (!editFor) return
+    const data = await act(editFor.id, 'update_profile', {
+      kind: editFor.kind,
+      accountId: editFor.accountId,
+      caseUserId: editFor.caseUserId,
+      fullName: editFullName,
+      email: editEmail !== editFor.email ? editEmail : undefined,
+      whatsapp: editWhatsapp,
+    })
+    if (data) {
+      setUsers(prev => prev.map(x => x.id === editFor.id
+        ? { ...x, fullName: editFullName, whatsappPhone: editWhatsapp, email: data.email ?? x.email }
+        : x))
+      setEditFor(null)
+    }
+  }
+
   const filtered = users.filter(u => {
     if (filterKind !== 'all' && u.kind !== filterKind) return false
     const q = query.toLowerCase().trim()
@@ -103,10 +133,15 @@ export default function UsuariosAdminClient() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div>
-        <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
-        <h1 className="text-xl font-bold text-ink mt-1">Usuarios</h1>
-        <p className="text-muted text-sm mt-0.5">Gestión de soporte: activar/bloquear, resetear contraseña, ajustar créditos.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <Link href={'/admin' as any} className="text-xs text-muted hover:text-ink">← Panel</Link>
+          <h1 className="text-xl font-bold text-ink mt-1">Usuarios</h1>
+          <p className="text-muted text-sm mt-0.5">Gestión de soporte: activar/bloquear, resetear contraseña, ajustar créditos, editar datos.</p>
+        </div>
+        <Link href={'/admin/consultores' as any} className="btn-primary text-sm px-4 py-2 whitespace-nowrap">
+          + Crear consultor
+        </Link>
       </div>
 
       {/* Filtros */}
@@ -195,6 +230,12 @@ export default function UsuariosAdminClient() {
                           Créditos
                         </button>
                       )}
+                      {(u.kind === 'consultant' || u.kind === 'director' || u.kind === 'collaborator') && (
+                        <button onClick={() => openEdit(u)} disabled={!!busy}
+                          className="text-xs px-2.5 py-1 rounded-lg border border-subtle text-muted hover:bg-surface-2 disabled:opacity-50">
+                          Editar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -217,6 +258,31 @@ export default function UsuariosAdminClient() {
             <div className="flex gap-2">
               <button onClick={() => navigator.clipboard.writeText(tempPwFor.pw)} className="btn-secondary flex-1 text-sm">Copiar</button>
               <button onClick={() => setTempPwFor(null)} className="btn-primary flex-1 text-sm">Listo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar datos */}
+      {editFor && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setEditFor(null)}>
+          <div className="card p-6 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-ink">Editar datos</h3>
+            <div>
+              <label className="label-text">Nombre completo</label>
+              <input value={editFullName} onChange={e => setEditFullName(e.target.value)} className="input-field text-sm" placeholder="Nombre y apellido" />
+            </div>
+            <div>
+              <label className="label-text">Correo electrónico</label>
+              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field text-sm" />
+            </div>
+            <div>
+              <label className="label-text">WhatsApp</label>
+              <input type="tel" value={editWhatsapp} onChange={e => setEditWhatsapp(e.target.value)} className="input-field text-sm" placeholder="+52 55 1234 5678" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setEditFor(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={saveEdit} disabled={!!busy} className="btn-primary flex-1 text-sm disabled:opacity-50">Guardar</button>
             </div>
           </div>
         </div>

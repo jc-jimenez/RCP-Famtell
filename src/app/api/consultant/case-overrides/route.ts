@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 // GET /api/consultant/case-overrides?caseId=xxx
 export async function GET(req: Request) {
@@ -11,7 +13,10 @@ export async function GET(req: Request) {
   const caseId = searchParams.get('caseId')
   if (!caseId) return NextResponse.json({ error: 'caseId requerido' }, { status: 400 })
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   const { data } = await db
     .from('case_question_overrides')
     .select('question_id, is_active, custom_text, roles_override, job_position_ids')
@@ -27,25 +32,31 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { caseId, questionId, isActive, customText, rolesOverride, jobPositionIds } = await req.json()
-  const db = supabase as any
 
-  // Verificar que el caso pertenece al consultor
-  const { data: account } = await db
-    .from('accounts')
-    .select('id')
-    .eq('email', session.user.email)
-    .maybeSingle()
+  if (!isSuperAdminEmail(session.user.email)) {
+    const db = supabase as any
+    // Verificar que el caso pertenece al consultor
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .maybeSingle()
 
-  if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
 
-  const { data: caseRow } = await db
-    .from('cases')
-    .select('id')
-    .eq('id', caseId)
-    .eq('account_id', account.id)
-    .maybeSingle()
+    const { data: caseRow } = await db
+      .from('cases')
+      .select('id')
+      .eq('id', caseId)
+      .eq('account_id', account.id)
+      .maybeSingle()
 
-  if (!caseRow) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
+    if (!caseRow) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
+  }
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
   const upsertPayload: Record<string, unknown> = {
     case_id: caseId,
@@ -73,7 +84,11 @@ export async function DELETE(req: Request) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { caseId, questionId } = await req.json()
-  const db = supabase as any
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
   await db.from('case_question_overrides').delete().eq('case_id', caseId).eq('question_id', questionId)
   return NextResponse.json({ ok: true })
 }

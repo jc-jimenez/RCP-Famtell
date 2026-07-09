@@ -30,7 +30,7 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
   const [activeModule, setActiveModule] = useState<string>(initialModules[0]?.code ?? '')
   const [activeSection, setActiveSection] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState<null | 'section' | 'question'>(null)
+  const [modal, setModal] = useState<null | 'module' | 'section' | 'question'>(null)
   const [editTarget, setEditTarget] = useState<any>(null)
   const [form, setForm] = useState<any>({})
 
@@ -38,6 +38,13 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
   const sec = mod?.sections.find(s => s.id === activeSection) ?? null
 
   // ── API helpers ─────────────────────────────────────────────
+
+  async function apiModule(method: string, body: any) {
+    const res = await fetch('/api/admin/catalogo/modules', {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    return res.json()
+  }
 
   async function apiSection(method: string, body: any) {
     const res = await fetch('/api/admin/catalogo/sections', {
@@ -51,6 +58,46 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
       method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     })
     return res.json()
+  }
+
+  // ── Módulos ─────────────────────────────────────────────────
+
+  function openNewModule() {
+    setEditTarget(null)
+    setForm({ code: '', name: '', description: '' })
+    setModal('module')
+  }
+
+  function openEditModule(m: Module) {
+    setEditTarget(m)
+    setForm({ code: m.code, name: m.name, description: '' })
+    setModal('module')
+  }
+
+  async function saveModule() {
+    setSaving(true)
+    if (editTarget) {
+      const data = await apiModule('PATCH', { id: editTarget.id, name: form.name })
+      setModules(ms => ms.map(m => m.id === data.id ? { ...m, ...data, sections: m.sections } : m))
+    } else {
+      const data = await apiModule('POST', { code: form.code, name: form.name, description: form.description })
+      setModules(ms => [...ms, data])
+      setActiveModule(data.code)
+      setActiveSection(null)
+    }
+    setSaving(false)
+    setModal(null)
+  }
+
+  async function deleteModule(m: Module) {
+    if (!confirm(`¿Eliminar el módulo "${m.name}" y TODAS sus secciones y preguntas? Esta acción no se puede deshacer.`)) return
+    await apiModule('DELETE', { id: m.id })
+    const remaining = modules.filter(x => x.id !== m.id)
+    setModules(remaining)
+    if (activeModule === m.code) {
+      setActiveModule(remaining[0]?.code ?? '')
+      setActiveSection(null)
+    }
   }
 
   // ── Sections ────────────────────────────────────────────────
@@ -171,7 +218,7 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-ink">Catálogo</h1>
+        <h1 className="text-xl font-bold text-ink">Módulos Diagnóstico</h1>
         <p className="text-sm text-muted">Módulos y preguntas del diagnóstico, y el banco de preguntas de Clima Laboral</p>
       </div>
 
@@ -180,7 +227,7 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
           onClick={() => setTab('diagnostico')}
           className={`text-sm px-4 py-2 border-b-2 transition-colors ${tab === 'diagnostico' ? 'border-accent text-accent font-medium' : 'border-transparent text-muted hover:text-ink'}`}
         >
-          Diagnóstico
+          Módulos
         </button>
         <button
           onClick={() => setTab('clima')}
@@ -197,18 +244,30 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
 
         {/* Col 1: módulos */}
         <div className="card p-3 space-y-1 self-start">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider px-2 pb-1">Módulos</p>
+          <div className="flex items-center justify-between px-2 pb-1">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider">Módulos</p>
+            <button onClick={openNewModule} className="text-xs text-accent hover:underline">+ Nuevo</button>
+          </div>
           {modules.map(m => (
-            <button
+            <div
               key={m.code}
               onClick={() => { setActiveModule(m.code); setActiveSection(null) }}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${
+              className={`group flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-colors ${
                 activeModule === m.code ? 'bg-accent-soft text-accent font-semibold' : 'text-ink hover:bg-surface-2'
               }`}
             >
-              <span className="font-mono text-xs text-faint mr-2">{m.code}</span>{m.name}
-            </button>
+              <span className="flex-1 min-w-0 text-sm truncate">
+                <span className="font-mono text-xs text-faint mr-2">{m.code}</span>{m.name}
+              </span>
+              <div className="opacity-0 group-hover:opacity-100 flex gap-1 flex-shrink-0">
+                <button onClick={e => { e.stopPropagation(); openEditModule(m) }} className="text-xs text-muted hover:text-ink">✎</button>
+                <button onClick={e => { e.stopPropagation(); deleteModule(m) }} className="text-xs text-muted hover:text-red-600">✕</button>
+              </div>
+            </div>
           ))}
+          {modules.length === 0 && (
+            <p className="text-xs text-faint px-3 py-2">Sin módulos</p>
+          )}
         </div>
 
         {/* Col 2: secciones */}
@@ -297,6 +356,39 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
           )}
         </div>
       </div>
+      )}
+
+      {/* Modal módulo */}
+      {modal === 'module' && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-md p-6 space-y-4">
+            <h3 className="text-base font-bold text-ink">{editTarget ? 'Editar módulo' : 'Nuevo módulo'}</h3>
+
+            {!editTarget && (
+              <div>
+                <label className="label-text">Código (ej: M8)</label>
+                <input value={form.code} onChange={e => setForm((f: any) => ({ ...f, code: e.target.value }))} className="input-field" placeholder="M8" />
+              </div>
+            )}
+            <div>
+              <label className="label-text">Nombre</label>
+              <input value={form.name} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} className="input-field" placeholder="Nombre del módulo" />
+            </div>
+            {!editTarget && (
+              <div>
+                <label className="label-text">Descripción (opcional)</label>
+                <textarea value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} rows={2} className="input-field resize-none" />
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancelar</button>
+              <button onClick={saveModule} disabled={saving || !form.name?.trim() || (!editTarget && !form.code?.trim())} className="btn-primary flex-1 disabled:opacity-50">
+                {saving ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal sección */}

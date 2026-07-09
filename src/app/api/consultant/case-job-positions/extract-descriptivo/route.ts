@@ -3,12 +3,14 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 import mammoth from 'mammoth'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 async function verifyAccess(supabase: any, email: string, caseId: string) {
+  if (isSuperAdminEmail(email)) return true
   const db = supabase as any
   const { data: account } = await db.from('accounts').select('id').eq('email', email).maybeSingle()
   if (!account) return false

@@ -7,6 +7,8 @@ interface Consultor {
   id: string
   email: string
   company_name: string
+  full_name: string | null
+  whatsapp_phone: string | null
   credits_balance: number
   credits_total: number
   subscription_plan: string
@@ -68,11 +70,13 @@ function exportCSV(consultores: Consultor[]) {
 export default function ConsultoresClient({ consultores: initial }: Props) {
   const [consultores, setConsultores] = useState<Consultor[]>(initial)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ email: '', companyName: '', plan: 'starter', credits: 100 })
+  const [form, setForm] = useState({ email: '', companyName: '', fullName: '', whatsapp: '', plan: 'starter', credits: 100 })
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [editCredits, setEditCredits] = useState(0)
   const [editStatus, setEditStatus] = useState('')
+  const [editFullName, setEditFullName] = useState('')
+  const [editWhatsapp, setEditWhatsapp] = useState('')
   const [search, setSearch] = useState('')
 
   function set(k: string, v: unknown) { setForm(prev => ({ ...prev, [k]: v })) }
@@ -93,7 +97,7 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
     if (res.ok) {
       setConsultores(prev => [data.account, ...prev])
       setShowModal(false)
-      setForm({ email: '', companyName: '', plan: 'starter', credits: 100 })
+      setForm({ email: '', companyName: '', fullName: '', whatsapp: '', plan: 'starter', credits: 100 })
     }
   }
 
@@ -101,7 +105,7 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
     const res = await fetch('/api/admin/consultores', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId, credits: editCredits, status: editStatus }),
+      body: JSON.stringify({ accountId, credits: editCredits, status: editStatus, fullName: editFullName, whatsapp: editWhatsapp }),
     })
     const data = await res.json()
     if (res.ok) {
@@ -174,8 +178,9 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
                 return (
                   <tr key={c.id} className="hover:bg-surface-2 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-ink">{c.company_name || '—'}</p>
-                      <p className="text-xs text-faint">{c.email}</p>
+                      <p className="font-medium text-ink">{c.full_name || c.company_name || '—'}</p>
+                      <p className="text-xs text-faint">{c.company_name} · {c.email}</p>
+                      {c.whatsapp_phone && <p className="text-xs text-faint">{c.whatsapp_phone}</p>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded border ${PLAN_COLORS[c.subscription_plan]}`}>
@@ -208,7 +213,7 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => { setEditId(c.id); setEditCredits(c.credits_balance); setEditStatus(c.status) }}
+                        onClick={() => { setEditId(c.id); setEditCredits(c.credits_balance); setEditStatus(c.status); setEditFullName(c.full_name ?? ''); setEditWhatsapp(c.whatsapp_phone ?? '') }}
                         className="btn-secondary text-xs px-3 py-1"
                       >
                         Editar
@@ -234,6 +239,14 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
               <label className="label-text">Nombre empresa</label>
               <input type="text" value={form.companyName} onChange={e => set('companyName', e.target.value)} className="input-field" placeholder="Consultoría XYZ" />
             </div>
+            <div>
+              <label className="label-text">Nombre completo</label>
+              <input type="text" value={form.fullName} onChange={e => set('fullName', e.target.value)} className="input-field" placeholder="Nombre y apellido" />
+            </div>
+            <div>
+              <label className="label-text">WhatsApp</label>
+              <input type="tel" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} className="input-field" placeholder="+52 55 1234 5678" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label-text">Plan</label>
@@ -250,7 +263,7 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={handleCreate} disabled={saving || !form.email || !form.companyName} className="btn-primary flex-1 disabled:opacity-50">
+              <button onClick={handleCreate} disabled={saving || !form.email || !form.companyName || !form.fullName.trim() || !form.whatsapp.trim()} className="btn-primary flex-1 disabled:opacity-50">
                 {saving ? 'Creando…' : 'Crear consultor'}
               </button>
             </div>
@@ -262,6 +275,14 @@ export default function ConsultoresClient({ consultores: initial }: Props) {
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-sm p-6 space-y-4">
             <h3 className="text-base font-bold text-ink">Editar consultor</h3>
+            <div>
+              <label className="label-text">Nombre completo</label>
+              <input type="text" value={editFullName} onChange={e => setEditFullName(e.target.value)} className="input-field" placeholder="Nombre y apellido" />
+            </div>
+            <div>
+              <label className="label-text">WhatsApp</label>
+              <input type="tel" value={editWhatsapp} onChange={e => setEditWhatsapp(e.target.value)} className="input-field" placeholder="+52 55 1234 5678" />
+            </div>
             <div>
               <label className="label-text">Créditos disponibles</label>
               <input type="number" value={editCredits} onChange={e => setEditCredits(Number(e.target.value))} className="input-field" />
