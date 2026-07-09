@@ -37,20 +37,25 @@ export async function POST(request: Request) {
     .eq('case_id', caseId)
     .maybeSingle()
 
+  // Antes se ignoraba el error de PostgREST y se devolvía 200 con brief: null
+  // — el consultor "guardaba", no veía error, y al recargar perdía los datos
+  // (así pasó con jtbd_comercial cuando faltaba la columna, migración 027).
   if (existing) {
-    const { data } = await db
+    const { data, error } = await db
       .from('brief_documents')
       .update({ ...fields, updated_at: new Date().toISOString() })
       .eq('id', existing.id)
       .select()
       .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ brief: data })
   } else {
-    const { data } = await db
+    const { data, error } = await db
       .from('brief_documents')
       .insert({ case_id: caseId, created_by: session.user.id, ...fields })
       .select()
       .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ brief: data })
   }
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import type { ModuleCode } from '@/types'
 
 const MODULE_INFO: Record<ModuleCode, { label: string; desc: string }> = {
@@ -83,6 +84,13 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
     return !mod || mod.status !== 'completed'
   })
 
+  // Avance real por puesto (rojo/ámbar/verde) — solo se necesita para el módulo activo
+  const completionMap: Record<string, { colorStatus: 'red' | 'amber' | 'green'; pending: { jobPositionName: string; hasOccupant: boolean }[] }> = {}
+  if (nextModule) {
+    const all = await computeAllModulesCompletion(db, id)
+    all.forEach(c => { completionMap[c.moduleCode] = c })
+  }
+
   return (
     <AppShell
       role={shellRole}
@@ -121,11 +129,13 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
               const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
               const done = status === 'completed'
               const active = !done && (code === nextModule)
+              const colorStatus = active ? completionMap[code]?.colorStatus : undefined
               return (
                 <div key={code} className="flex items-center gap-1.5 flex-1 last:flex-none">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 flex-shrink-0 ${
-                    done   ? 'bg-emerald-500 border-emerald-500 text-white' :
-                    active ? 'bg-surface border-accent text-accent' :
+                    done ? 'bg-emerald-500 border-emerald-500 text-white' :
+                    active && colorStatus === 'amber' ? 'bg-amber-50 border-amber-400 text-amber-600' :
+                    active ? 'bg-rose-50 border-rose-400 text-rose-600' :
                     'bg-surface-2 border-subtle text-faint'
                   }`}>
                     {done ? '✓' : i + 1}
@@ -163,13 +173,16 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             const isLocked = !isCompleted && !isCurrent
             const lastActivity = lastSessionMap[code]
             const hasSession = !!lastActivity
+            const completion = isCurrent ? completionMap[code] : undefined
+            const colorStatus = completion?.colorStatus
 
             return (
               <div
                 key={code}
                 className={`card transition-all ${
                   isCompleted ? 'border-emerald-200 bg-emerald-50/40' :
-                  isCurrent   ? 'border-accent/40 shadow-sm' :
+                  isCurrent && colorStatus === 'amber' ? 'border-amber-300 shadow-sm' :
+                  isCurrent   ? 'border-rose-300 shadow-sm' :
                   'opacity-55'
                 }`}
               >
@@ -177,7 +190,8 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
                   {/* Ícono de estado */}
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                     isCompleted ? 'bg-emerald-100 text-emerald-700' :
-                    isCurrent   ? 'bg-accent-soft text-accent' :
+                    isCurrent && colorStatus === 'amber' ? 'bg-amber-100 text-amber-700' :
+                    isCurrent   ? 'bg-rose-100 text-rose-700' :
                     'bg-surface-2 text-faint'
                   }`}>
                     {isCompleted ? '✓' : i + 1}
@@ -193,6 +207,11 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
                     )}
                     {!isCompleted && hasSession && (
                       <p className="text-xs text-accent mt-0.5">Última sesión {formatDate(lastActivity)}</p>
+                    )}
+                    {isCurrent && completion && completion.pending.length > 0 && (
+                      <p className={`text-xs mt-0.5 ${colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>
+                        Falta: {completion.pending.map(p => p.jobPositionName).join(', ')}
+                      </p>
                     )}
                   </div>
 

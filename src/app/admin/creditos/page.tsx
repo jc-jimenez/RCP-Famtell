@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import AppShell from '@/components/shared/AppShell'
 import Link from 'next/link'
 import { accountToUI } from '@/lib/accounts'
+import { isSuperAdminEmail } from '@/lib/permissions'
+import CreditosAdminClient from './CreditosAdminClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +13,7 @@ export default async function AdminCreditosPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session || session.user.email !== process.env.SUPER_ADMIN_EMAIL) {
+  if (!session || !isSuperAdminEmail(session.user.email)) {
     redirect('/login')
   }
 
@@ -63,37 +65,7 @@ export default async function AdminCreditosPage() {
           </div>
         )}
 
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-subtle text-xs text-faint uppercase tracking-wider">
-                <th className="px-4 py-3 text-left">Consultor</th>
-                <th className="px-4 py-3 text-left">Plan</th>
-                <th className="px-4 py-3 text-right">Créditos</th>
-                <th className="px-4 py-3 text-center">Alerta</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-subtle">
-              {(accounts ?? []).map((a: any) => (
-                <tr key={a.id} className="hover:bg-surface-2 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-ink">{a.company_name}</p>
-                    <p className="text-xs text-faint">{a.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-muted capitalize">{a.subscription_plan}</td>
-                  <td className={`px-4 py-3 text-right font-mono font-bold ${
-                    (a.credits_balance ?? 0) < 10 ? 'text-red-600'
-                    : (a.credits_balance ?? 0) < 20 ? 'text-amber-600'
-                    : 'text-ink'
-                  }`}>{a.credits_balance}</td>
-                  <td className="px-4 py-3 text-center">
-                    {(a.credits_balance ?? 0) < 10 ? '🔴' : (a.credits_balance ?? 0) < 20 ? '🟡' : '🟢'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CreditosAdminClient initialAccounts={accounts} />
       </div>
     </AppShell>
   )

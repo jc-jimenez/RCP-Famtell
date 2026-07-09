@@ -54,15 +54,25 @@ export async function POST(request: Request) {
   let systemPrompt: string
 
   try {
-    // 1. Obtener rol del usuario en este caso
+    // 1. Obtener el puesto del usuario en este caso (catálogo por caso, no enum fijo)
     const { data: caseUser } = await db
       .from('case_users')
-      .select('role, job_title')
+      .select('role, job_position_id')
       .eq('case_id', sessionData.case_id)
       .eq('user_id', session.user.id)
       .maybeSingle()
 
-    const userRole: string | null = caseUser?.job_title ?? caseUser?.role ?? null
+    const jobPositionId: string | null = caseUser?.job_position_id ?? null
+
+    let jobPositionName: string | null = null
+    if (jobPositionId) {
+      const { data: position } = await db
+        .from('case_job_positions')
+        .select('name')
+        .eq('id', jobPositionId)
+        .maybeSingle()
+      jobPositionName = position?.name ?? null
+    }
 
     // 2. Cargar módulo del catálogo
     const { data: moduleTemplate } = await db
@@ -74,13 +84,13 @@ export async function POST(request: Request) {
 
     if (!moduleTemplate) throw new Error('módulo no en catálogo')
 
-    // 3. Cargar secciones con preguntas
+    // 3. Cargar secciones con preguntas del catálogo base
     const { data: sectionsRaw } = await db
       .from('sections')
       .select(`
-        id, code, name, description, sort_order, suggested_roles,
+        id, code, name, description, sort_order,
         questions (
-          id, text, nova_hint, sort_order, suggested_roles, response_type, is_active
+          id, text, nova_hint, sort_order, response_type, is_active
         )
       `)
       .eq('module_template_id', moduleTemplate.id)
@@ -88,33 +98,67 @@ export async function POST(request: Request) {
 
     if (!sectionsRaw || sectionsRaw.length === 0) throw new Error('sin secciones')
 
-    // 4. Cargar overrides del consultor para este caso
+    const sectionIds: string[] = sectionsRaw.map((s: any) => s.id)
+
+    // 4. Cargar overrides del consultor para este caso (activación, texto y mapeo a puesto)
     const { data: overridesRaw } = await db
       .from('case_question_overrides')
-      .select('question_id, is_active, custom_text')
+      .select('question_id, is_active, custom_text, job_position_ids')
       .eq('case_id', sessionData.case_id)
 
-    const overridesMap: Record<string, { is_active: boolean; custom_text: string | null }> = {}
+    const overridesMap: Record<string, { is_active: boolean; custom_text: string | null; job_position_ids: string[] }> = {}
     ;(overridesRaw ?? []).forEach((o: any) => {
-      overridesMap[o.question_id] = { is_active: o.is_active, custom_text: o.custom_text }
+      overridesMap[o.question_id] = {
+        is_active: o.is_active,
+        custom_text: o.custom_text,
+        job_position_ids: o.job_position_ids ?? [],
+      }
     })
 
-    // Ordenar preguntas y aplicar overrides (texto personalizado + activación)
-    const sections = sectionsRaw.map((s: any) => ({
-      ...s,
-      questions: (s.questions ?? [])
+    // 5. Cargar preguntas personalizadas del caso (antes nunca llegaban a Nova)
+    const { data: customRaw } = await db
+      .from('case_custom_questions')
+      .select('id, section_id, text, nova_hint, sort_order, is_active, job_position_ids')
+      .eq('case_id', sessionData.case_id)
+      .in('section_id', sectionIds)
+
+    const customBySection: Record<string, any[]> = {}
+    ;(customRaw ?? []).forEach((q: any) => {
+      if (!q.is_active) return
+      if (!customBySection[q.section_id]) customBySection[q.section_id] = []
+      customBySection[q.section_id].push(q)
+    })
+
+    // Aplicar overrides al catálogo base + fusionar preguntas personalizadas.
+    // Una pregunta (base o personalizada) sin ningún puesto mapeado en este
+    // caso queda oculta — no se le pregunta a nadie (sección 7 del PRD).
+    const sections = sectionsRaw.map((s: any) => {
+      const baseQuestions = (s.questions ?? [])
         .filter((q: any) => {
           const ov = overridesMap[q.id]
           return ov !== undefined ? ov.is_active : q.is_active
         })
-        .sort((a: any, b: any) => a.sort_order - b.sort_order)
         .map((q: any) => {
           const ov = overridesMap[q.id]
-          return ov?.custom_text ? { ...q, text: ov.custom_text } : q
-        }),
-    }))
+          return {
+            text: ov?.custom_text ?? q.text,
+            nova_hint: q.nova_hint,
+            sort_order: q.sort_order,
+            job_position_ids: ov?.job_position_ids ?? [],
+          }
+        })
 
-    systemPrompt = buildModulePromptFromCatalog(moduleTemplate, sections, userRole)
+      const customQuestions = (customBySection[s.id] ?? []).map((q: any) => ({
+        text: q.text,
+        nova_hint: q.nova_hint,
+        sort_order: q.sort_order,
+        job_position_ids: q.job_position_ids ?? [],
+      }))
+
+      return { ...s, questions: [...baseQuestions, ...customQuestions] }
+    })
+
+    systemPrompt = buildModulePromptFromCatalog(moduleTemplate, sections, jobPositionId, jobPositionName)
 
   } catch {
     // Fallback al prompt estático si el catálogo no está disponible aún

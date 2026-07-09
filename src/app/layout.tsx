@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RCP.ai',
+  title: 'www.bizdoctor.site',
   description: 'Plataforma SaaS de diagnóstico empresarial con IA'
 };
 

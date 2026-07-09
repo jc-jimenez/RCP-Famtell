@@ -5,6 +5,12 @@ import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import CasoTabs from '@/components/consultor/CasoTabs'
 
+interface PendingModule {
+  moduleCode: string
+  colorStatus: 'red' | 'amber' | 'green'
+  pending: { jobPositionId: string; jobPositionName: string; hasOccupant: boolean }[]
+}
+
 interface Props {
   caseId: string
   companyName: string
@@ -13,6 +19,7 @@ interface Props {
   initialBrief: any
   ierCounts: { blue: number; yellow: number; red: number }
   modulesCompleted: number
+  incompleteModules: PendingModule[]
 }
 
 // ── Track steps ────────────────────────────────────────────────────────────
@@ -24,7 +31,7 @@ const STEPS = [
   { id: 'jtbd',           label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
   { id: 'jtbd_comercial', label: 'JTBD Comercial', desc: 'Jobs de clientes validados' },
   { id: 'segmentos',     label: 'Segmentos',      desc: 'Segmentos validados y priorizados' },
-  { id: 'diagnostico',   label: 'Diagnóstico',    desc: 'Líneas prioritarias aprobadas' },
+  { id: 'diagnostico',   label: 'Prioridades',    desc: 'Líneas prioritarias aprobadas' },
   { id: 'plan',          label: 'Plan',           desc: 'Planes 90d/6m/1a/3a generados' },
   { id: 'publicado',     label: 'Publicado',      desc: 'Brief publicado al directivo' },
 ] as const
@@ -67,7 +74,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 }
 
 export default function BriefConsultorClient({
-  caseId, companyName, industry, email, initialBrief, ierCounts, modulesCompleted,
+  caseId, companyName, industry, email, initialBrief, ierCounts, modulesCompleted, incompleteModules,
 }: Props) {
   const [brief, setBrief]           = useState<any>(initialBrief ?? {})
   const [activeStep, setActiveStep] = useState<StepId>('interviews')
@@ -76,22 +83,33 @@ export default function BriefConsultorClient({
   const [uploadName, setUploadName] = useState('')
   const [uploadB64, setUploadB64]   = useState<string | null>(null)
   const [novaHints, setNovaHints]   = useState<Record<string, string>>({})
+  const [blockedError, setBlockedError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const interviewsComplete = modulesCompleted >= 7
 
   const track: Record<string, { status: 'complete' | 'active' | 'pending' }> = brief?.track_status ?? {}
 
   function stepStatus(stepId: StepId): 'complete' | 'active' | 'pending' {
     if (track[stepId]?.status === 'complete') return 'complete'
-    // Auto-detect primeras etapas
-    if (stepId === 'interviews') return modulesCompleted >= 1 ? 'complete' : 'active'
-    if (stepId === 'levantamiento') return modulesCompleted >= 7 ? 'complete' : modulesCompleted >= 1 ? 'active' : 'pending'
-    if (stepId === 'analisis') return Object.keys(brief?.module_findings ?? {}).length >= 3 ? 'complete' : 'active'
+    // Auto-detect primeras etapas — 'interviews'/'levantamiento' requieren TODOS
+    // los módulos realmente verdes (todos los puestos mapeados contestaron),
+    // no solo que alguien haya empezado. Ver moduleCompletion.ts.
+    if (stepId === 'interviews') return interviewsComplete ? 'complete' : 'active'
+    if (stepId === 'levantamiento') return interviewsComplete ? 'complete' : modulesCompleted >= 1 ? 'active' : 'pending'
+    if (stepId === 'analisis') return interviewsComplete && Object.keys(brief?.module_findings ?? {}).length >= 3 ? 'complete' : 'active'
     return track[stepId]?.status ?? 'pending'
   }
 
   function canApproveStep(stepId: StepId): boolean {
     const idx = STEPS.findIndex(s => s.id === stepId)
     return STEPS.slice(0, idx).every(s => stepStatus(s.id) === 'complete')
+  }
+
+  // A partir de 'levantamiento' nada puede avanzar con entrevistas incompletas:
+  // un Brief generado con voces faltantes queda sesgado (decisión del usuario, 2026-07-07).
+  function canAdvancePastLevantamiento(): boolean {
+    return interviewsComplete
   }
 
   async function approveStep(stepId: StepId) {
@@ -104,7 +122,12 @@ export default function BriefConsultorClient({
   }
 
   async function generate(section: string, extra?: any) {
+    if (!interviewsComplete) {
+      setBlockedError('No se puede generar: hay entrevistas incompletas. Revisa la etapa "Entrevistas" para ver qué falta.')
+      return
+    }
     setGenerating(section)
+    setBlockedError(null)
     try {
       const res = await fetch('/api/brief/generate', {
         method: 'POST',
@@ -117,6 +140,11 @@ export default function BriefConsultorClient({
           ...extra,
         }),
       })
+      if (res.status === 409) {
+        const data = await res.json()
+        setBlockedError(data.error ?? 'No se puede generar: hay entrevistas incompletas.')
+        return
+      }
       const { result, error } = await res.json()
       if (result) setBrief((p: any) => ({ ...p, [section]: result }))
       if (error) console.error(error)
@@ -259,32 +287,57 @@ export default function BriefConsultorClient({
           </p>
         </div>
 
+        {/* ── Bloqueo: entrevistas incompletas ── */}
+        {!interviewsComplete && activeStep !== 'interviews' && activeStep !== 'levantamiento' && (
+          <div className="card p-5 bg-rose-50 border-rose-200 space-y-2">
+            <p className="text-sm font-semibold text-rose-800">⛔ El Brief no se puede generar todavía</p>
+            <p className="text-xs text-rose-700">Hay entrevistas incompletas — un diagnóstico generado ahora quedaría sesgado hacia los puestos que sí contestaron. Completa lo que falta o reconfigura el mapeo de preguntas.</p>
+            <button onClick={() => setActiveStep('interviews')} className="text-xs text-rose-800 underline font-medium">Ver qué falta →</button>
+          </div>
+        )}
+        {blockedError && (
+          <div className="card p-4 bg-rose-50 border-rose-200">
+            <p className="text-sm text-rose-700">{blockedError}</p>
+          </div>
+        )}
+
         {/* ── Etapa: Entrevistas ── */}
         {activeStep === 'interviews' && (
           <div className="card p-6 space-y-4">
             <h2 className="text-base font-semibold text-ink">Entrevistas aplicadas</h2>
             <div className="flex items-center gap-4">
               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold ${
-                modulesCompleted >= 7 ? 'bg-emerald-100 text-emerald-700' :
-                modulesCompleted >= 1 ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-faint'
+                interviewsComplete ? 'bg-emerald-100 text-emerald-700' :
+                modulesCompleted >= 1 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
               }`}>
                 {modulesCompleted}/7
               </div>
               <div>
-                <p className="text-sm font-medium text-ink">{modulesCompleted} de 7 módulos completados</p>
+                <p className="text-sm font-medium text-ink">{modulesCompleted} de 7 módulos realmente completos</p>
                 <p className="text-xs text-muted mt-0.5">
-                  {modulesCompleted === 0 ? 'El directivo aún no ha iniciado ningún módulo' :
-                   modulesCompleted < 7  ? 'Puedes continuar con el análisis aunque no estén todos completos' :
-                   'Levantamiento completo — todos los módulos tienen sesión'}
+                  {interviewsComplete
+                    ? 'Todos los puestos con preguntas mapeadas ya contestaron.'
+                    : 'El Brief no se genera hasta que todos los puestos requeridos por módulo hayan contestado — no basta con que alguien haya empezado.'}
                 </p>
               </div>
             </div>
-            {modulesCompleted >= 1 && (
-              <button onClick={() => approveStep('interviews')} disabled={!canApproveStep('interviews')}
-                className="btn-primary text-sm px-4 py-2">
-                Aprobar y continuar →
-              </button>
+            {!interviewsComplete && incompleteModules.length > 0 && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-2">
+                <p className="text-xs font-medium text-rose-800">Módulos con entrevistas pendientes:</p>
+                {incompleteModules.map(m => (
+                  <div key={m.moduleCode} className="text-xs text-rose-700">
+                    <span className="font-semibold">{m.moduleCode}</span> — falta: {m.pending.map(p => `${p.jobPositionName}${!p.hasOccupant ? ' (sin participante invitado — reconfigura el mapeo)' : ''}`).join(', ')}
+                  </div>
+                ))}
+                <Link href={`/dashboard/caso/${caseId}?tab=participantes` as any} className="text-xs text-rose-800 underline font-medium inline-block pt-1">
+                  Ir a Participantes para invitar o reconfigurar →
+                </Link>
+              </div>
             )}
+            <button onClick={() => approveStep('interviews')} disabled={!canApproveStep('interviews') || !interviewsComplete}
+              className="btn-primary text-sm px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              Aprobar y continuar →
+            </button>
           </div>
         )}
 
@@ -293,11 +346,12 @@ export default function BriefConsultorClient({
           <div className="card p-6 space-y-4">
             <h2 className="text-base font-semibold text-ink">Levantamiento de información</h2>
             <p className="text-sm text-muted">
-              {modulesCompleted >= 7
+              {interviewsComplete
                 ? 'Todos los módulos completados. El levantamiento está listo para análisis.'
-                : `Faltan ${7 - modulesCompleted} módulos. Puedes continuar con el análisis o esperar a completarlos.`}
+                : `Faltan ${7 - modulesCompleted} módulos por completar del todo antes de poder continuar.`}
             </p>
-            <button onClick={() => approveStep('levantamiento')} className="btn-primary text-sm px-4 py-2">
+            <button onClick={() => approveStep('levantamiento')} disabled={!canAdvancePastLevantamiento()}
+              className="btn-primary text-sm px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
               Continuar con el análisis →
             </button>
           </div>
@@ -363,7 +417,7 @@ export default function BriefConsultorClient({
             ) : (
               <div className="space-y-3">
                 {jtbdList.map((j: any) => (
-                  <div key={j.id} className={`card p-4 space-y-3 transition-all ${j.approved ? 'border-emerald-200 bg-emerald-50/30' : ''}`}>
+                  <div key={j.id} className={`card p-4 space-y-3 transition-all ${j.approved ? 'border-emerald-200 bg-emerald-50/30' : ''} ${j.tag === 'descriptivo_vs_actividad' ? 'border-l-4 border-l-violet-400' : ''}`}>
                     <div className="flex items-start gap-3">
                       <button onClick={() => toggleApproveItem('jtbd', j.id)}
                         className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center text-xs transition-colors ${
@@ -372,6 +426,11 @@ export default function BriefConsultorClient({
                         {j.approved ? '✓' : ''}
                       </button>
                       <div className="flex-1 space-y-2">
+                        {j.tag === 'descriptivo_vs_actividad' && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-medium inline-block">
+                            🪪 Brecha descriptivo vs. actividad real{j.puesto ? ` — ${j.puesto}` : ''}
+                          </span>
+                        )}
                         <textarea rows={2} className="input-field w-full text-sm resize-none font-medium"
                           value={j.statement}
                           onChange={e => updateItem('jtbd', j.id, { statement: e.target.value })}

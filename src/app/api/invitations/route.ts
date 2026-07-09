@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
 import { sendWhatsApp } from '@/lib/twilio'
+import { getBaseUrl } from '@/lib/baseUrl'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
@@ -9,32 +12,51 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, email, role, jobTitle, permissions, whatsappPhone } = await request.json()
+  const {
+    caseId, email, role, jobTitle, jobPositionId, businessRoleId, permissions, whatsappPhone,
+    fullName, landlinePhone, seniority,
+  } = await request.json()
 
   if (!caseId || !email || !role) {
     return NextResponse.json({ error: 'caseId, email y role son requeridos' }, { status: 400 })
+  }
+  if (!whatsappPhone?.trim()) {
+    return NextResponse.json({ error: 'WhatsApp es obligatorio' }, { status: 400 })
+  }
+  if (!jobPositionId) {
+    return NextResponse.json({ error: 'Debes asignar un puesto del catálogo del caso' }, { status: 400 })
   }
   if (!['director', 'collaborator'].includes(role)) {
     return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
   }
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
-  // Verificar que el caso pertenece al consultor
-  const { data: account } = await db
-    .from('accounts')
-    .select('id')
-    .eq('email', session.user.email)
-    .maybeSingle()
+  let caseData: { id: string; company_name: string } | null = null
 
-  if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  if (isSuperAdminEmail(session.user.email)) {
+    const { data } = await db.from('cases').select('id, company_name').eq('id', caseId).maybeSingle()
+    caseData = data
+  } else {
+    // Verificar que el caso pertenece al consultor
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .maybeSingle()
 
-  const { data: caseData } = await db
-    .from('cases')
-    .select('id, company_name')
-    .eq('id', caseId)
-    .eq('account_id', account.id)
-    .single()
+    if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+
+    const { data } = await db
+      .from('cases')
+      .select('id, company_name')
+      .eq('id', caseId)
+      .eq('account_id', account.id)
+      .maybeSingle()
+    caseData = data
+  }
 
   if (!caseData) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
 
@@ -62,11 +84,16 @@ export async function POST(request: Request) {
       user_id: null,
       role,
       job_title: jobTitle ?? null,
+      job_position_id: jobPositionId,
+      business_role_id: businessRoleId ?? null,
       permissions_json: permissions ?? null,
       invitation_email: email,
       invitation_token: token,
       invitation_expires_at: expiresAt,
-      whatsapp_phone: whatsappPhone ?? null,
+      whatsapp_phone: whatsappPhone.trim(),
+      full_name: fullName?.trim() || null,
+      landline_phone: landlinePhone?.trim() || null,
+      seniority: seniority?.trim() || null,
     })
     .select()
     .single()
@@ -76,7 +103,7 @@ export async function POST(request: Request) {
   }
 
   // Enviar email de invitación con Resend
-  const activationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/activar/${token}`
+  const activationUrl = `${getBaseUrl()}/activar/${token}`
   const roleLabel = role === 'director' ? 'Directivo' : 'Colaborador'
 
   try {
@@ -86,7 +113,7 @@ export async function POST(request: Request) {
       subject: `Invitación a participar en el diagnóstico de ${caseData.company_name}`,
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0f172a; color: #e2e8f0; border-radius: 16px;">
-          <h1 style="color: #38bdf8; font-size: 24px; margin-bottom: 4px;">RCP.ai</h1>
+          <h1 style="color: #38bdf8; font-size: 24px; margin-bottom: 4px;">www.bizdoctor.site</h1>
           <p style="color: #64748b; font-size: 14px; margin-top: 0;">Diagnóstico empresarial con inteligencia artificial</p>
 
           <hr style="border-color: #1e293b; margin: 24px 0;" />
@@ -110,6 +137,9 @@ export async function POST(request: Request) {
           <p style="color: #475569; font-size: 12px; text-align: center;">
             Este enlace expira en 48 horas. Si no esperabas este correo, ignóralo.
           </p>
+          <p style="color: #334155; font-size: 11px; text-align: center; margin-top: 16px;">
+            www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+          </p>
         </div>
       `,
     })
@@ -124,7 +154,7 @@ export async function POST(request: Request) {
 
   // Enviar WhatsApp si tiene número registrado
   if (whatsappPhone) {
-    const waMsg = `Hola 👋 Fuiste invitado como *${roleLabel}* al diagnóstico empresarial de *${caseData.company_name}* en RCP.ai.\n\nActiva tu cuenta aquí:\n${activationUrl}\n\n_(Enlace válido 48 horas)_`
+    const waMsg = `Hola 👋 Fuiste invitado como *${roleLabel}* al diagnóstico empresarial de *${caseData.company_name}* en www.bizdoctor.site.\n\nActiva tu cuenta aquí:\n${activationUrl}\n\n_(Enlace válido 48 horas)_`
     await sendWhatsApp(whatsappPhone, waMsg)
   }
 

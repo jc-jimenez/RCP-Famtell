@@ -41,6 +41,16 @@ export default async function ComunicacionPage({ params }: { params: Promise<{ i
 
   if (!role) redirect('/dashboard')
 
+  // El consultor gestiona el catálogo completo (activas e inactivas);
+  // directivo/colaborador solo ven las activas para usarlas.
+  let templatesQuery = db
+    .from('communication_templates')
+    .select('id, category, label, channel, subject, body, is_active')
+    .eq('account_id', caseData.account_id)
+    .order('sort_order', { ascending: true })
+  if (role !== 'consultant') templatesQuery = templatesQuery.eq('is_active', true)
+  const { data: templates } = await templatesQuery
+
   return (
     <ComunicacionClient
       caseId={id}
@@ -48,6 +58,7 @@ export default async function ComunicacionPage({ params }: { params: Promise<{ i
       industry={caseData.industry ?? ''}
       role={role}
       email={session.user.email!}
+      initialTemplates={templates ?? []}
     />
   )
 }

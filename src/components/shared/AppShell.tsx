@@ -16,17 +16,17 @@ interface NavItem {
 const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   super_admin: [
     { label: 'Panel',          href: '/admin',                icon: '▦' },
+    { label: 'Usuarios',       href: '/admin/usuarios',       icon: '◉' },
     { label: 'Consultores',    href: '/admin/consultores',    icon: '◎' },
     { label: 'Casos',          href: '/admin/casos',          icon: '▣' },
     { label: 'Créditos',       href: '/admin/creditos',       icon: '◍' },
-    { label: 'Facturación',    href: '/admin/facturacion',    icon: '▧' },
-    { label: 'Premium',        href: '/admin/premium',        icon: '✦' },
-    { label: 'Catálogo',       href: '/admin/catalogo',       icon: '📋' },
+    { label: 'Módulos Diagnóstico', href: '/admin/catalogo', icon: '📋' },
+    { label: 'Roles',          href: '/admin/roles',          icon: '⚑' },
+    { label: 'Configuración',  href: '/settings',             icon: '⚙' },
   ],
   consultant: [
     { label: 'Mis casos',      href: '/dashboard',            icon: '▤' },
     { label: 'Nuevo caso',     href: '/dashboard/nuevo-caso', icon: '＋' },
-    { label: 'Premium',        href: '/premium',              icon: '✦' },
     { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
     { label: 'Configuración',  href: '/settings',             icon: '⚙' },
   ],
@@ -105,7 +105,7 @@ export default function AppShell({
           {/* Logo / marca */}
           <div className="px-5 py-5 flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-ink">
-              RCP<span className={ROLE_DOT[role]}>.ai</span>
+              bizdoctor<span className={ROLE_DOT[role]}>.site</span>
             </span>
             <span className={`badge ${ROLE_PILL[role]} ml-auto`}>{ROLE_LABEL[role]}</span>
           </div>
@@ -153,7 +153,7 @@ export default function AppShell({
           <div className="flex items-center gap-3">
             {!showSidebar && (
               <span className="text-base font-bold text-ink">
-                RCP<span className={ROLE_DOT[role]}>.ai</span>
+                bizdoctor<span className={ROLE_DOT[role]}>.site</span>
               </span>
             )}
             {caseCompanyName && (

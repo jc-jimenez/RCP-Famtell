@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { UserRole, TenantContext, PermissionsMap } from '@/types'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export async function detectUserRole(
   supabase: SupabaseClient,
@@ -8,7 +9,7 @@ export async function detectUserRole(
   email: string,
 ): Promise<TenantContext | null> {
   // 1. ¿Super Admin?
-  if (email === process.env.SUPER_ADMIN_EMAIL) {
+  if (isSuperAdminEmail(email)) {
     return {
       userId,
       email,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { accountToUI } from '@/lib/accounts'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,8 +10,7 @@ async function assertSuperAdmin() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
-  const isSA = session.user.email === process.env.SUPER_ADMIN_EMAIL
-  return isSA ? session : null
+  return isSuperAdminEmail(session.user.email) ? session : null
 }
 
 export async function GET() {

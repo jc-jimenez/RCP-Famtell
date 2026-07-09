@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import ModuleStartClient from '@/app/caso/[id]/modulo/[code]/ModuleStartClient'
 import type { ModuleCode } from '@/types'
+import { hasCapability } from '@/lib/permissions'
 
 // Los colaboradores usan el mismo componente de chat que el directivo
 // pero con el moduleCode de su instrumento asignado
@@ -30,7 +31,7 @@ export default async function ColaboradorModuloPage({
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  if (!caseUser || caseUser.role !== 'collaborator') redirect('/mis-modulos')
+  if (!caseUser || !hasCapability(caseUser.role, 'access_collaborator_workspace')) redirect('/mis-modulos')
 
   // permissions_json guardado como { modules: ['M6', 'M1', ...] }
   const permissions = caseUser.permissions_json as { modules?: string[] } | null

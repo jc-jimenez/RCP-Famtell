@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
-export async function POST(req: Request) {
+async function assertSuperAdmin() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!session) return null
+  return isSuperAdminEmail(session.user.email) ? session : null
+}
+
+export async function POST(req: Request) {
+  const session = await assertSuperAdmin()
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
   const body = await req.json()
   const { module_template_id, code, name, description, sort_order, suggested_roles } = body
-  const db = supabase as any
 
   const { data, error } = await db
     .from('sections')
@@ -21,12 +32,14 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const session = await assertSuperAdmin()
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
   const { id, ...updates } = await req.json()
-  const db = supabase as any
 
   const { data, error } = await db
     .from('sections')
@@ -40,12 +53,14 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const session = await assertSuperAdmin()
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
   const { id } = await req.json()
-  const db = supabase as any
   const { error } = await db.from('sections').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })

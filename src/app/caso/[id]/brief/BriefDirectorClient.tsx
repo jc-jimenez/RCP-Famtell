@@ -211,7 +211,7 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
 
         {/* Footer */}
         <div className="text-center text-xs text-faint pt-4 border-t border-subtle">
-          Generado con RCP.ai · {companyName} · {publishedDate}
+          Generado con www.bizdoctor.site · {companyName} · {publishedDate}
         </div>
       </div>
     </AppShell>

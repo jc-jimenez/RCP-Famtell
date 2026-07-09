@@ -24,6 +24,25 @@ export default function LoginPage() {
       return
     }
 
+    // signInWithPassword resuelve en cuanto Supabase responde, pero la cookie
+    // de sesión que el middleware necesita se escribe en un paso aparte y a
+    // veces no está lista todavía — navegar de inmediato hace que el
+    // middleware no encuentre sesión y rebote a /login sin ningún error
+    // visible. Se confirma con getSession() (con un par de reintentos cortos)
+    // antes de navegar, para no depender de que la escritura ya haya ocurrido.
+    let confirmed = false
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) { confirmed = true; break }
+      await new Promise(r => setTimeout(r, 150))
+    }
+
+    if (!confirmed) {
+      setError('No se pudo confirmar la sesión. Intenta de nuevo.')
+      setLoading(false)
+      return
+    }
+
     // Recarga COMPLETA a la raíz (no client-side) para que el navegador
     // envíe la cookie de sesión recién escrita y el middleware detecte el rol.
     window.location.assign('/')
@@ -36,7 +55,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-ink">
-            RCP<span className="text-accent">.ai</span>
+            www.bizdoctor<span className="text-accent">.site</span>
           </h1>
           <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
         </div>
@@ -113,6 +132,10 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+
+        <p className="text-center text-xs text-faint mt-6">
+          www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
+        </p>
       </div>
     </main>
   )

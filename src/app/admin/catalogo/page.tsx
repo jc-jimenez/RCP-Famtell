@@ -4,11 +4,12 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import CatalogoAdminClient from './CatalogoAdminClient'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export default async function CatalogoAdminPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  if (!session || !isSuperAdminEmail(session.user.email)) redirect('/login')
 
   const db = supabase as any
   const { data: modules } = await db
@@ -34,9 +35,16 @@ export default async function CatalogoAdminPage() {
       })),
   }))
 
+  // Catálogo global de roles de negocio — reemplaza la lista hardcodeada de
+  // "roles sugeridos" (sección 16 del PRD, Obs 2)
+  const { data: businessRoles } = await db
+    .from('business_roles')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
+
   return (
     <AppShell role="super_admin" email={session.user.email!}>
-      <CatalogoAdminClient initialModules={sorted} />
+      <CatalogoAdminClient initialModules={sorted} businessRoles={businessRoles ?? []} />
     </AppShell>
   )
 }

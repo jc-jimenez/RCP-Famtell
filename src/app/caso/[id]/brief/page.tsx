@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import BriefConsultorClient from './BriefConsultorClient'
 import BriefDirectorClient from './BriefDirectorClient'
+import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -54,14 +55,11 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   const ierCounts = { blue: 0, yellow: 0, red: 0 }
   ;(signals ?? []).forEach((s: any) => ierCounts[s.signal_type as keyof typeof ierCounts]++)
 
-  // Módulos completados (tienen al menos una sesión)
-  const { data: completedSessions } = await db
-    .from('sessions')
-    .select('module_code')
-    .eq('case_id', id)
-
-  const uniqueModules = new Set((completedSessions ?? []).map((s: any) => s.module_code))
-  const modulesCompleted = uniqueModules.size
+  // Avance REAL por módulo: todos los puestos con preguntas mapeadas deben
+  // haber terminado su entrevista, no solo "existe una sesión" (ver moduleCompletion.ts).
+  const allCompletion = await computeAllModulesCompletion(db, id)
+  const modulesCompleted = allCompletion.filter(m => m.colorStatus === 'green').length
+  const incompleteModules = allCompletion.filter(m => m.colorStatus !== 'green')
 
   if (isConsultant) {
     return (
@@ -73,6 +71,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         initialBrief={brief ?? null}
         ierCounts={ierCounts}
         modulesCompleted={modulesCompleted}
+        incompleteModules={incompleteModules}
       />
     )
   }

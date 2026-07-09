@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import AppShell from '@/components/shared/AppShell'
 import ConsultoresClient from './ConsultoresClient'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,7 @@ export default async function ConsultoresPage() {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session || session.user.email !== process.env.SUPER_ADMIN_EMAIL) {
+  if (!session || !isSuperAdminEmail(session.user.email)) {
     redirect('/login')
   }
 
@@ -19,7 +20,7 @@ export default async function ConsultoresPage() {
   // Cuentas con créditos
   const { data: accounts } = await admin
     .from('accounts')
-    .select('id, email, company_name, credits_total, credits_used, plan_id, status, created_at')
+    .select('id, email, company_name, full_name, whatsapp_phone, credits_total, credits_used, plan_id, status, created_at')
     .order('created_at', { ascending: false })
 
   // Último login de cada usuario (auth.users vía admin)
@@ -44,6 +45,8 @@ export default async function ConsultoresPage() {
     id: a.id,
     email: a.email,
     company_name: a.company_name ?? '',
+    full_name: a.full_name ?? null,
+    whatsapp_phone: a.whatsapp_phone ?? null,
     credits_balance: (a.credits_total ?? 0) - (a.credits_used ?? 0),
     credits_total: a.credits_total ?? 0,
     subscription_plan: a.plan_id ?? 'starter',

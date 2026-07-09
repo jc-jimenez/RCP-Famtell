@@ -37,9 +37,9 @@ export default async function PlanDiagnosticoPage({
     .select(`
       id, code, name, sort_order,
       sections (
-        id, code, name, sort_order, suggested_roles,
+        id, code, name, sort_order,
         questions (
-          id, text, nova_hint, sort_order, suggested_roles, is_active
+          id, text, nova_hint, sort_order, is_active
         )
       )
     `)
@@ -48,14 +48,21 @@ export default async function PlanDiagnosticoPage({
   // Overrides del consultor para este caso
   const { data: overrides } = await db
     .from('case_question_overrides')
-    .select('question_id, is_active, custom_text, roles_override')
+    .select('question_id, is_active, custom_text, job_position_ids')
     .eq('case_id', caseId)
 
   // Preguntas custom creadas por el consultor para este caso
   const { data: customQuestions } = await db
     .from('case_custom_questions')
-    .select('id, section_id, text, nova_hint, sort_order, suggested_roles, is_active')
+    .select('id, section_id, text, nova_hint, sort_order, is_active, job_position_ids')
     .eq('case_id', caseId)
+
+  // Catálogo de puestos de este caso (sección 7 del PRD)
+  const { data: positions } = await db
+    .from('case_job_positions')
+    .select('id, name, description, job_description, job_description_source_file, business_role_id, created_at')
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: true })
 
   const sorted = (modules ?? []).map((m: any) => ({
     ...m,
@@ -67,12 +74,12 @@ export default async function PlanDiagnosticoPage({
       })),
   }))
 
-  const overridesMap: Record<string, { is_active: boolean; custom_text: string | null; roles_override: string[] | null }> = {}
+  const overridesMap: Record<string, { is_active: boolean; custom_text: string | null; job_position_ids: string[] }> = {}
   ;(overrides ?? []).forEach((o: any) => {
     overridesMap[o.question_id] = {
       is_active: o.is_active,
       custom_text: o.custom_text,
-      roles_override: o.roles_override ?? null,
+      job_position_ids: o.job_position_ids ?? [],
     }
   })
 
@@ -90,6 +97,8 @@ export default async function PlanDiagnosticoPage({
       modules={sorted}
       initialOverrides={overridesMap}
       initialCustomBySection={customBySection}
+      initialPositions={positions ?? []}
+      puestosHref={`/dashboard/caso/${caseId}/puestos`}
     />
   )
 }

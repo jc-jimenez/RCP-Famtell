@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { MODULE_CREDITS, checkCredits } from '@/lib/credits'
+import { checkCredits } from '@/lib/credits'
 import type { ModuleCode } from '@/types'
 
 // POST — crear o recuperar sesión de un módulo
@@ -50,7 +50,12 @@ export async function POST(request: Request) {
     .single()
 
   if (caseData?.account_id) {
-    const cost = MODULE_CREDITS[moduleCode] ?? 10
+    const { data: moduleTemplate } = await (admin ?? db)
+      .from('module_templates')
+      .select('credit_cost')
+      .eq('code', moduleCode)
+      .maybeSingle()
+    const cost = moduleTemplate?.credit_cost ?? 10
     const { ok, remaining } = await checkCredits(creditsClient, caseData.account_id, cost)
     if (!ok) {
       return NextResponse.json(

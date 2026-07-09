@@ -1,0 +1,426 @@
+# RCPFAMTELL3PL — PRD (v2, alcance delgado)
+
+> Nuevo nombre del proyecto: **RCPFAMTELL3PL**. Refleja el alcance real: diagnóstico RCP enfocado en Famtell como operador 3PL, no una plataforma genérica multi-giro (ver sección 2).
+
+> Reemplaza el alcance original de 52 pantallas / 4 roles / 8+módulos premium. Este documento define qué se conserva del código construido, qué se corta, y cuál es el objetivo no negociable del producto.
+
+## 1. Objetivo del producto (north star)
+
+RCP.ai existe para producir, para una empresa cliente (caso ancla: **Famtell**, operador logístico 3PL + Almacén Fiscal, Corredor CTT), un diagnóstico empresarial con IA que **termina siempre en tres entregables concretos**:
+
+1. **Plan de rescate 0-90 días** — acciones concretas, accionables esta semana, no genéricas.
+2. **Plan a 1 año** — cómo se sostiene y consolida lo logrado en los 90 días.
+3. **Visión a 3 años** — cómo se escala el negocio a partir de esa base.
+
+Todo módulo del sistema existe para alimentar con evidencia estos tres entregables. Si un módulo no aporta insumo directo al Plan 90d/1a/3a, no es núcleo.
+
+Esto ya está construido y funcionando: `plan_90d`, `plan_1a`, `plan_3a` en el Brief (M7) — ver `src/app/caso/[id]/brief/BriefConsultorClient.tsx` y `BriefDirectorClient.tsx`. Es el corazón del producto, no una pantalla más.
+
+## 2. Cliente ancla
+
+**Famtell** — operador 3PL con Almacén Fiscal habilitado, Corredor CTT (Cuautitlán-Tultitlán-Tepotzotlán). El producto se diseña y prioriza para poder ejecutar bien este diagnóstico primero. Verticalización logística (Capacidad de Almacén, Monitor de Competencia 3PL) se mantiene como núcleo mientras Famtell sea el caso ancla — no se generaliza a "cualquier giro" todavía.
+
+## 3. Núcleo que se conserva (código reutilizable, ~20k LOC)
+
+| Área | Qué es | Por qué se queda |
+|---|---|---|
+| M1-M6 (Radiografías) | Entrevista con Nova por área: Comercial, Operativa, Contactos, Financiera, Competitiva, Interna | Insumo crudo para el diagnóstico |
+| M7 (Síntesis + Plan) | Genera Brief: hallazgos + `plan_90d` + `plan_1a` + `plan_3a` | **Es el producto.** Entregable final |
+| Sistema de créditos | Consumo/descuento por módulo, plan del consultor | Modelo comercial ya operativo |
+| CRM ligero (8.1) | Contactos importados de M3, kanban de seguimiento | Usado activamente, base de ejecución post-Brief |
+| Generador de propuestas (8.2) | Propuesta comercial con IA a partir del Brief | Monetiza el diagnóstico |
+| Calculadora de tarifas (8.3) | Cotización rápida por tipo de proyecto | Bajo costo, alto uso |
+| Tablero de KPIs + Check-in semanal (8.4/8.5) | Seguimiento del plan 90 días, semáforo, check-in lunes | Es cómo se demuestra que el plan 0-90d se está cumpliendo |
+| Tracker de Capacidad de Almacén (8.6) | m² → pesos, ocupación, rotación | Núcleo mientras el ancla sea 3PL |
+| Monitor de Competencia (8.10) | Comparativa radar vs competidores CTT | Núcleo mientras el ancla sea 3PL — simplificar a solo lectura si el input manual no se usa |
+| Auth + rol Directivo | Login, invitación, activación, `/mi-caso` (ver Brief, KPIs) | Sin esto el dueño de la empresa no recibe el resultado |
+| Admin (recortado) | Métricas básicas, gestión de consultores, catálogo de preguntas | Solo estas 3 — el resto se corta (ver abajo) |
+
+## 4. Qué se corta (cero costo, cero valor hoy)
+
+- **Premium A-G** (Valuación, Palancas financieras, Riesgo, M&A, Proyección, Brechas de rol, Capital humano) — **CORTADO (2026-07-06).** Tenían routing y toggle real en BD, pero verificado en código: sin `module_templates` ni prompts estáticos para A-G (`prompts/index.ts` solo cubre M1-M7), el chat se abría sin ningún guion de Nova. Cascarón real bajo una plomería que parecía completa. Eliminados: `src/app/premium/*`, `src/app/admin/premium/*`, `src/app/api/premium/route.ts`, `src/app/api/admin/premium/route.ts`, tipo `PremiumModuleCode`/`PremiumModule`, `PREMIUM_CREDITS`. La tabla `premium_modules` en Supabase se deja intacta (no se dropeó, bajo riesgo dejarla sin usar). Si algún día un cliente lo pide, se re-evalúa como módulo nuevo con su propio catálogo de preguntas, no se rescata este código.
+- **Facturación en Admin** — **CORTADO (2026-07-06).** Verificado: era una página estática (redirección a Stripe Dashboard + precios hardcoded), sin lógica propia. Eliminado `src/app/admin/facturacion/page.tsx`. El checkout de Stripe real (`/api/billing/checkout`, webhook) no se tocó, sigue funcionando.
+- **Integración SAT/ERP (8.13)** — no existe en código, solo era concepto. Nada que cortar.
+- **Brief de Cierre Semana 12 (8.14)** — no existe en código. Si se necesita un cierre a semana 12, es una variante del Brief existente, no una pieza nueva.
+- **Radar de Prospectos agnóstico a giro (8.7)** — mantenido pero fuera del núcleo: es una herramienta de prospección para el consultor, no alimenta el Plan 90d/1a/3a de Famtell directamente. Se conserva como utilidad secundaria, no se invierte más en generalizarlo.
+- **Portal del Cliente (8.11)** — se mantiene mínimo (login + ver Brief), no se expande.
+
+> ⚠️ **Corrección (2026-07-06):** este documento decía que WhatsApp Business (8.12) era placeholder — **era un error de la auditoría inicial.** Verificado en código: `sendWhatsApp` (`src/lib/twilio.ts`) es una integración real con la API de Twilio, usada de verdad en invitaciones (`api/invitations/route.ts`) y recordatorios de check-in semanal (`api/cron/checkin-reminder/route.ts`). **No se corta — es parte del núcleo**, coherente con lo que ya indicaba la memoria del proyecto (Fase 2 completada). Se mueve a la sección 3 (núcleo) mentalmente; no se repite la tabla completa aquí.
+
+## 5. Roles (sin cambio de fondo, recorte de pantallas)
+
+- **Consultor** — dueño del caso, corre M1-M7, genera Brief, da seguimiento con CRM/Propuestas/Tarifas/KPIs.
+- **Directivo** (Famtell) — recibe invitación, responde módulos asignados, ve el Brief publicado y el tablero de KPIs.
+- **Colaborador** — mandos medios de Famtell, responde módulos asignados.
+- **Super Admin** — 3 pantallas: métricas, consultores, catálogo de preguntas. Se corta el resto.
+
+## 6. Criterio para decidir features nuevas de aquí en adelante
+
+Antes de construir algo nuevo, responder: *¿esto mejora directamente el Plan 90d, el Plan 1 año, o la Visión 3 años de Famtell — o el seguimiento de que se cumplan?* Si la respuesta es no, no entra al alcance ahora.
+
+## 7. Modelo de puestos y mapeo de preguntas (✅ completado — Fase 2)
+
+Verificado en el código (2026-07-06): hoy el "puesto de negocio" es un enum fijo de 6 valores hardcodeado (`director_general`, `gerente_comercial`, `gerente_operativo`, `cfo_contador`, `rrhh_admin`, `gerente_marketing`), igual para cualquier caso — ver `ParticipantesPanel.tsx` (perfiles) y `questions.suggested_roles` (catálogo). Decisión: esto no sirve, el catálogo de puestos debe ser **específico de cada empresa/caso**, creado por el consultor.
+
+### Reglas del nuevo modelo
+
+1. **Catálogo de puestos por caso** — el consultor da de alta los puestos reales de la empresa (para Famtell: los puestos que van a participar), independiente del catálogo genérico de otro caso. **Al crear cada puesto es obligatorio capturar su descriptivo de puesto** (texto: funciones y responsabilidades declaradas). El descriptivo pertenece al puesto, no a la persona que lo ocupa — si cambia quién ocupa el puesto, el descriptivo no cambia.
+2. **Puesto de negocio ≠ rol de plataforma** — `case_users.role` (consultant/director/collaborator) sigue existiendo para permisos del sistema; el puesto de negocio es una dimensión aparte que determina qué preguntas le tocan a la persona.
+3. **Análisis de brecha descriptivo vs. actividad real (✅ completado 2026-07-08, retoma la idea de Premium F "Brechas de rol", cortado en la sección 4 — ya no es módulo aparte, es parte del núcleo).** Al generar la sección "Diagnósticos Clave" del Brief, la IA compara el descriptivo de cada puesto contra lo que su ocupante dijo en TODAS sus entrevistas (no solo M6), y agrega 0-N diagnósticos más al mismo array con `"tag": "descriptivo_vs_actividad"` y `"puesto": "<nombre>"` — mezclados con los diagnósticos generales, no en pantalla aparte (decisión explícita del usuario). En la UI (`BriefConsultorClient.tsx`) se distinguen con una etiqueta violeta "🪪 Brecha descriptivo vs. actividad real — {puesto}" y un borde lateral. Solo se genera para puestos que tienen **descriptivo capturado Y al menos una entrevista completada** por su ocupante (decisión explícita del usuario) — sin descriptivo o sin entrevista, ese puesto simplemente no entra al análisis, no se inventa nada. Implementación: `api/brief/generate/route.ts` arma un bloque de texto "DESCRIPTIVO vs. LO QUE DIJO" por puesto elegible y lo inyecta al prompt de la sección `jtbd`. Validado con datos reales del caso Famtell: 6 puestos elegibles (los 6 con entrevista real completada tras el arreglo de gating), 6 brechas específicas y creíbles generadas (ej. "El Gerente de Marketing y Desarrollo de Negocio no está generando leads ni ejecutando estrategias de..."), ninguna genérica ni inventada. Resultado no persistido en el Brief publicado del caso real (solo probado, no guardado, para no alterar el entregable ya publicado sin decisión explícita).
+3. **Preguntas base + mapeo por caso** — el sistema ya genera una serie de preguntas base por módulo (catálogo M1-M7 existente). Para cada caso, el consultor puede: activar/desactivar preguntas base (ya existe: `case_question_overrides.is_active`), modificar el texto (ya existe: `custom_text`), agregar preguntas nuevas propias del caso (ya existe: `case_custom_questions`) — y **además** asignar uno o más puestos del catálogo de ESE caso a cada pregunta (nuevo, no existe: hoy `suggested_roles` apunta al enum fijo, no a un catálogo dinámico).
+4. **Pregunta sin puesto asignado = oculta.** Si el consultor no mapeó una pregunta a ningún puesto del caso, esa pregunta no se le muestra a nadie. Esto obliga a completar el mapeo antes de lanzar el caso — es un cambio de comportamiento respecto a hoy (donde `suggested_roles` vacío = visible para todos).
+
+### Cambios de esquema necesarios (✅ todos construidos — Fase 2)
+
+- `case_job_positions` (id, case_id, name, job_description, created_at) — catálogo de puestos del caso. `job_description` obligatorio al crear.
+- `case_users.job_position_id` → FK a `case_job_positions`, en paralelo a `role` (no lo reemplaza). Los campos `job_description_text`/`job_description_url` que hoy existen en `case_users` quedan obsoletos para este flujo — el descriptivo vive en el puesto, no en el usuario — y se retiran una vez migrado.
+- Paso nuevo en la generación del Brief (M7): para cada puesto con `job_description`, cruzar con las respuestas de quien lo ocupa y producir el hallazgo de alineación/brecha descrito arriba.
+- Redefinir el mapeo pregunta↔puesto para que sea contra `case_job_positions` en vez del enum fijo: puede reutilizarse `case_question_overrides.roles_override` (hoy `text[]` de nombres de enum) cambiándolo a `text[]`/tabla puente de `job_position_id`s, o crear `case_question_position_map (case_id, question_id, job_position_id)` como tabla muchos-a-muchos dedicada.
+- `build-from-catalog.ts` deja de comparar `job_title` contra `suggested_roles` (enum) y pasa a resolver, por caso, qué preguntas están mapeadas al `job_position_id` del usuario — y si una pregunta no tiene ningún puesto mapeado en este caso, se excluye del guion (no se le pregunta a nadie).
+- Pantalla nueva de consultor (no existe hoy): "Puestos y mapeo de preguntas" dentro del caso, para crear el catálogo de puestos y hacer el mapeo, antes de invitar participantes.
+
+**✅ Paso 1-2 de la Fase 2 completados y verificados en navegador (2026-07-06):** migración 023 corrida en Supabase; panel "Puestos" agregado a `/dashboard/caso/[id]/plan` (crear/editar/borrar puesto con descriptivo obligatorio); mapeo pregunta↔puesto vía `job_position_ids` en `case_question_overrides`/`case_custom_questions`. Probado end-to-end con la cuenta de consultor real: crear puesto → mapear pregunta → recargar página → el mapeo persiste. El toggle de roles (enum viejo) se dejó visible en paralelo, marcado como legado — se retira en el paso 4 cuando el filtro de Nova use `job_position_ids` en vez de `suggested_roles`.
+
+**✅ Paso 3 completado y verificado (2026-07-06):** `ParticipantesPanel.tsx` reescrito — el consultor elige el puesto del catálogo del caso (no los 6 perfiles fijos) y por separado el rol de plataforma (Director General vs Colaborador, independientes). `api/invitations/route.ts` ahora exige `jobPositionId` y lo guarda en `case_users.job_position_id`. Probado end-to-end: invitación creada con puesto real, `job_position_id` confirmado vía API de Supabase apuntando al UUID correcto del puesto. Si el caso no tiene puestos creados todavía, el modal de invitar bloquea el envío y dirige a crear puestos primero en Plan de Diagnóstico.
+
+**✅ Paso 4 completado (2026-07-06):** `api/ai/chat/route.ts` y `build-from-catalog.ts` reescritos — Nova ahora filtra por `job_position_id` del `case_user` (antes comparaba `job_title` contra un enum de roles). Una pregunta sin ningún puesto mapeado en `job_position_ids` queda excluida del guion, no se le pregunta a nadie. **De paso se corrigió un gap real**: las preguntas personalizadas del caso (`case_custom_questions`) nunca llegaban al chat de Nova — el endpoint solo leía el catálogo base; ahora se fusionan correctamente por sección. Se retiró el toggle de roles legado de `PlanDiagnosticoClient.tsx` (ya no tenía ningún efecto real).
+
+Verificado replicando la consulta exacta de `chat/route.ts` contra la base real: de 29 preguntas de M1, solo la única mapeada al puesto "Gerente de Almacén Fiscal" queda visible — confirma el filtrado a nivel de datos. Nota histórica: en su momento esto no se pudo verificar con una conversación real de Nova en navegador porque el link de activación de invitaciones apuntaba al dominio de producción en vez de localhost — **corregido, ver sección 12**.
+
+## 12. Bug del link de activación en modo dev (✅ corregido 2026-07-08)
+
+`NEXT_PUBLIC_APP_URL` en `.env.local` está fijo a `https://rcp.gonextsales.com` (necesario para que el build de producción no dependa de una variable distinta). El problema: 5 lugares del código usaban esta variable directamente para construir links absolutos, así que corriendo `npm run dev` local cualquier link generado (invitación, checkout de Stripe, verificación de registro) apuntaba al sitio en producción en vez de `localhost:3000` — bloqueaba probar el flujo de activación de cuentas nuevas en desarrollo.
+
+**Corregido con `src/lib/baseUrl.ts`** (`getBaseUrl()`: `http://localhost:3000` si `NODE_ENV === 'development'`, si no `NEXT_PUBLIC_APP_URL`), aplicado en `api/invitations`, `api/billing/checkout`, `api/registro/send-code`, `api/cron/checkin-reminder`.
+
+**Bug relacionado encontrado y corregido de paso**: `caso/[id]/modulo/[code]/page.tsx` inicializaba los módulos de un caso nuevo con un `fetch()` HTTP a su propia API (`/api/modules?caseId=...`) usando esta misma variable — además de apuntar mal en dev, ese patrón nunca reenvía las cookies de sesión del usuario, así que la llamada interna siempre devolvía 401 en silencio (el error nunca se revisaba). Se extrajo la lógica de inicialización a `src/lib/modules.ts` (`ensureModulesInitialized`) y el server component la llama directo, sin HTTP de por medio.
+
+Validado: invitación real de prueba generó `activationUrl: http://localhost:3000/activar/...`, y la página `/activar/[token]` cargó y validó el token correctamente en el navegador local.
+
+Con esto, la Fase 2 completa (pasos 1-4) queda cerrada.
+
+## 13. Bug crítico: login exitoso rebotaba a /login sin error (✅ corregido 2026-07-08)
+
+Reportado por el usuario en vivo, probando el sistema después de que se le indicara que ya estaba listo: entraba el usuario y contraseña correctos, daba clic en "Entrar", y "no hizo nada" — sin mensaje de error, sin navegar, el formulario simplemente volvía a quedar vacío. Reproducido de inmediato en navegador y con requests aislados.
+
+**Causa raíz**: `src/app/page.tsx` (la ruta `/`) tenía código placeholder que **redirigía siempre a `/login`, sin verificar sesión ni rol, para cualquier usuario**. El middleware sí tiene la lógica correcta para redirigir `/` según el rol (consultor→`/dashboard`, directivo→`/caso/[id]`, colaborador→`/mis-modulos`), pero no se pudo confirmar que esté interceptando esta ruta en este entorno de desarrollo (se probó con debug headers/query params — el redirect que llegaba al navegador no traía ningún rastro de haber pasado por el middleware, solo el de `page.tsx`). El resultado: **todo login exitoso, de cualquier usuario, en cualquier momento, terminaba de vuelta en la pantalla de login** — no era intermitente ni nuevo de hoy, es un bug de fondo que probablemente lleva ahí desde que se escribió ese archivo, enmascarado en las pruebas anteriores porque los scripts de QA de esta sesión siempre navegaban directo a una URL específica (`/dashboard`, `/caso/[id]/...`), nunca a `/`.
+
+**Corregido**: `page.tsx` ahora resuelve sesión/rol por sí mismo (mismo patrón que el resto de páginas de servidor de la app) y redirige correctamente, sin depender de que el middleware intercepte `/`. De paso, `login/page.tsx` ahora confirma con `getSession()` (reintentos cortos) que la sesión quedó escrita antes de navegar — refuerzo adicional, no la causa raíz de este bug puntual, pero reduce el riesgo de timing en general.
+
+**Validado** repetidamente en navegador real y con requests aislados (cookie fresca, sin contaminación de sesiones previas) para los 3 roles: consultor → `/dashboard`, directivo → `/caso/[id]`, colaborador → `/mis-modulos`. Consistente en múltiples intentos tras el fix, donde antes fallaba 100% de las veces.
+
+## 14. Rebranding: RCP.ai → www.bizdoctor.site (✅ 2026-07-08)
+
+Decisión del usuario: el nombre de marca visible del producto cambia de "RCP.ai" a "**www.bizdoctor.site**" en todas las superficies de cara al usuario — logo del header/sidebar/topbar, título de pestaña del navegador, páginas públicas (login, registro, recuperar contraseña, activar cuenta, portal del cliente, encuesta de clima), footer del Brief publicado, emails y mensajes de WhatsApp transaccionales (invitación, verificación de registro, recordatorio de check-in), remitente por default de correo (`noreply@bizdoctor.site`), y las instrucciones internas de Nova (se presenta como parte de www.bizdoctor.site).
+
+Se agregó la línea de crédito **"www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School"** en las superficies públicas: login, registro, activación de cuenta, portal del cliente, y los 3 templates de email/WhatsApp.
+
+**Deliberadamente NO se tocó:**
+- El nombre legal de la entidad operadora (GoNextSales S.A. de C.V.) en el texto de privacidad — solo el nombre de marca entre comillas dentro de ese mismo texto.
+- `package.json`, el nombre del repo/carpeta, ni ningún identificador interno de código — mismo criterio que la decisión original de mantener `rcpai`/`RCPFAMTELL3PL` como nombre de proyecto interno (sección 2), separado del nombre de marca visible.
+- El dominio real de despliegue: `NEXT_PUBLIC_APP_URL` en producción sigue apuntando a `rcp.gonextsales.com` — solo se actualizó el *fallback* en código (`src/lib/baseUrl.ts`) para cuando esa variable de entorno falta. Si se quiere que el sitio realmente viva en `www.bizdoctor.site`, eso requiere aprovisionar DNS/dominio en Vercel por separado — no se hizo aquí.
+
+### Flujo resultante para el consultor (Famtell)
+
+1. Crear el caso → dar de alta el catálogo de puestos de Famtell.
+2. Revisar preguntas base por módulo: activar/desactivar, editar texto, agregar preguntas propias.
+3. Mapear cada pregunta activa a uno o más puestos del catálogo de Famtell.
+4. Invitar participantes y asignar a cada uno su puesto del catálogo (independiente de si su rol de plataforma es directivo o colaborador).
+5. Nova solo pregunta a cada participante lo que está mapeado a su puesto.
+
+### Catálogo real de puestos de Famtell (2026-07-06, confirmado por el usuario)
+
+Los 13 puestos reales del organigrama de Famtell, para cargar cuando se arme el caso de producción:
+Director General · Gerente Comercial · Gerente de Operaciones · Gerente Administración · Asesor Comercial Interno · Asesor Comercial Externo · Gerente de Almacén · Analista Facturación · Coordinador General de Almacén · Analista Administrativo · Supervisor Mantenimiento y Seguridad · Operador Montacarguista · Auxiliar General.
+
+**Decisión de diseño (explícita del usuario):** qué puestos participan en las entrevistas y con qué preguntas es decisión del consultor con el equipo directivo — el sistema no lo predefine ni lo limita. Por eso los catálogos son configurables (altas/bajas/cambios) y las preguntas asignables por puesto. El sistema solo provee la mecánica.
+
+### 7.1 Seguimiento de avance de entrevistas (✅ completado 2026-07-07)
+
+Requerimiento del usuario (2026-07-06): si un usuario está configurado con rol + puesto + preguntas asignadas, el sistema debe validar que **todos** los asignados hayan contestado, y el consultor necesita visibilidad y control sobre ese avance.
+
+Esto resolvía el hueco de diseño detectado en el recorrido conceptual: `modules` tiene una sola fila por caso+módulo (`UNIQUE(case_id, module_code)`), y **el primer participante que terminaba marcaba todo el módulo como completado** y desbloqueaba el siguiente, aunque otros puestos asignados no hubieran empezado.
+
+**Decisión revisada del usuario (2026-07-07) — endurece el diseño original de "advertencia, no bloqueo":** el diagnóstico solo sirve si es 100% efectivo. El Brief NO se genera con entrevistas incompletas (bloqueo real, no advertencia), la barra de progreso debe ser roja/ámbar/verde (no solo verde-o-no), y no se avanza al siguiente módulo hasta que el actual esté verde — lo que obliga al consultor a elegir entre conseguir la entrevista faltante o reconfigurar el mapeo de esa pregunta a otro puesto.
+
+**Implementación:**
+- `src/lib/moduleCompletion.ts` (nuevo, sin migración): calcula en vivo, no desde una columna guardada, qué puestos tienen al menos una pregunta activa mapeada en cada módulo (base catálogo + `case_question_overrides` + `case_custom_questions`, mismo criterio que usa Nova para construir el guion), y de esos cuáles ya tienen una sesión `completed=true` de su ocupante. `colorStatus`: **verde** = todos los puestos requeridos completaron; **ámbar** = algunos sí, otros no; **rojo** = nadie, o el módulo no tiene ningún puesto mapeado todavía (esto último se trata como error de configuración, no como "nada que bloquear" — un módulo sin nadie mapeado significa que a nadie se le preguntaría nada ahí).
+- `api/modules` (POST completar): ya NO marca el módulo `completed` ni desbloquea el siguiente con el primer participante — solo lo hace cuando `computeModuleCompletion` da verde. Los créditos se siguen descontando por cada sesión individual que termina (es el consumo real de ese participante), independiente del estado del módulo completo.
+- `api/brief/generate`: bloqueo duro al inicio — si `isCaseFullyComplete` no da true para los 7 módulos, responde 409 con el detalle exacto de qué puesto falta en qué módulo, y no llama a Claude (tampoco cobra créditos por una generación que no procede).
+- UI: `caso/[id]/page.tsx` (Mis Módulos) y `dashboard/caso/[id]/page.tsx` (Diagnóstico del consultor) muestran rojo/ámbar en el módulo activo con la lista de puestos pendientes inline. `BriefConsultorClient.tsx`: el paso "Entrevistas" muestra el detalle real por módulo con link directo a Participantes para reconfigurar, y los botones "Aprobar y continuar"/"Continuar con el análisis" quedan deshabilitados hasta que los 7 módulos estén verdes. Se quitó el mensaje "puedes continuar con el análisis aunque no estén todos completos".
+- **Bug crítico encontrado y corregido de paso**: `NovaChat.tsx` mandaba `caseId: ''` (cadena vacía, nunca recibía el prop real) al marcar un módulo completado — el endpoint devolvía 404 silenciosamente y la UI igual mostraba "módulo completado" sin verificar la respuesta. **Ningún módulo se había marcado completo de verdad a través de la UI real en toda la vida del proyecto** — el avance de la simulación Fase 4 documentado en `[[prd-v2-lean-scope]]` solo funcionó porque las pruebas llamaban la API directamente con el `caseId` correcto, no a través del botón del chat. Corregido: `caseId` ahora es prop obligatorio de `NovaChat`, y `ModuleStartClient.tsx` muestra un mensaje distinto ("tu parte quedó registrada, falta: …") cuando el módulo no queda verde todavía.
+- **Validado end-to-end con un caso de prueba desechable** (2 puestos, 1 pregunta de M1 mapeada a cada uno): puesto A completa → módulo se queda ámbar, M2 sigue locked, Brief 409. Puesto B completa → módulo pasa a verde, M2 se desbloquea, Brief sigue 409 porque M2-M7 no tienen preguntas mapeadas todavía (correctamente tratado como rojo/config faltante, no como "nada que hacer"). Caso de prueba borrado al terminar.
+- **Hallazgo real sobre el caso de simulación Famtell** (mismo caso vivo `02a0be4d`, sin modificar): al recalcular con la lógica nueva, el Brief de ese caso **ya no pasaría el bloqueo** — 6 de 7 módulos quedan en ámbar. La causa combina dos cosas: (1) varios puestos del catálogo (Gerente Comercial, Administrativo y Financiero, Marketing) nunca tuvieron un participante real invitado (`hasOccupant: false`) — son huecos de la simulación, no del código; y (2) el único colaborador real (`almacen.famtell`, puesto Gerente de Operaciones y Almacén Fiscal) no completó sesión en M2/M3. El Brief ya publicado de ese caso no se tocó ni se borró — esto solo bloquea generar/editar secciones nuevas hasta reconfigurar. Confirma exactamente el riesgo que motivó este arreglo.
+
+## 8. Arquitectura de permisos de plataforma (decisión)
+
+Se evaluó si el sistema de roles de plataforma (Super Admin, Consultor, Directivo, Colaborador) debe volverse un RBAC dinámico (roles y permisos editables en runtime, como el catálogo de puestos). **Decisión: no por ahora.**
+
+- Hoy los checks de permiso están dispersos por rutas y páginas (`if (role === 'director')` repetido en decenas de archivos) — eso sí se corrige.
+- **Se refactoriza a un módulo central de permisos** (`src/lib/permissions.ts` o equivalente): capacidades explícitas y pequeñas (ej. `ver_brief`, `editar_kpis`, `invitar_participantes`, `activar_modulo`, `gestionar_catalogo`) mapeadas a los 4 roles fijos. Todo el código consulta ese módulo en vez de comparar strings de rol directamente.
+- **No se construye un catálogo de roles/permisos editable en base de datos ni una pantalla para crear roles nuevos.** Los 4 roles siguen fijos por diseño. Razón: es el mismo patrón que produjo los módulos Premium A-G (flexibilidad genérica construida sin un caso real que la necesite, terminó en cascarón — ver sección 4). Con un solo cliente ancla y 4 roles ya bien entendidos, el costo de un RBAC completo (más superficie de permisos que asegurar, más casos borde) no se justifica.
+- Si en el futuro un segundo cliente/caso de uso requiere de verdad un rol nuevo, se re-evalúa el RBAC dinámico con esa necesidad concreta enfrente, no antes.
+
+**✅ Fase 1 completada (2026-07-06).** Se creó `src/lib/permissions.ts` con `Capability` (7 capacidades: `manage_catalog`, `manage_consultores`, `view_platform_metrics`, `manage_platform_credits`, `send_manual_whatsapp`, `create_share_links`, `access_collaborator_workspace`), `hasCapability(role, capability)` e `isSuperAdminEmail(email)` como única fuente de verdad. Se refactorizaron 11 archivos que comparaban rol/email directamente.
+
+**🔴 Hallazgo de seguridad corregido durante el refactor:** `/admin/catalogo` (página) y sus rutas API (`api/admin/catalogo/questions`, `api/admin/catalogo/sections`, verbos POST/PATCH/DELETE) **no verificaban que el usuario fuera Super Admin** — solo exigían sesión válida. Cualquier consultor, directivo o colaborador autenticado podía editar el catálogo global de preguntas/secciones usado por todos los casos. Corregido agregando el check en las 3 rutas. Esto confirma el valor de centralizar los checks: estaba disperso y a alguien se le olvidó en estos 3 lugares.
+
+## 9. Catálogos adicionales a hacer configurables (✅ completado — Fase 3)
+
+Mismo criterio de la sección 7 (nada configurable = costo de mantenimiento en código; todo configurable sin necesidad real = sobre-construcción). Se revisaron 6 catálogos hoy hardcodeados; se prioritizaron 3 para entrar al alcance ahora, ligados directamente al north star (sección 1):
+
+### 9.1 KPIs del Tablero (8.4) — el más ligado al Plan 90d/1a/3a
+Hoy `kpi_records` tiene 6 columnas fijas (ingresos, clientes activos, clientes nuevos, ocupación de almacén, contactos, tasa de cierre) — ver `KPIBoardClient.tsx`. El Plan 90 días de Famtell necesita medir los KPIs específicos de SU plan, no solo estos 6 genéricos.
+- Cambio de esquema: de columnas fijas a modelo catálogo + valores — `case_kpi_definitions` (case_id, metric_key, label, target, unidad/formato, sort_order) + `kpi_records` pasa a guardar valores contra esas definiciones en vez de columnas fijas.
+- El consultor define qué KPIs trackear al armar el Plan 90d (probablemente al momento de generar/editar el Brief), y esos mismos KPIs alimentan el Tablero y el Check-in semanal.
+
+**✅ Completado y verificado (2026-07-06):** migración 025 crea `case_kpi_definitions` y agrega `values jsonb` a `kpi_records` (columnas viejas se dejan sin uso, no se dropean — `kpi_records` no tenía ninguna fila en todo el sistema, no hizo falta backfill). `KPIBoardClient.tsx` reescrito: el consultor define los KPIs del caso (nombre, meta, unidad) en un panel dentro del Tablero; el directivo captura valores semanales solo para los KPIs ya definidos; cards y gráficas se generan dinámicamente por cada KPI, no hardcoded. API nueva `case-kpi-definitions` (CRUD). `api/kpis` ahora guarda `values` como JSON en vez de columnas sueltas.
+
+Verificado end-to-end en navegador: creado KPI "Ocupación de almacén" (meta 80%), capturada semana 1 con valor 65%, card y gráfica reflejan el dato real con semáforo correcto (65/80 = 81% → ámbar).
+
+**Fuera de alcance, documentado como límite conocido:** el check-in semanal (`check_ins`, Módulo 8.5) sigue con sus propias columnas fijas (contactos, ocupación de almacén, progreso) — es una tabla de pulso cualitativo con análisis de IA, no una simple captura numérica; unificarla con el catálogo de KPIs sería un alcance mayor al pedido en esta sección, no se tocó.
+
+Con esto, 2 de los 3 catálogos priorizados de la sección 9 quedan completos (Módulos, KPIs). Sigue Plantillas de comunicación (9.3).
+
+### 9.2 Módulos del diagnóstico (M1-M7)
+Ya existe una tabla `module_templates` (code, name, description, is_active) de la que se lee el contenido — pero el **orden de secuencia y el costo en créditos siguen hardcodeados** (`MODULE_ORDER` en `api/modules/route.ts`, `MODULE_CREDITS` en `credits.ts`). Para permitir que un caso agregue un módulo propio (ej. algo específico de Famtell) sin tocar código:
+- Agregar `sort_order` y `credit_cost` a `module_templates`.
+- `/api/modules` inicializa los módulos del caso leyendo `module_templates` activos ordenados por `sort_order`, no del array hardcoded.
+
+**✅ Completado y verificado (2026-07-06):** migración 024 agrega `credit_cost` (`sort_order` ya existía desde la migración 011). `api/modules/route.ts` y `api/sessions/route.ts` reescritos para leer orden y costo desde `module_templates` en vez de los arrays `MODULE_ORDER`/`MODULE_CREDITS` (este último se eliminó de `credits.ts`, ya no se usa). `ModuleStartClient.tsx` ahora muestra el costo real devuelto por la API en el 402, no un valor estático. Verificado end-to-end con un caso nuevo real: init de módulos correcto (M1 activo, resto bloqueado, orden de `module_templates`), sesión creada, módulo M1 completado con `credits_used: 10` desde `module_templates.credit_cost`, M2 desbloqueado automáticamente.
+
+**Regresión encontrada y corregida en el camino:** el asistente de "Nuevo caso" (`dashboard/nuevo-caso/page.tsx`) tenía su propio paso de invitación al directivo que nunca mandaba `jobPositionId` — con el requisito agregado en la Fase 2 (paso 3), esa invitación habría fallado siempre. Se corrigió para que ese paso cree el puesto en el catálogo del caso (con descriptivo, ahora campo obligatorio en ese formulario) antes de invitar. Verificado end-to-end: puesto creado, `case_users.job_position_id` apunta correctamente a él.
+
+**Limitación conocida, no resuelta en este paso:** el orden de módulos (`MODULE_ORDER`) sigue duplicado como array literal en 3 lugares de solo-visualización (`portal/[token]/page.tsx`, `caso/[id]/page.tsx`, `dashboard/caso/[id]/page.tsx`) — no afecta la lógica de negocio (secuencia, créditos), solo la lista de progreso que se muestra. No se tocó por alcance: unificarlo requeriría que esas pantallas también consulten `module_templates`, que es un cambio de UI más amplio, no lo que pedía esta sección del PRD.
+
+### 9.3 Plantillas de comunicación (8.8)
+Hoy es un array `TEMPLATES` hardcoded en el propio componente de frontend — ni siquiera vive en base de datos. Se necesita:
+- Tabla `communication_templates` (o `case_communication_templates` si son por caso) con CRUD real vía API, igual que preguntas/secciones.
+- El consultor puede crear, editar y desactivar sus propias plantillas de email/WhatsApp para Famtell, en vez de depender de las que vienen fijas en código.
+
+**✅ Completado y verificado (2026-07-06):** migración 026 crea `communication_templates`, por CUENTA de consultor (no global entre consultores, no por caso individual — el consultor arma su propia librería y la reutiliza en todos sus casos). Se migran las 11 plantillas hardcoded como seed a cada cuenta existente para no perder el punto de partida. `ComunicacionClient.tsx` reescrito con panel "Gestionar plantillas" (crear/editar/activar-desactivar/borrar) visible solo para el consultor; el directivo solo ve y usa las plantillas activas.
+
+Verificado end-to-end en navegador: las 11 plantillas migradas se ven correctamente agrupadas por categoría; desactivar una plantilla la saca de la lista de uso (confirmado por API); crear una plantilla nueva persiste correctamente. Nueva API `communication-templates` (CRUD).
+
+**Limitación conocida:** cuentas de consultor creadas después de esta migración no reciben las 11 plantillas de seed automáticamente — empiezan con la librería vacía. Automatizar el seed en el alta de cuenta queda fuera de alcance de este paso.
+
+Con esto, los 3 catálogos priorizados de la sección 9 quedan completos: Módulos, KPIs, Plantillas de comunicación.
+
+### Quedan fuera por ahora (sin necesidad real todavía)
+Escenarios de crecimiento (8.9 — los 3 escenarios son fijos pero sus valores ya son editables en pantalla, suficiente por ahora), tipos de contacto/etapas de pipeline del CRM (8.1 — bajo impacto, son etiquetas internas), costos de créditos por módulo/acción (catálogo de precios, no de diagnóstico). Se re-evalúan si aparece una necesidad concreta.
+
+## 10. Plan de construcción
+
+Orden por dependencia real, no por importancia — cada fase deja el terreno listo para la siguiente. No se arranca una fase sin cerrar la anterior.
+
+### Fase 0 — Limpieza (cortar lo descartado en la sección 4) ✅ COMPLETADA (2026-07-06)
+Eliminado: Premium A-G (páginas, rutas API, tipos, costos de crédito) y Facturación en Admin. WhatsApp se verificó como núcleo real durante la ejecución y no se tocó (ver corrección en sección 4). SAT/ERP y Brief de Cierre Semana 12 no existían en código, no había nada que cortar. `npx tsc --noEmit` limpio tras la limpieza.
+
+### Fase 1 — Refactor de permisos de plataforma (sección 8) ✅ COMPLETADA (2026-07-06)
+Módulo central de capacidades por rol, reemplazando los checks de rol dispersos. Sin cambio visible para el usuario. Se hace antes de construir las pantallas nuevas de la Fase 2 para no construirlas dos veces (una con checks viejos, otra ya refactorizada).
+
+### Fase 2 — Catálogo de puestos + mapeo de preguntas (sección 7) — el cambio de fondo ✅ COMPLETADA (2026-07-06)
+1. Migraciones: `case_job_positions`, `case_users.job_position_id`, tabla de mapeo pregunta↔puesto.
+2. Pantalla de consultor "Puestos y mapeo de preguntas": crear puestos (con descriptivo obligatorio), activar/desactivar/editar/agregar preguntas del caso (esto ya existe, se integra), mapear preguntas a puestos.
+3. Reescribir invitación de participantes (`ParticipantesPanel.tsx`): asignar puesto del catálogo del caso en vez de los 6 perfiles fijos.
+4. Reescribir `build-from-catalog.ts` y el chat de Nova: filtrar por `job_position_id` del caso; pregunta sin puesto mapeado queda oculta.
+5. Generación del Brief: agregar la sección de alineación descriptivo-vs-actividad real.
+6. Retirar `job_description_text`/`job_description_url` de `case_users` una vez migrado.
+
+Esta fase es la más grande y es bloqueante: mientras no esté lista, cualquier caso nuevo (incluido Famtell) seguiría operando con el modelo viejo de 6 perfiles fijos.
+
+### Fase 3 — Catálogos configurables restantes (sección 9) ✅ COMPLETADA (2026-07-06)
+En este orden porque el de KPIs es el más grande y el más ligado al north star, y conviene que esté listo antes de que Famtell llegue a la etapa de seguimiento (semana 1 de ejecución post-Brief):
+1. Módulos del diagnóstico — `sort_order`/`credit_cost` en `module_templates`, init dinámico. (Aislado, sin dependencias, se puede hacer en paralelo con Fase 2 si hay capacidad.)
+2. KPIs del Tablero — de columnas fijas a catálogo + valores, conectado al Plan 90d del Brief.
+3. Plantillas de comunicación — tabla nueva + CRUD. (El más chico y aislado, puede ir al final o en paralelo.)
+
+### Fase 4 — QA end-to-end con el caso real de Famtell ✅ SIMULACIÓN COMPLETADA (2026-07-06)
+Correr el flujo completo con el modelo nuevo: crear caso Famtell → dar de alta puestos reales → mapear preguntas → invitar participantes reales de Famtell → completar módulos → generar Brief (Plan 90d/1a/3a + hallazgo de brechas de puesto) → seguimiento con KPIs/check-in semanal. No se considera terminado hasta validarlo con datos reales de Famtell, no solo con cuentas de prueba.
+
+**Resultado de la simulación (datos ficticios realistas de Famtell, decisión del usuario):**
+- Flujo completo verificado: caso Famtell creado → 6 puestos con descriptivo → 137 preguntas mapeadas por puesto → 6 participantes (2 activados, 4 invitaciones pendientes) → conversación REAL con Nova verificada en navegador (el Gerente de Operaciones solo recibe sus preguntas; la pregunta estratégica de M&A mapeada solo al Director General nunca le aparece) → 7 módulos completados con conversaciones reales de la API de Claude → desbloqueo secuencial y descuento de créditos correctos (el sistema incluso bloqueó M7 por créditos insuficientes: la validación funciona) → Brief completo generado (7 diagnósticos, 6 JTBD comerciales, 5 segmentos, 8 prioridades, 34 acciones 90d, 28 iniciativas 6m, 9 objetivos 1a, visión 3a) → wizard de 9 etapas aprobado → publicado → verificado que el Director General ve el Brief completo con los 4 planes.
+
+**3 bugs reales encontrados y corregidos durante el QA:**
+1. `executive_summary` nunca podía generarse — el endpoint parseaba como JSON una sección que pide prosa plana. Corregido en `api/brief/generate/route.ts`.
+2. `max_tokens: 3000` truncaba `plan_90d` a media generación (12 semanas de acciones no caben) — JSON cortado, fallaba siempre. Subido a 8000 y verificado.
+3. **La etapa "JTBD Comercial" del Brief no podía persistir jamás**: la columna `jtbd_comercial` no existía en `brief_documents` (ninguna migración la creó) Y `api/brief/route.ts` ignoraba el error de PostgREST devolviendo 200 con `brief: null` — pérdida de datos silenciosa. Corregidos ambos: migración 027 + manejo de error en el guardado.
+
+**Pendiente para cerrar la Fase 4 de verdad (con datos reales):** repetir el alta del caso con los 13 puestos reales del organigrama (sección 7), con los participantes reales de Famtell decididos por el consultor y el equipo directivo — la simulación actual (7/7 módulos, 6 puestos) usa participantes y transcripciones de prueba, no personas reales. El hallazgo de brechas descriptivo-vs-actividad (sección 7, regla 3) y el panel de avance de entrevistas (sección 7.1) ya se completaron el 2026-07-07/08.
+
+**✅ Check-in semanal completado y validado end-to-end para los 3 roles (2026-07-08):**
+
+- **Vista de historial construida** (`checkin/page.tsx` reescrito como server component + `CheckinClient.tsx` nuevo): antes no existía NINGUNA pantalla para ver check-ins ya capturados — ni el propio directivo podía revisar lo que había reportado, ni el consultor (su tab "Check-in" mostraba el mismo formulario de captura, no un resumen). Ahora la página resuelve el rol real (director/colaborador/consultor, mismo patrón que el resto de páginas del caso) y muestra un historial completo (todas las semanas, con contactos/clientes nuevos/obstáculos/ocupación/progreso/análisis de Nova). Solo el director ve el formulario de captura; consultor y colaborador ven el historial en modo solo-lectura.
+- **Acceso para colaboradores**: su workspace (`/mis-modulos`, sin tab bar por diseño) no tenía forma de llegar a ningún dato del caso fuera de sus instrumentos asignados. Se agregó una tarjeta "📋 Check-in semanal del caso" que enlaza a la misma vista.
+- **Migración 030**: la política RLS original de `check_ins` (migración 001) solo dejaba leer una fila a quien la había escrito o al consultor dueño — un colaborador o un directivo que no capturó una semana no podían leer NADA, ni sus propias filas de semanas anteriores en otra sesión. Separada en lectura amplia (`check_ins_member_read`: cualquier miembro del caso o consultor) y escritura restringida (`check_ins_write`: solo el propio autor o el consultor).
+- **🐛 Bug crítico encontrado y corregido**: `api/checkins` (POST) descontaba créditos con `deductCreditsByEmail(supabase, session.user.email, ...)` — busca una fila en `accounts` por el email de quien ENVÍA el check-in. Los directivos y colaboradores nunca tienen fila en `accounts` (solo los consultores) — **el check-in nunca había podido enviarse desde una cuenta de directivo real, siempre fallaba con 402 "Cuenta no encontrada"**, sin excepción, desde que se construyó. Corregido con el mismo patrón ya usado en `api/modules`/`api/sessions`: deducir del `account_id` del CASO (vía `cases.account_id`) usando el admin client (por RLS el directivo no puede leer ni actualizar el account del consultor).
+- **Validado con datos reales del caso Famtell, los 3 roles**: director captura una semana real (formulario → guardado → análisis de Nova específico y contextual → aparece en el historial) → consultor ve el mismo historial en modo lectura → colaborador (Gerente Comercial, nunca había tocado check-ins) accede vía `/mis-modulos` y ve el mismo historial. Confirmado también con script API: colaborador que nunca escribió nada ahora sí puede leer (antes daba 0 filas); reenviar la misma semana actualiza en vez de duplicar. Datos de prueba borrados al terminar.
+
+### Qué puede avanzar en paralelo
+Fase 0 no bloquea nada más y puede ir en cualquier momento. Dentro de la Fase 3, Módulos y Plantillas son independientes entre sí y de KPIs — se pueden repartir en paralelo si hay más de una persona construyendo. Todo lo demás es secuencial por las dependencias reales del modelo de datos.
+
+## 11. Validación contra el Kit de Diagnóstico Famtell (2026-07-06)
+
+Se revisó completo `PlanRCP_Famtell_KitDiagnostico.docx` (7 módulos + síntesis, ~30 instrumentos) contra el catálogo de 137 preguntas ya cargado. Hallazgo clave: **el Kit no es un cuestionario conversacional puro — mezcla 3 tipos de contenido en cada módulo:**
+
+1. **Entrevista narrativa/reflexiva** (visión, opinión) — ya cubierta por Nova. Confirmado 1:1: las preguntas 🔍 AGENDA (señales de crecimiento/redimensionamiento/salida) del documento coinciden literalmente con las ya cargadas en el catálogo.
+2. **Datos duros puntuales** (facturación, m², headcount) — Nova puede preguntarlos conversacionalmente, no es gap.
+3. **Tablas de muchas filas** (lista de clientes, competidores, costos por servicio, KPIs a 3 meses) — **no funciona como entrevista conversacional**, necesita otro mecanismo.
+
+### Mapeo por módulo (resumen)
+- **M1**: 1.1 entrevista → Nova. 1.2-1.5 (mapa de clientes, concentración 80/20, altas/bajas, servicios estrella) → tablas, gap.
+- **M2**: 2.1/2.4 (capacidad, turnos) → Nova, pero verificar que coincida con Tracker de Capacidad (8.6) ya construido. 2.2/2.3 (inventario de equipos, servicios no comercializados con costo/precio/margen) → tablas, gap. 2.5 → Nova (ya mapeada).
+- **M3**: 3.1-3.5 → 100% tabular, **ya lo resuelve el CRM (8.1)**, no se toca.
+- **M4**: 4.1/4.3/4.4 → Nova + adjuntar documento (M4 ya soporta attachments). 4.2 (rentabilidad por línea de servicio) → tabla, verificar si la cubre Calculadora de Tarifas (8.3). 4.5 → Nova.
+- **M5**: 5.1/5.2 (mapa de competidores, benchmark de tarifas) → tabla; **Monitor de Competencia (8.10) hoy es un radar de atributos 1-5, no una tabla de tarifas por servicio — posible desalineación a verificar**. 5.3-5.5 → Nova.
+- **M6**: 6.1 (cuestionario de clima) → **el documento pide explícitamente que sea ANÓNIMO** ("Google Forms por WhatsApp"), choca con el modelo de puesto identificado de la Fase 2 — requiere mecanismo aparte. 6.2-6.4 (talento, quick wins, riesgos) → tablas de evaluación, gap.
+- **M7**: 7.1/7.3B/7.4/7.5 → **ya automatizado** por el Brief (`plan_90d/1a/3a`, IER vía `agenda_signals`). La tabla 7.4 de KPIs coincide campo por campo con el catálogo de KPIs configurable recién construido en Fase 3.
+
+### 3 decisiones tomadas con el usuario (2026-07-06)
+
+**1. Tablas de listas largas → mecanismo genérico reutilizable, no una pantalla por tabla.**
+- `case_table_instruments` (case_id, module_code, name, columns jsonb — array de `{key, label, type}`) + `case_table_rows` (instrument_id, row_data jsonb, sort_order).
+- Un solo componente de tabla editable genérica (agregar/editar/borrar fila) que renderiza según las columnas del instrumento.
+- Botón "Subir documento" por tabla — reutiliza el patrón de adjuntar archivo a Claude que ya existe en M4: la IA extrae filas del documento y pre-llena la tabla; el consultor revisa antes de guardar. **Ambas vías conviven** (llenado manual + IA), decisión explícita del usuario.
+- Se mapea a puesto igual que las preguntas (mismo campo `job_position_ids`).
+- Cubre: mapa de clientes/concentración/altas-bajas/servicios (M1), inventario de equipos/servicios no comercializados (M2), rentabilidad por servicio (M4, si Tarifas no la cubre), competidores/benchmark (M5, si Competencia no la cubre), talento/quick wins/riesgos (M6). No toca M3 (CRM) ni M7 (KPIs).
+
+**2. Encuesta de clima (6.1) → anónima de verdad, sin rastreo de IP.**
+- Decisión explícita del usuario: confidencialidad real, no inferencia de identidad por IP (se le explicó el riesgo: si el equipo se entera de que la "encuesta anónima" registraba IPs, se rompe la confianza que la anonimidad busca dar — contraproducente).
+- En vez de eso: **preguntas sembradas de clasificación** al inicio del formulario (ej. "¿En qué área trabajas? Operación/Comercial/Administración/Dirección", "¿Tienes personal a tu cargo?") — el empleado autodeclara categoría amplia, nunca identidad.
+- Mecanismo: link público sin login (mismo patrón que Portal del Cliente) — `case_climate_surveys` (token, caso, abierta/cerrada) + `case_climate_responses` (sin user_id, sin IP, solo área/nivel autodeclarados + respuestas). El consultor ve agregados por área, nunca fila con nombre.
+
+**3. Alineación de campos (Capacidad de Almacén / Monitor de Competencia / Calculadora de Tarifas)** — auditar los campos reales del código contra lo que pide el Kit (secciones 2.1/2.2, 5.1/5.2, 4.2) antes de construir nada nuevo — puede que ya sirvan casi tal cual, o falten 2-3 campos.
+
+**✅ Auditoría completada (2026-07-07):**
+- **Tracker de Capacidad** (`CapacidadClient.tsx`): cubre bien lo genérico (m², posiciones de rack, ocupación, ingresos), pero modela UN solo almacén genérico — **falta el Almacén Fiscal como entidad separada** (¿habilitado?, m² propios, régimen aduanero, # clientes usándolo, acreditación SAT vigente), que el Kit marca como "el diferencial crítico" de Famtell. También faltan altura libre (clear height) y andenes de carga/descarga. **Gap real, requiere ajuste directo a esta pantalla** (no al mecanismo genérico, porque son cálculos/KPIs derivados, no una lista de filas).
+- **Monitor de Competencia** (`CompetenciaClient.tsx`): mide percepción cualitativa (radar 1-5: precio, calidad, velocidad...). El Kit 5.1/5.2 pide algo **distinto y complementario**: mapa de competidores con "¿tiene Almacén Fiscal? Sí/No" + benchmark de tarifas reales en pesos por servicio (almacenaje m²/mes, picking por pieza, etc.). No es el mismo instrumento con campos de menos — el benchmark de tarifas es candidato para la tabla genérica; agregar solo el campo booleano de Almacén Fiscal al radar existente.
+- **Calculadora de Tarifas** (`TarifasClient.tsx`): **desalineación de fondo, no de campos** — cotiza el trabajo de consultoría (horas del consultor × tarifa), mientras que el Kit 4.2 pide la rentabilidad de los servicios que Famtell vende a sus clientes (precio/costo/margen/volumen por servicio 3PL). Son dos herramientas distintas que comparten nombre. El 4.2 necesita su propia tabla — va al mecanismo genérico, no se toca la Calculadora existente.
+
+**Conclusión:** de los 3, solo el Tracker de Capacidad necesita ajuste directo (sección de Almacén Fiscal). Los otros dos casos confirman que esos datos van a la tabla genérica del punto 1, no a las pantallas existentes — reduce el alcance real de "ajustar pantallas" a una sola.
+
+### Orden de ejecución acordado (✅ los 4 completos, orden real de construcción: 1, 3, 2, 4)
+1. ~~Auditoría de campos~~ ✅ completada.
+2. ~~Encuesta de clima anónima~~ ✅ completada y validada (2026-07-07).
+3. ~~Tabla editable genérica + carga con IA~~ ✅ completada y validada (2026-07-07).
+4. ~~Ajuste puntual al Tracker de Capacidad~~ ✅ completado y validado (2026-07-07).
+
+### 4. Ajuste al Tracker de Capacidad — implementación (✅ 2026-07-07)
+
+`CapacidadClient.tsx` es una calculadora 100% client-side (sin persistencia en BD, todo `useState` efímero) — el ajuste fue puramente de UI/cálculo, sin migración:
+- **Infraestructura física** agregada a la tarjeta "Superficie del almacén": altura libre (clear height, metros) y andenes de carga/descarga (totales + en uso, con % derivado).
+- **Nueva tarjeta "Almacén Fiscal"** (Kit 2.1, marcado como "activo diferencial escaso del corredor CTT — palanca de crecimiento #1 si está subutilizado"): estado habilitado/en trámite/no habilitado, m² habilitados/en uso (con % y m² libres derivados), régimen aduanero (Depósito Fiscal / Recinto Fiscalizado / Recinto Fiscalizado Estratégico / Otro), # clientes usando el fiscal, Sistema de Control de Inventarios autorizado (Sí/No), acreditación SAT vigente hasta (fecha).
+- Panel de resultados: tarjeta condicional de ocupación del Almacén Fiscal (barra + m² libres + clientes) cuando está habilitado/en trámite; tarjeta de alerta (fondo rosa) cuando no está habilitado, citando el hallazgo del Kit. Resumen ejecutivo actualizado con bullets de altura libre/andenes y del estado del Almacén Fiscal.
+- **Validado en navegador para ambos roles** (consultor y directivo, mismo componente compartido): los 3 estados del toggle (No/En trámite/Sí) cambian correctamente la UI condicional; con m²=300/uso=210 el cálculo derivado (70% en uso, 90 m² libres) es correcto tanto en la tarjeta de inputs como en la de resultados y en el resumen ejecutivo.
+
+### 2. Encuesta de clima anónima — implementación (✅ 2026-07-07)
+
+- Migración `029_case_climate_surveys.sql`: `case_climate_surveys` (case_id, token uuid único, title, questions jsonb, status draft/open/closed) + `case_climate_responses` (survey_id, `area` y `tiene_gente_a_cargo` autodeclarados, answers jsonb) — **sin user_id, sin ip_address, sin ninguna columna identificable, a propósito**. RLS: solo el consultor dueño gestiona/lee; el envío público NO pasa por INSERT directo ni por policy de `anon`, sino por la función `SECURITY DEFINER` `submit_climate_response(token, area, tiene_gente_a_cargo, answers)`, que valida server-side que la encuesta siga `open` antes de insertar (confirmado con test: POST directo a una encuesta ya cerrada devuelve 403 aunque se conozca el token). Lectura pública vía `get_climate_survey_by_token(token)`, mismo patrón que `client_share_links` (migración 016) pero de escritura, no solo lectura.
+- Preguntas sembradas por default = las 10 exactas del Kit 6.1, con 5 tipos de pregunta (`open`, `number`, `scale_1_5`, `choice`, `choice_text`) — `src/lib/climateQuestions.ts`.
+- UI consultor: `/caso/[id]/clima` (`ClimaClient.tsx`, tab "Clima" en `CasoTabs.tsx`) — crear encuesta (se siembra sola), abrir/cerrar, copiar link público, ver respuestas con 1 agregado numérico (promedio de comunicación interna) + lista de respuestas individuales (sin nombre, solo área/nivel + timestamp). Solo consultor gestiona (mismo criterio que Tablas — no se agregó a `DirectorTabs`).
+- UI pública: `/clima/[token]` (sin login, sin `AppShell`) — clasificación (área + ¿tiene gente a su cargo?) autodeclarada seguida de las preguntas dinámicas por tipo; si la encuesta está en `draft`/`closed` muestra mensaje en vez de formulario.
+- **Validado end-to-end en navegador real, incluyendo sesión verdaderamente anónima** (logout completo antes de visitar el link público): crear encuesta como consultor → abrir → visitar el link sin sesión → llenar clasificación + 4 preguntas de distintos tipos → enviar → confirmar en BD que la fila guardada solo tiene `area`, `tiene_gente_a_cargo`, `answers`, `created_at` (nada más) → ver el agregado y el detalle en el panel del consultor → cerrar encuesta → confirmar que un POST directo al mismo token ya devuelve 403.
+- Datos de prueba (encuesta + respuesta) borrados tras validar, mismo criterio que en Tablas.
+
+### 3. Tablas editables genéricas — implementación (✅ 2026-07-07)
+
+- Migración `028_case_table_instruments.sql`: `case_table_instruments` (case_id, module_code, name, description, columns jsonb, job_position_ids uuid[], sort_order) + `case_table_rows` (instrument_id, row_data jsonb, sort_order). RLS: consultor dueño `FOR ALL`; case_user con puesto en `job_position_ids` también `FOR ALL` sobre `case_table_rows` (puede leer/escribir sus propias filas, no solo leer) — distinto del patrón de solo-lectura usado en preguntas, porque aquí el miembro del caso es quien captura el dato.
+- APIs: `api/consultant/case-table-instruments` (CRUD de definiciones, solo consultor), `api/table-rows` (CRUD de filas, sin chequeo de rol en código — RLS decide), `api/table-rows/extract` (IA extrae filas de un documento adjunto según el esquema de columnas del instrumento; devuelve para revisión, no autoguarda — mismo patrón de adjuntos que M4/Brief).
+- UI: `/caso/[id]/tablas` (`TablasClient.tsx`) — panel de gestión (solo consultor: crear tabla con builder de columnas tipo texto/número/moneda/porcentaje/selector, asignar puestos) + grid editable genérico (agregar/editar/borrar fila, inputs por tipo de columna) + botón "Subir documento" que llama a `extract`, muestra vista previa, y el usuario confirma antes de insertar cada fila real. Tab "Tablas" agregado a `CasoTabs.tsx` y `DirectorTabs.tsx`.
+- **Validado end-to-end en navegador real** (no solo API): como consultor — crear 2 instrumentos con columnas y puestos distintos, llenar fila manual, subir documento de texto plano y CSV con datos ficticios → IA extrajo correctamente 3 filas en ambos casos con el esquema exacto de columnas, confirmar inserción. Como directivo con puesto mapeado — solo ve el instrumento asignado a su puesto (el otro, mapeado a un puesto distinto, queda oculto), agregar fila y llenarla persiste correctamente tras recargar. RLS confirmada por API: puesto no mapeado recibe lista vacía en GET y 403 en POST/insert.
+- Cubre del Kit: mapa de clientes/concentración/altas-bajas/servicios (M1), inventario de equipos/servicios no comercializados (M2), rentabilidad por servicio (M4), benchmark de tarifas de competencia (M5), talento/quick wins/riesgos (M6).
+- Datos de prueba sembrados durante la validación fueron borrados del caso Famtell después de confirmar que todo funcionaba (para no dejar filas ficticias en el caso real).
+
+## 15. Mejoras del rol Super-Admin (observaciones de QA, 2026-07-08)
+
+Tras probar el rol Super-Admin, el usuario levantó 7 observaciones. Estado y plan:
+
+| # | Observación | Estado |
+|---|---|---|
+| 1 | Login | ✅ Ya estaba |
+| 7 | El consultor asigna qué puesto responde cada pregunta | ✅ Ya estaba (pestaña Plan, `PositionToggle`) |
+| 2 | Gestión global de usuarios en admin (activar/bloquear, resetear contraseña, ajustar créditos) | ✅ Hecho |
+| 5 | Puestos: separar descripción del descriptivo + subir archivo del descriptivo para la IA | ✅ Hecho |
+| 3 | Ampliar creación de usuarios del consultor (Nombre, Password, Antigüedad, Tel. Fijo, WhatsApp obligatorio) | ✅ Hecho |
+| 4 | Catálogo de Roles editable por el super-admin | ✅ Hecho |
+| 6 | Clima Laboral en el catálogo + IA que propone secciones/preguntas/tablas | ✅ Hecho |
+
+**Las 7 observaciones quedaron resueltas el 2026-07-08.**
+
+**Decisiones del usuario (2026-07-08):**
+- **Obs 4 — catálogo de roles:** es una **etiqueta descriptiva** (nombre + descripción de funciones), NO un RBAC real; los permisos siguen usando los 4 roles fijos por debajo. El super-admin crea el catálogo global de roles; el consultor asigna un rol a cada **puesto**, y un rol + puesto a cada **usuario**.
+- **Obs 3 — creación de usuarios:** mantener **ambos** flujos (password directo que fija el consultor, o link de invitación).
+- Orden de construcción por dependencias: 2 (hecho) → 4 (catálogo de roles, prerequisito) → 5 (puestos) → 3 (usuarios) → 6 (clima+IA).
+
+### 15.2 Obs 2 — Gestión de usuarios en admin (✅ 2026-07-08)
+
+Nueva pantalla `/admin/usuarios` + `api/admin/usuarios`: lista unificada de TODOS los usuarios (consultores vía `accounts`, directivos/colaboradores vía `case_users`, más el super-admin), combinando con `auth.users`. Acciones de soporte: bloquear/desbloquear (ban real de Supabase auth, `ban_duration`), resetear contraseña (genera temporal y la muestra en modal — de paso resuelve el gap de que la creación de consultores no mostraba la contraseña), y ajustar créditos (solo consultores, porque el pool de créditos vive en la cuenta del consultor; directivos/colaboradores consumen de ahí). La cuenta de super-admin no puede auto-bloquearse ni auto-resetearse. Filtros por tipo + búsqueda. Solo el super-admin accede (403 para otros roles, verificado). Sin migración — todo con el service-role admin client.
+
+### 15.3 Obs 4 — Catálogo de Roles de negocio (✅ 2026-07-08)
+
+Migración `031_business_roles.sql`: tabla global `business_roles` (nombre + descripción, gestionada por el super-admin en `/admin/roles`, API `api/admin/roles`). Es una etiqueta **descriptiva**, no un RBAC — los permisos siguen usando los 4 roles fijos de plataforma. FK `business_role_id` agregada a `case_job_positions` (el consultor asigna un rol a cada puesto en el Plan de Diagnóstico) y a `case_users` (el consultor asigna un rol a cada participante al invitarlo; se auto-sugiere del puesto seleccionado pero se puede cambiar). Se muestra en `ParticipantesPanel` y en `/admin/usuarios`. Se usa en el Brief: `api/brief/generate` incluye el rol de cada puesto en el bloque de comparación descriptivo-vs-actividad, y el prompt le pide a la IA calibrar `pain_level`/`urgency` según el rol (una brecha en Dirección pesa más que en Operativo).
+
+### 15.4 Obs 5 — Descripción corta + descriptivo por archivo (✅ 2026-07-08)
+
+Migración `032_case_job_positions_description_file.sql`: agrega `description` (corta, para listas) y `job_description_source_file` (nombre del archivo de origen) a `case_job_positions`. El campo `job_description` (obligatorio, ya usado por el Brief) ahora se puede llenar subiendo un archivo — botón "📎 Subir archivo" en el Plan de Diagnóstico, endpoint `api/consultant/case-job-positions/extract-descriptivo`: `.txt` se lee directo, `.docx` se extrae con `mammoth`, `.pdf` se transcribe vía Claude (bloque `document` nativo, sigue el patrón ya usado en `api/table-rows/extract`). No se persiste el archivo binario (no hay Storage en el proyecto) — solo el texto extraído (que el consultor revisa/edita antes de guardar) y el nombre del archivo como referencia.
+
+### 15.5 Obs 3 — Alta de usuarios ampliada (✅ 2026-07-08)
+
+Migración `033_case_users_full_profile.sql`: agrega `full_name`, `landline_phone`, `seniority` a `case_users`. `ParticipantesPanel` ahora tiene **dos flujos** (decisión del usuario: mantener ambos): "Invitar por correo" (existente, el usuario fija su contraseña al activar) y "Crear con contraseña" (nuevo, endpoint `api/consultant/create-participant`, el consultor la fija — botón "Generar" o manual, mínimo 8 caracteres — y el usuario queda `activated_at` de inmediato vía `admin.auth.admin.createUser`). WhatsApp pasa a obligatorio en ambos flujos (antes opcional). "Empresa o Caso" no requirió campo nuevo — ya está implícito por el caso donde se agrega al participante. `full_name` también se muestra en `/admin/usuarios`.
+
+### 15.6 Obs 6 — Clima Laboral en el Catálogo + IA (✅ 2026-07-08)
+
+Investigación previa: Clima Laboral ya existía como encuesta anónima (`case_climate_surveys`, Kit 6.1) pero con las 10 preguntas fijas en código (`src/lib/climateQuestions.ts`) y sin pantalla de edición — arquitectura separada del Catálogo de diagnóstico (`module_templates`/`sections`/`questions`), con acceso anónimo vía funciones `SECURITY DEFINER`. Se decidió (con el usuario) NO fusionarla al sistema de módulos M1-M7 — riesgo/esfuerzo innecesario — sino darle su propio editor dentro de la pantalla de Catálogo.
+
+Migración `034_climate_question_bank.sql`: tabla `climate_question_bank` (banco editable, sembrada con las 10 preguntas originales). `/admin/catalogo` ahora tiene dos tabs: "Diagnóstico" (como antes) y "Clima Laboral" (`ClimaCatalogoPanel`, API `api/admin/clima-catalogo`): agregar/editar/quitar preguntas del banco. Cada encuesta nueva se sigue sembrando en el momento de creación con una copia jsonb del banco (`api/consultant/climate-surveys` ahora lee de la tabla en vez de la constante fija; con fallback a la constante si el banco estuviera vacío). Editar el banco NO afecta encuestas ya creadas.
+
+Además — botón "✨ Proponer preguntas con IA" (`api/admin/clima-catalogo/suggest`): Claude propone 3-6 preguntas nuevas dado un enfoque opcional (ej. "seguridad en el almacén"), evitando duplicar las ya existentes; el super-admin revisa y agrega una por una. Primer patrón en el proyecto donde la IA genera contenido nuevo de catálogo (no solo extrae/analiza datos existentes).
+
+## 16. Segunda ronda de observaciones del Super-Admin (2026-07-08/09)
+
+Tras cerrar la sección 15, el usuario levantó 6 observaciones nuevas. Estado y resumen:
+
+| # | Observación | Estado |
+|---|---|---|
+| 1 | Super-admin con acceso total a catálogos (usuarios, roles, puestos, módulos, secciones, preguntas, asignación puesto↔pregunta), con altas/bajas/modificaciones | ✅ Hecho |
+| 2 | Usuarios: falta poder crear/editar datos (nombre, correo, whatsapp) | ✅ Hecho |
+| 3 | Consultor: pedir nombre completo y whatsapp al crear | ✅ Hecho |
+| 4 | Casos: super-admin puede crear un caso como el consultor | ✅ Hecho |
+| 5 | Créditos: asignar manualmente a consultores desde `/admin/creditos` | ✅ Hecho |
+| 6 | Renombrar "Catálogo" → "Módulos Diagnóstico" | ✅ Hecho |
+
+### 16.1 Migración 035 — perfil completo de `accounts`
+
+`035_accounts_full_profile.sql`: agrega `full_name` y `whatsapp_phone` a `accounts` (consultores) — mismo perfil que `case_users` ya tenía desde la migración 033. Prerequisito de Obs 2 y 3.
+
+### 16.2 Obs 6 — Rename
+
+Nav (`AppShell.tsx`) y `<h1>` de `CatalogoAdminClient.tsx`: "Catálogo" → "Módulos Diagnóstico". La pestaña interna que decía "Diagnóstico" se renombró a "Módulos" para evitar redundancia con el nuevo título.
+
+### 16.3 Obs 5 — Créditos en `/admin/creditos`
+
+La pantalla era 100% de solo lectura. Se creó `CreditosAdminClient.tsx` (tabla interactiva con botón "Editar" por fila) que reusa el mismo endpoint `set_credits` de `api/admin/usuarios` — sin duplicar lógica.
+
+### 16.4 Obs 3 — Consultor: nombre y whatsapp obligatorios al crear
+
+`ConsultoresClient.tsx` + `api/admin/consultores/route.ts`: el formulario de alta ahora exige `fullName` y `whatsapp` (además de email y empresa). El PATCH de edición también permite modificarlos — cubre parte de Obs 2 de paso, porque un consultor también es un "usuario".
+
+### 16.5 Obs 2 — Usuarios: crear y editar datos
+
+`UsuariosAdminClient.tsx` + `api/admin/usuarios/route.ts`: nueva acción `update_profile` (nombre, correo, whatsapp) para cualquier fila que no sea super-admin — actualiza `accounts` (consultores) o `case_users` (participantes) según el tipo, y sincroniza el correo en `auth.users` si cambia. Botón "+ Crear consultor" enlaza a `/admin/consultores` en vez de duplicar el formulario — los participantes (directivos/colaboradores) no se pueden crear "sueltos" porque siempre pertenecen a un caso+puesto; esa creación vive en la Obs 1 (pantalla de soporte por caso).
+
+### 16.6 Obs 4 — Casos: alta desde admin
+
+`api/admin/casos/route.ts` (POST) + `CasosAdminClient.tsx`: mismo flujo de datos que `/dashboard/nuevo-caso` del consultor, pero con un selector explícito de "Consultor dueño del caso" (ya que el super-admin no tiene cuenta en `accounts`). Las filas de la tabla de casos ahora son clicables → llevan al detalle (Obs 1).
+
+### 16.7 Obs 1 — Acceso total del super-admin (la pieza grande)
+
+Alcance acordado con el usuario: **bypass real de permisos** (no solo lectura), reutilizando las mismas pantallas/componentes del consultor en vez de duplicar UI.
+
+- **Módulos**: nuevo endpoint `api/admin/catalogo/modules` (POST/PATCH/DELETE) + botón "+ Nuevo" en la columna de módulos del Catálogo. `ON DELETE CASCADE` ya existía en el esquema, así que borrar un módulo borra sus secciones/preguntas.
+- **Puestos + asignación puesto↔pregunta por caso**: nueva pantalla `/admin/casos/[id]` que reutiliza `PlanDiagnosticoClient` (el mismo componente que usa el consultor) — se le agregó un prop `role` (default `'consultant'`) para que el `AppShell` interno muestre el nav correcto, y un banner "Modo soporte — editando el caso de otro consultor" cuando `role === 'super_admin'`. La página server-side usa `getSupabaseAdmin()` (sin filtrar por dueño) para traer los datos.
+- **Bypass de autorización en los endpoints**: `verifyAccess()` en `case-job-positions`, `case-custom-questions`, y el chequeo inline en `case-overrides`, ahora regresan `true` de inmediato si `isSuperAdminEmail(email)`.
+
+**Bug real descubierto y corregido de paso (dos veces, mismo patrón):** el bypass de `verifyAccess` resuelve la autorización a nivel de aplicación, pero las mutaciones (`insert`/`update`/`delete`) seguían usando el cliente de sesión (`createSupabaseServerClient()`, anon key) — sujeto a RLS de Postgres. Como el super-admin no es dueño de ninguna cuenta en `accounts`, RLS rechazaba el `INSERT` con *"new row violates row-level security policy"*, aunque la app ya lo había autorizado. Se encontró primero en `api/admin/catalogo/sections` y `.../questions` (que ni siquiera tenían política de escritura — **cualquier intento de crear una sección o pregunta nueva en el Catálogo estaba roto desde antes de esta sesión**, no solo para el super-admin) y luego, por el mismo motivo, en `case-job-positions`, `case-overrides` y `case-custom-questions`. Fix: las 5 rutas ahora usan `getSupabaseAdmin()` (service-role) para las mutaciones, manteniendo la verificación de autorización a nivel de aplicación antes de tocar la BD. Verificado en vivo: creación de módulo, sección, puesto y mapeo puesto↔pregunta, los 4 con éxito tras el fix.
+
+Todo verificado end-to-end en navegador con login real, con datos de prueba creados y eliminados en cada paso. Typecheck y lint en 0 errores en cada tarea.

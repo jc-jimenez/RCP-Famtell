@@ -43,6 +43,20 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
   const [tarifaAlmacenaje, setTarifa] = useState(0.80) // MXN por kg/mes (alternativa)
   const [modoTarifa, setModo]         = useState<'posicion' | 'kg'>('posicion')
 
+  // Infraestructura física (Kit 2.1: altura libre + andenes)
+  const [alturaLibre, setAlturaLibre] = useState(8)
+  const [andenesTotal, setAndenesTotal] = useState(4)
+  const [andenesEnUso, setAndenesEnUso] = useState(3)
+
+  // Almacén Fiscal (Kit 2.1: activo diferencial escaso del corredor CTT)
+  const [fiscalHabilitado, setFiscalHabilitado] = useState<'no' | 'tramite' | 'si'>('no')
+  const [fiscalM2, setFiscalM2]             = useState(0)
+  const [fiscalM2Uso, setFiscalM2Uso]       = useState(0)
+  const [fiscalRegimen, setFiscalRegimen]   = useState('')
+  const [fiscalClientes, setFiscalClientes] = useState(0)
+  const [fiscalSCI, setFiscalSCI]           = useState<'si' | 'no'>('no')
+  const [fiscalSATVigencia, setFiscalSATVigencia] = useState('')
+
   const rack = RACK_TYPES.find(r => r.id === rackTypeId)!
 
   const calc = useMemo(() => {
@@ -75,6 +89,13 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
     // Brecha de ingresos (por ocupación)
     const brechaOcupacion = ingMensualPot - ingMensualReal
 
+    // Andenes
+    const andenesPct = andenesTotal > 0 ? Math.round((andenesEnUso / andenesTotal) * 100) : 0
+
+    // Almacén Fiscal
+    const fiscalOcupacionPct = fiscalM2 > 0 ? Math.round((fiscalM2Uso / fiscalM2) * 100) : 0
+    const fiscalM2Libres = Math.max(fiscalM2 - fiscalM2Uso, 0)
+
     return {
       m2Util, posTotal, posOcupadas, kgTotal, kgOcupados,
       toneladas, toneladasOcup,
@@ -82,8 +103,9 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
       ingMensualPot, ingMensualReal,
       ingAnualPot, ingAnualReal,
       rotacionesMes, brechaOcupacion,
+      andenesPct, fiscalOcupacionPct, fiscalM2Libres,
     }
-  }, [m2Total, pctAprovechable, rack, niveles, ocupacion, rotacion, tarifaDia, tarifaAlmacenaje, modoTarifa])
+  }, [m2Total, pctAprovechable, rack, niveles, ocupacion, rotacion, tarifaDia, tarifaAlmacenaje, modoTarifa, andenesTotal, andenesEnUso, fiscalM2, fiscalM2Uso])
 
   const tabBar = role === 'director'
     ? <DirectorTabs caseId={caseId} />
@@ -133,6 +155,140 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
                 </div>
                 <p className="text-xs text-faint mt-1">{fmt(calc.m2Util)} m² útiles</p>
               </div>
+
+              <div>
+                <label className="text-xs text-muted block mb-1">Altura libre (clear height)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min={2} max={20} step={0.5}
+                    value={alturaLibre}
+                    onChange={e => setAlturaLibre(Number(e.target.value))}
+                    className="input-field w-24 text-sm"
+                  />
+                  <span className="text-xs text-muted">metros</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted block mb-1">Andenes de carga/descarga</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number" min={0} max={50} step={1}
+                    value={andenesTotal}
+                    onChange={e => setAndenesTotal(Number(e.target.value))}
+                    className="input-field w-20 text-sm"
+                  />
+                  <span className="text-xs text-muted">totales ·</span>
+                  <input
+                    type="number" min={0} max={andenesTotal} step={1}
+                    value={andenesEnUso}
+                    onChange={e => setAndenesEnUso(Number(e.target.value))}
+                    className="input-field w-20 text-sm"
+                  />
+                  <span className="text-xs text-muted">en uso ({calc.andenesPct}%)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Almacén Fiscal — activo diferencial escaso del corredor CTT */}
+            <div className="card p-5 space-y-4 border-accent/30">
+              <div>
+                <h2 className="text-sm font-semibold text-ink">Almacén Fiscal</h2>
+                <p className="text-xs text-faint mt-0.5">Activo diferencial escaso en el corredor CTT — si está subutilizado, es la palanca de crecimiento #1</p>
+              </div>
+
+              <div className="flex gap-2">
+                {[
+                  { id: 'no', label: 'No' },
+                  { id: 'tramite', label: 'En trámite' },
+                  { id: 'si', label: 'Sí' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setFiscalHabilitado(opt.id as typeof fiscalHabilitado)}
+                    className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${fiscalHabilitado === opt.id ? 'border-accent bg-accent text-white' : 'border-subtle text-muted'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {fiscalHabilitado !== 'no' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">m² habilitados</label>
+                      <input
+                        type="number" min={0} max={m2Total} step={10}
+                        value={fiscalM2}
+                        onChange={e => setFiscalM2(Number(e.target.value))}
+                        className="input-field w-full text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">m² en uso</label>
+                      <input
+                        type="number" min={0} max={fiscalM2} step={10}
+                        value={fiscalM2Uso}
+                        onChange={e => setFiscalM2Uso(Number(e.target.value))}
+                        className="input-field w-full text-sm"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-faint -mt-2">{calc.fiscalOcupacionPct}% en uso · {fmt(calc.fiscalM2Libres)} m² libres</p>
+
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Régimen aduanero activo</label>
+                    <select
+                      value={fiscalRegimen}
+                      onChange={e => setFiscalRegimen(e.target.value)}
+                      className="input-field w-full text-sm"
+                    >
+                      <option value="">Selecciona…</option>
+                      <option value="deposito_fiscal">Depósito Fiscal</option>
+                      <option value="recinto_fiscalizado">Recinto Fiscalizado</option>
+                      <option value="recinto_fiscalizado_estrategico">Recinto Fiscalizado Estratégico</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1"># clientes usando el fiscal</label>
+                      <input
+                        type="number" min={0} max={999} step={1}
+                        value={fiscalClientes}
+                        onChange={e => setFiscalClientes(Number(e.target.value))}
+                        className="input-field w-full text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Sist. Control Inventarios autorizado</label>
+                      <div className="flex gap-1.5">
+                        {(['si', 'no'] as const).map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => setFiscalSCI(opt)}
+                            className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${fiscalSCI === opt ? 'border-accent bg-accent text-white' : 'border-subtle text-muted'}`}
+                          >
+                            {opt === 'si' ? 'Sí' : 'No'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted block mb-1">Acreditación SAT vigente hasta</label>
+                    <input
+                      type="date"
+                      value={fiscalSATVigencia}
+                      onChange={e => setFiscalSATVigencia(e.target.value)}
+                      className="input-field w-full text-sm"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Tipo de almacenamiento */}
@@ -313,6 +469,44 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
               </div>
             </div>
 
+            {/* Almacén Fiscal */}
+            {fiscalHabilitado !== 'no' && (
+              <div className="card p-5 border-accent/30">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-ink">Almacén Fiscal {fiscalHabilitado === 'tramite' && <span className="text-xs font-normal text-amber-600">(en trámite)</span>}</h2>
+                  <span className="text-xs text-muted">{calc.fiscalOcupacionPct}% en uso</span>
+                </div>
+                <div className="w-full bg-surface-2 rounded-full h-3 mb-3">
+                  <div
+                    className={`h-3 rounded-full transition-all ${calc.fiscalOcupacionPct >= 80 ? 'bg-emerald-500' : calc.fiscalOcupacionPct >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                    style={{ width: `${Math.min(calc.fiscalOcupacionPct, 100)}%` }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className="text-xs text-muted">m² habilitados</p>
+                    <p className="text-sm font-semibold text-ink">{fmt(fiscalM2)} m²</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">m² libres</p>
+                    <p className="text-sm font-semibold text-emerald-700">{fmt(calc.fiscalM2Libres)} m²</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Clientes usándolo</p>
+                    <p className="text-sm font-semibold text-ink">{fiscalClientes}</p>
+                  </div>
+                </div>
+                {fiscalSATVigencia && (
+                  <p className="text-xs text-faint mt-3">Acreditación SAT vigente hasta {new Date(fiscalSATVigencia + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                )}
+              </div>
+            )}
+            {fiscalHabilitado === 'no' && (
+              <div className="card p-5 bg-rose-50 border-rose-200">
+                <p className="text-sm text-rose-700"><strong>Almacén Fiscal no habilitado.</strong> El Kit lo marca como el activo diferencial escaso del corredor CTT — evaluar si hay demanda de clientes para habilitarlo es una palanca de crecimiento a explorar.</p>
+              </div>
+            )}
+
             {/* Proyección anual */}
             <div className="card p-5">
               <h2 className="text-sm font-semibold text-ink mb-4">Proyección anual</h2>
@@ -350,6 +544,12 @@ export default function CapacidadClient({ caseId, companyName, role, email }: Pr
                 <li>• Subir al <strong>{Math.min(ocupacion + 15, 95)}%</strong> generaría <strong>{fmtMXN(calc.brechaOcupacion * 0.75)}</strong> adicionales al mes</li>
                 <li>• Cada posición vacía representa <strong>{fmtMXN(tarifaDia * 30)}</strong>/mes sin cobrar</li>
                 <li>• Rotación de {rotacion} días = <strong>{calc.rotacionesMes}× por mes</strong></li>
+                <li>• Altura libre de <strong>{alturaLibre} m</strong> y <strong>{andenesEnUso}/{andenesTotal} andenes</strong> en uso ({calc.andenesPct}%)</li>
+                {fiscalHabilitado === 'no' ? (
+                  <li>• <strong>Almacén Fiscal no habilitado</strong> — activo diferencial escaso del corredor CTT, palanca de crecimiento a evaluar</li>
+                ) : (
+                  <li>• Almacén Fiscal {fiscalHabilitado === 'tramite' ? 'en trámite' : 'habilitado'}: <strong>{calc.fiscalOcupacionPct}% en uso</strong>, {fiscalClientes} clientes, {fmt(calc.fiscalM2Libres)} m² libres para vender</li>
+                )}
               </ul>
             </div>
 

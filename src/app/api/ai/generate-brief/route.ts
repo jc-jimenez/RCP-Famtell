@@ -93,7 +93,7 @@ los hallazgos: tu análisis debe partir de la evidencia, no de esta hipótesis.`
     : ''
 
   const briefPrompt = `
-Eres un consultor senior de RCP.ai. Basándote en las siguientes transcripciones de entrevistas
+Eres un consultor senior de www.bizdoctor.site. Basándote en las siguientes transcripciones de entrevistas
 con el directivo de "${caseData.company_name}" (${caseData.industry ?? 'sector no especificado'}),
 genera un Brief de Diagnóstico Empresarial profesional y estructurado.
 

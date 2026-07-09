@@ -3,63 +3,71 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
-const ALL_ROLES: { id: string; label: string }[] = [
-  { id: 'director_general',  label: 'Director General' },
-  { id: 'gerente_comercial', label: 'Gerente Comercial' },
-  { id: 'gerente_operativo', label: 'Gerente Operativo' },
-  { id: 'cfo_contador',      label: 'CFO / Contador' },
-  { id: 'rrhh_admin',        label: 'RRHH / Admin' },
-  { id: 'gerente_marketing', label: 'Gerente Marketing' },
-]
-
-const ROLE_LABEL: Record<string, string> = Object.fromEntries(ALL_ROLES.map(r => [r.id, r.label]))
-
-type Override = { is_active: boolean; custom_text: string | null; roles_override: string[] | null }
-type Question = { id: string; text: string; nova_hint: string | null; suggested_roles: string[]; is_active: boolean }
-type CustomQuestion = { id: string; section_id: string; text: string; nova_hint: string | null; suggested_roles: string[]; is_active: boolean; is_custom: true }
-type Section  = { id: string; code: string; name: string; suggested_roles: string[]; questions: Question[] }
+type Override = { is_active: boolean; custom_text: string | null; job_position_ids: string[] }
+type Question = { id: string; text: string; nova_hint: string | null; is_active: boolean }
+type CustomQuestion = { id: string; section_id: string; text: string; nova_hint: string | null; is_active: boolean; is_custom: true; job_position_ids: string[] }
+type Section  = { id: string; code: string; name: string; questions: Question[] }
 type Module   = { id: string; code: string; name: string; sections: Section[] }
-
+type Position = {
+  id: string
+  name: string
+  description: string | null
+  job_description: string
+  job_description_source_file: string | null
+  business_role_id: string | null
+}
 interface Props {
   caseId: string
   companyName: string
   modules: Module[]
   initialOverrides: Record<string, Override>
   initialCustomBySection: Record<string, any[]>
+  initialPositions: Position[]
+  /** 'super_admin' cuando el super-admin entra en modo soporte a un caso ajeno */
+  role?: 'consultant' | 'super_admin'
+  backHref?: string
+  /** Ruta a la pantalla dedicada de gestión de puestos (sección 16, Obs 3) */
+  puestosHref?: string
 }
 
 export default function PlanDiagnosticoClient({
-  caseId, companyName, modules, initialOverrides, initialCustomBySection,
+  caseId, companyName, modules, initialOverrides, initialCustomBySection, initialPositions,
+  role = 'consultant', backHref, puestosHref,
 }: Props) {
   const { email } = useSupabaseUser()
   const [overrides, setOverrides] = useState<Record<string, Override>>(initialOverrides)
   const [customBySection, setCustomBySection] = useState<Record<string, CustomQuestion[]>>(
     Object.fromEntries(
       Object.entries(initialCustomBySection).map(([sid, qs]) => [
-        sid, qs.map(q => ({ ...q, is_custom: true as const })),
+        sid, qs.map(q => ({ ...q, is_custom: true as const, job_position_ids: q.job_position_ids ?? [] })),
       ])
     )
   )
   const [saving, setSaving] = useState<string | null>(null)
   const [activeModule, setActiveModule] = useState(modules[0]?.code ?? '')
 
+  // Catálogo de puestos del caso (sección 7 del PRD) — solo lectura aquí, la
+  // gestión (crear/editar/borrar) vive en su propia pantalla (Obs 3, sección 16)
+  const positions: Position[] = initialPositions
+
   // Edición de pregunta del catálogo
   const [editId, setEditId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-  const [editRoles, setEditRoles] = useState<string[]>([])
+  const [editPositionIds, setEditPositionIds] = useState<string[]>([])
 
   // Agregar pregunta custom
   const [addingSectionId, setAddingSectionId] = useState<string | null>(null)
   const [newText, setNewText] = useState('')
-  const [newRoles, setNewRoles] = useState<string[]>([])
   const [newHint, setNewHint] = useState('')
+  const [newQPositionIds, setNewQPositionIds] = useState<string[]>([])
 
   // Edición de pregunta custom
   const [editCustomId, setEditCustomId] = useState<string | null>(null)
   const [editCustomText, setEditCustomText] = useState('')
-  const [editCustomRoles, setEditCustomRoles] = useState<string[]>([])
+  const [editCustomPositionIds, setEditCustomPositionIds] = useState<string[]>([])
 
   const mod = modules.find(m => m.code === activeModule)!
 
@@ -73,16 +81,12 @@ export default function PlanDiagnosticoClient({
     return overrides[q.id]?.custom_text ?? q.text
   }
 
-  function effectiveRoles(q: Question): string[] {
-    return overrides[q.id]?.roles_override ?? q.suggested_roles
-  }
-
   function isCustomText(q: Question): boolean {
     return !!overrides[q.id]?.custom_text
   }
 
-  function hasRolesOverride(q: Question): boolean {
-    return !!(overrides[q.id]?.roles_override)
+  function mappedPositionIds(q: Question): string[] {
+    return overrides[q.id]?.job_position_ids ?? []
   }
 
   // ── Acciones sobre preguntas del catálogo ──
@@ -96,12 +100,17 @@ export default function PlanDiagnosticoClient({
       body: JSON.stringify({
         caseId, questionId: q.id, isActive: newActive,
         customText: overrides[q.id]?.custom_text ?? null,
-        rolesOverride: overrides[q.id]?.roles_override ?? undefined,
+        jobPositionIds: overrides[q.id]?.job_position_ids ?? [],
       }),
     })
     setOverrides(prev => ({
       ...prev,
-      [q.id]: { ...prev[q.id], is_active: newActive, custom_text: prev[q.id]?.custom_text ?? null, roles_override: prev[q.id]?.roles_override ?? null },
+      [q.id]: {
+        ...prev[q.id],
+        is_active: newActive,
+        custom_text: prev[q.id]?.custom_text ?? null,
+        job_position_ids: prev[q.id]?.job_position_ids ?? [],
+      },
     }))
     setSaving(null)
   }
@@ -109,7 +118,7 @@ export default function PlanDiagnosticoClient({
   function startEdit(q: Question) {
     setEditId(q.id)
     setEditText(displayText(q))
-    setEditRoles(effectiveRoles(q))
+    setEditPositionIds(mappedPositionIds(q))
   }
 
   async function saveEdit(q: Question) {
@@ -122,7 +131,7 @@ export default function PlanDiagnosticoClient({
         questionId: q.id,
         isActive: isActive(q),
         customText: editText !== q.text ? editText : null,
-        rolesOverride: JSON.stringify(editRoles) !== JSON.stringify(q.suggested_roles) ? editRoles : null,
+        jobPositionIds: editPositionIds,
       }),
     })
     setOverrides(prev => ({
@@ -130,7 +139,7 @@ export default function PlanDiagnosticoClient({
       [q.id]: {
         is_active: isActive(q),
         custom_text: editText !== q.text ? editText : null,
-        roles_override: JSON.stringify(editRoles) !== JSON.stringify(q.suggested_roles) ? editRoles : null,
+        job_position_ids: editPositionIds,
       },
     }))
     setSaving(null)
@@ -159,19 +168,19 @@ export default function PlanDiagnosticoClient({
     const res = await fetch('/api/consultant/case-custom-questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, sectionId, text: newText, novaHint: newHint || null, suggestedRoles: newRoles }),
+      body: JSON.stringify({ caseId, sectionId, text: newText, novaHint: newHint || null, jobPositionIds: newQPositionIds }),
     })
     const data = await res.json()
     if (data.question) {
       setCustomBySection(prev => ({
         ...prev,
-        [sectionId]: [...(prev[sectionId] ?? []), { ...data.question, is_custom: true }],
+        [sectionId]: [...(prev[sectionId] ?? []), { ...data.question, is_custom: true, job_position_ids: data.question.job_position_ids ?? [] }],
       }))
     }
     setAddingSectionId(null)
     setNewText('')
     setNewHint('')
-    setNewRoles([])
+    setNewQPositionIds([])
     setSaving(null)
   }
 
@@ -192,13 +201,13 @@ export default function PlanDiagnosticoClient({
     const res = await fetch('/api/consultant/case-custom-questions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, questionId: q.id, text: editCustomText, suggestedRoles: editCustomRoles }),
+      body: JSON.stringify({ caseId, questionId: q.id, text: editCustomText, jobPositionIds: editCustomPositionIds }),
     })
     const data = await res.json()
     if (data.question) {
       setCustomBySection(prev => ({
         ...prev,
-        [sectionId]: (prev[sectionId] ?? []).map(x => x.id === q.id ? { ...x, ...data.question, is_custom: true } : x),
+        [sectionId]: (prev[sectionId] ?? []).map(x => x.id === q.id ? { ...x, ...data.question, is_custom: true, job_position_ids: data.question.job_position_ids ?? [] } : x),
       }))
     }
     setSaving(null)
@@ -224,25 +233,34 @@ export default function PlanDiagnosticoClient({
     const custom = m.sections.flatMap(s => customBySection[s.id] ?? [])
     const active = allQ.filter(q => isActive(q)).length + custom.filter(q => q.is_active).length
     const total = allQ.length + custom.length
-    const modified = allQ.filter(q => isCustomText(q) || hasRolesOverride(q)).length
+    const modified = allQ.filter(q => isCustomText(q)).length
     return { code: m.code, total, active, modified }
   })
 
-  function RoleToggle({ roles, onChange }: { roles: string[]; onChange: (r: string[]) => void }) {
+  // Mapeo pregunta → puesto (catálogo de puestos del caso, sección 7 del PRD).
+  // Único mecanismo de filtro que usa Nova — el enum de roles anterior se retiró.
+  function PositionToggle({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
+    if (positions.length === 0) {
+      return (
+        <p className="text-xs text-amber-600 mt-2">
+          No hay puestos creados para este caso todavía — agrega uno arriba en "Puestos" antes de mapear preguntas.
+        </p>
+      )
+    }
     return (
       <div className="flex flex-wrap gap-1.5 mt-2">
-        {ALL_ROLES.map(r => {
-          const sel = roles.includes(r.id)
+        {positions.map(p => {
+          const sel = selected.includes(p.id)
           return (
             <button
-              key={r.id}
+              key={p.id}
               type="button"
-              onClick={() => onChange(sel ? roles.filter(x => x !== r.id) : [...roles, r.id])}
+              onClick={() => onChange(sel ? selected.filter(x => x !== p.id) : [...selected, p.id])}
               className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                sel ? 'bg-accent text-white border-accent' : 'border-subtle text-muted hover:border-accent/40'
+                sel ? 'bg-emerald-600 text-white border-emerald-600' : 'border-subtle text-muted hover:border-emerald-400'
               }`}
             >
-              {r.label}
+              {p.name}
             </button>
           )
         })}
@@ -250,17 +268,54 @@ export default function PlanDiagnosticoClient({
     )
   }
 
+  function PositionBadges({ ids }: { ids: string[] }) {
+    if (ids.length === 0) {
+      return <span className="text-xs text-amber-600">⚠ Sin puesto mapeado — oculta para todos</span>
+    }
+    return (
+      <>
+        {ids.map(pid => {
+          const pos = positions.find(p => p.id === pid)
+          return pos ? (
+            <span key={pid} className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{pos.name}</span>
+          ) : null
+        })}
+      </>
+    )
+  }
+
   return (
-    <AppShell role="consultant" email={email ?? ''}>
+    <AppShell role={role} email={email ?? ''} tabBar={role === 'consultant' ? <CasoTabs caseId={caseId} activeTab="plan" /> : undefined}>
       <div className="max-w-5xl mx-auto space-y-4">
 
         <div>
-          <Link href={`/dashboard/caso/${caseId}?tab=diagnostico` as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
+          <Link href={(backHref ?? `/dashboard/caso/${caseId}?tab=diagnostico`) as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
             ← {companyName}
           </Link>
+          {role === 'super_admin' && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 inline-block ml-2">
+              Modo soporte — editando el caso de otro consultor
+            </p>
+          )}
           <h1 className="text-xl font-bold text-ink">Plan de Diagnóstico</h1>
-          <p className="text-sm text-muted">Activa/desactiva preguntas, edita su texto, cambia roles o agrega preguntas propias</p>
+          <p className="text-sm text-muted">Activa/desactiva preguntas, edita su texto, mapea puestos o agrega preguntas propias</p>
         </div>
+
+        {/* Puestos del caso — gestión completa en su propia pantalla (Obs 3) */}
+        <Link
+          href={(puestosHref ?? `/dashboard/caso/${caseId}/puestos`) as any}
+          className="card p-4 flex items-center justify-between hover:border-accent/40 transition-colors"
+        >
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Puestos de {companyName}</h2>
+            <p className="text-xs text-muted">
+              {positions.length === 0
+                ? 'Sin puestos creados todavía — las preguntas sin puesto mapeado no se le muestran a nadie'
+                : `${positions.length} puesto${positions.length !== 1 ? 's' : ''} creado${positions.length !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <span className="text-xs text-accent">Gestionar puestos →</span>
+        </Link>
 
         <div className="grid gap-4 lg:grid-cols-[200px_1fr]">
 
@@ -303,13 +358,6 @@ export default function PlanDiagnosticoClient({
                     <span className="text-xs font-mono text-faint bg-surface-2 px-2 py-0.5 rounded">{sec.code}</span>
                     <h3 className="text-sm font-semibold text-ink flex-1">{sec.name}</h3>
                     <span className="text-xs text-muted">{activeSec}/{totalSec}</span>
-                    {sec.suggested_roles.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sec.suggested_roles.map(r => (
-                          <span key={r} className="badge text-xs">{ROLE_LABEL[r] ?? r}</span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   {/* Preguntas del catálogo */}
@@ -317,9 +365,8 @@ export default function PlanDiagnosticoClient({
                     {sec.questions.map((q, qi) => {
                       const active = isActive(q)
                       const text = displayText(q)
-                      const roles = effectiveRoles(q)
                       const isEditing = editId === q.id
-                      const modified = isCustomText(q) || hasRolesOverride(q)
+                      const modified = isCustomText(q)
 
                       return (
                         <div key={q.id} className={`rounded-xl border p-3 transition-all ${active ? 'border-subtle bg-surface' : 'border-subtle bg-surface-2 opacity-50'}`}>
@@ -340,8 +387,8 @@ export default function PlanDiagnosticoClient({
                                     />
                                   </div>
                                   <div>
-                                    <p className="text-xs text-muted mb-1 font-medium">Roles que responden esta pregunta</p>
-                                    <RoleToggle roles={editRoles} onChange={setEditRoles} />
+                                    <p className="text-xs text-muted mb-1 font-medium">Puestos que responden esta pregunta</p>
+                                    <PositionToggle selected={editPositionIds} onChange={setEditPositionIds} />
                                   </div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <button onClick={() => saveEdit(q)} disabled={saving === q.id} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">
@@ -360,9 +407,7 @@ export default function PlanDiagnosticoClient({
                                   <p className={`text-sm leading-relaxed ${modified ? 'text-amber-800' : 'text-ink'}`}>{text}</p>
                                   {modified && <p className="text-xs text-amber-600 mt-0.5">✎ Modificada para este caso</p>}
                                   <div className="flex flex-wrap gap-1 mt-1.5">
-                                    {roles.map(r => (
-                                      <span key={r} className="text-xs bg-surface-2 text-muted px-1.5 py-0.5 rounded">{ROLE_LABEL[r] ?? r}</span>
-                                    ))}
+                                    <PositionBadges ids={mappedPositionIds(q)} />
                                   </div>
                                 </div>
                               )}
@@ -373,7 +418,7 @@ export default function PlanDiagnosticoClient({
                                 <button
                                   onClick={() => startEdit(q)}
                                   className="text-xs px-2.5 py-1.5 rounded-lg border border-subtle hover:bg-surface-2 text-muted hover:text-ink transition-colors"
-                                  title="Editar texto y roles"
+                                  title="Editar texto y puestos"
                                 >
                                   ✎ Editar
                                 </button>
@@ -415,8 +460,8 @@ export default function PlanDiagnosticoClient({
                                     autoFocus
                                   />
                                   <div>
-                                    <p className="text-xs text-muted mb-1 font-medium">Roles que responden</p>
-                                    <RoleToggle roles={editCustomRoles} onChange={setEditCustomRoles} />
+                                    <p className="text-xs text-muted mb-1 font-medium">Puestos que responden esta pregunta</p>
+                                    <PositionToggle selected={editCustomPositionIds} onChange={setEditCustomPositionIds} />
                                   </div>
                                   <div className="flex gap-2">
                                     <button onClick={() => saveCustomEdit(sec.id, q)} disabled={saving === q.id} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">
@@ -429,13 +474,9 @@ export default function PlanDiagnosticoClient({
                                 <div>
                                   <p className="text-sm text-ink leading-relaxed">{q.text}</p>
                                   <p className="text-xs text-accent mt-0.5">Pregunta personalizada</p>
-                                  {q.suggested_roles.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1.5">
-                                      {q.suggested_roles.map(r => (
-                                        <span key={r} className="text-xs bg-accent-soft text-accent px-1.5 py-0.5 rounded">{ROLE_LABEL[r] ?? r}</span>
-                                      ))}
-                                    </div>
-                                  )}
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    <PositionBadges ids={q.job_position_ids ?? []} />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -443,7 +484,7 @@ export default function PlanDiagnosticoClient({
                             {!isEditingCustom && (
                               <div className="flex gap-1 flex-shrink-0">
                                 <button
-                                  onClick={() => { setEditCustomId(q.id); setEditCustomText(q.text); setEditCustomRoles(q.suggested_roles) }}
+                                  onClick={() => { setEditCustomId(q.id); setEditCustomText(q.text); setEditCustomPositionIds(q.job_position_ids ?? []) }}
                                   className="text-xs px-2.5 py-1.5 rounded-lg border border-subtle hover:bg-surface-2 text-muted hover:text-ink transition-colors"
                                 >
                                   ✎ Editar
@@ -492,8 +533,8 @@ export default function PlanDiagnosticoClient({
                         className="input-field text-xs w-full"
                       />
                       <div>
-                        <p className="text-xs text-muted mb-1.5 font-medium">Roles que responden esta pregunta</p>
-                        <RoleToggle roles={newRoles} onChange={setNewRoles} />
+                        <p className="text-xs text-muted mb-1.5 font-medium">Puestos que responden esta pregunta</p>
+                        <PositionToggle selected={newQPositionIds} onChange={setNewQPositionIds} />
                       </div>
                       <div className="flex gap-2 items-center">
                         <button
@@ -504,7 +545,7 @@ export default function PlanDiagnosticoClient({
                           {saving === 'new-' + sec.id ? 'Guardando…' : 'Agregar pregunta'}
                         </button>
                         <button
-                          onClick={() => { setAddingSectionId(null); setNewText(''); setNewHint(''); setNewRoles([]) }}
+                          onClick={() => { setAddingSectionId(null); setNewText(''); setNewHint(''); setNewQPositionIds([]) }}
                           className="btn-secondary text-xs px-3 py-1.5"
                         >
                           Cancelar
@@ -513,7 +554,7 @@ export default function PlanDiagnosticoClient({
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setAddingSectionId(sec.id); setNewText(''); setNewHint(''); setNewRoles([]) }}
+                      onClick={() => { setAddingSectionId(sec.id); setNewText(''); setNewHint(''); setNewQPositionIds([]) }}
                       className="w-full py-2 border-2 border-dashed border-subtle rounded-xl text-xs text-muted hover:border-accent/40 hover:text-accent transition-colors"
                     >
                       + Agregar pregunta a esta sección

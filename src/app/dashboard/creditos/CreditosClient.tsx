@@ -25,7 +25,7 @@ const PLANS = [
     price: '$699/mes',
     credits: 500,
     highlight: true,
-    features: ['500 créditos/mes', 'Casos ilimitados', 'Módulos M1–M7 + Premium', 'Soporte prioritario', 'Brief PDF incluido'],
+    features: ['500 créditos/mes', 'Casos ilimitados', 'Módulos M1–M7', 'Soporte prioritario', 'Brief PDF incluido'],
   },
   {
     id: 'enterprise',
@@ -60,7 +60,7 @@ export default function CreditosClient({ account }: { account: Account }) {
 
   async function handleUpgrade(planId: string) {
     if (planId === 'enterprise') {
-      window.open('mailto:hola@rcp.ai?subject=Enterprise Plan - RCP.ai', '_blank')
+      window.open('mailto:hola@bizdoctor.site?subject=Enterprise Plan - www.bizdoctor.site', '_blank')
       return
     }
     setLoading(planId)
@@ -110,7 +110,7 @@ export default function CreditosClient({ account }: { account: Account }) {
           <span className="text-xl">🚫</span>
           <div>
             <p className="text-sm font-semibold text-red-800">Cuenta suspendida</p>
-            <p className="text-xs text-red-700 mt-0.5">Renueva tu suscripción para seguir usando RCP.ai.</p>
+            <p className="text-xs text-red-700 mt-0.5">Renueva tu suscripción para seguir usando www.bizdoctor.site.</p>
           </div>
         </div>
       )}

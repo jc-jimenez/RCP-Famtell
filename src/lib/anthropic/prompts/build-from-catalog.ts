@@ -1,11 +1,10 @@
 import { NOVA_BASE_SYSTEM } from './base'
-import type { ModuleCode } from '@/types'
 
 interface Question {
   text: string
   nova_hint: string | null
   sort_order: number
-  suggested_roles: string[]
+  job_position_ids: string[]
 }
 
 interface Section {
@@ -13,7 +12,6 @@ interface Section {
   name: string
   description: string | null
   sort_order: number
-  suggested_roles: string[]
   questions: Question[]
 }
 
@@ -23,67 +21,45 @@ interface ModuleTemplate {
   description: string | null
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  director_general:  'Director General',
-  gerente_comercial: 'Gerente Comercial',
-  gerente_operativo: 'Gerente Operativo',
-  cfo_contador:      'CFO / Contador',
-  rrhh_admin:        'RRHH / Administración',
-  gerente_marketing: 'Gerente de Marketing',
-}
-
-function formatRoles(roles: string[]): string {
-  return roles.map(r => ROLE_LABEL[r] ?? r).join(', ')
-}
-
 /**
- * Construye el system prompt de Nova para un módulo dado,
- * usando el catálogo de la BD. Si no hay preguntas en BD
- * (migración no ejecutada), cae al prompt estático.
+ * Construye el system prompt de Nova para un módulo dado, usando el
+ * catálogo de la BD. Filtra por el puesto (job_position_id) del caso al
+ * que pertenece el usuario — ver docs/PRD_RCPFAMTELL3PL.md sección 7.
+ * Una pregunta sin ningún puesto mapeado en este caso se excluye del
+ * guion (no se le pregunta a nadie), no se le muestra "a todos" por
+ * defecto — a diferencia del enum de roles anterior.
  */
 export function buildModulePromptFromCatalog(
   module: ModuleTemplate,
   sections: Section[],
-  userRole: string | null,
+  jobPositionId: string | null,
+  jobPositionName: string | null,
 ): string {
-  // Filtrar secciones relevantes para este rol (si se especifica)
-  const relevantSections = userRole
-    ? sections.filter(s =>
-        s.suggested_roles.length === 0 ||
-        s.suggested_roles.includes(userRole) ||
-        s.questions.some(q => q.suggested_roles.includes(userRole))
-      )
-    : sections
-
-  const sectionBlocks = relevantSections.map((sec, idx) => {
-    const relevantQuestions = userRole
-      ? sec.questions.filter(q =>
-          q.suggested_roles.length === 0 || q.suggested_roles.includes(userRole)
-        )
-      : sec.questions
+  const sectionBlocks = sections.map((sec, idx) => {
+    const relevantQuestions = jobPositionId
+      ? sec.questions.filter(q => q.job_position_ids.includes(jobPositionId))
+      : []
 
     if (relevantQuestions.length === 0) return null
 
-    const questionLines = relevantQuestions.map((q, qi) => {
-      const hint = q.nova_hint ? `\n   [Nova: ${q.nova_hint}]` : ''
-      return `  ${idx + 1}.${qi + 1}. ${q.text}${hint}`
-    }).join('\n')
+    const questionLines = relevantQuestions
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((q, qi) => {
+        const hint = q.nova_hint ? `\n   [Nova: ${q.nova_hint}]` : ''
+        return `  ${idx + 1}.${qi + 1}. ${q.text}${hint}`
+      }).join('\n')
 
-    const rolesLine = sec.suggested_roles.length > 0
-      ? ` [${formatRoles(sec.suggested_roles)}]`
-      : ''
-
-    return `━━━ ${sec.code} — ${sec.name}${rolesLine} ━━━\n${questionLines}`
+    return `━━━ ${sec.code} — ${sec.name} ━━━\n${questionLines}`
   }).filter(Boolean)
 
-  const userRoleLabel = userRole ? (ROLE_LABEL[userRole] ?? userRole) : 'el participante'
+  const userRoleLabel = jobPositionName ?? 'el participante'
 
   return `
 ${NOVA_BASE_SYSTEM}
 
 MÓDULO ACTUAL: ${module.code} — ${module.name}
 OBJETIVO: ${module.description ?? ''}
-ROL DEL USUARIO: ${userRoleLabel}
+PUESTO DEL USUARIO: ${userRoleLabel}
 
 GUION DE ENTREVISTA (sigue este orden, una pregunta a la vez):
 Las preguntas entre corchetes [Nova: ...] son orientaciones internas — úsalas para profundizar pero no las leas literalmente al usuario.
@@ -103,11 +79,10 @@ CIERRE: Cuando hayas cubierto todas las secciones, confirma con el usuario y mar
 }
 
 /**
- * Genera el prompt de inicio automático de Nova para este módulo y rol.
+ * Genera el prompt de inicio automático de Nova para este módulo y puesto.
  * Se usa cuando el usuario abre el módulo por primera vez (__NOVA_START__).
  */
-export function buildStartMessage(moduleName: string, userRole: string | null): string {
-  const roleLabel = userRole ? (ROLE_LABEL[userRole] ?? userRole) : ''
-  const roleIntro = roleLabel ? ` Como ${roleLabel},` : ''
+export function buildStartMessage(moduleName: string, jobPositionName: string | null): string {
+  const roleIntro = jobPositionName ? ` Como ${jobPositionName},` : ''
   return `Inicia la sesión presentándote brevemente como Nova y di: "Vamos a comenzar con ${moduleName}.${roleIntro} te haré preguntas una a la vez sobre este tema. Tómate el tiempo que necesites para responder. ¿Listo para empezar?"`
 }

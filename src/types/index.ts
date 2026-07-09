@@ -6,7 +6,6 @@ export type PlanType = 'starter' | 'consultant' | 'agency' | 'white_label'
 
 // ─── Módulos ──────────────────────────────────────────────────────────────────
 export type ModuleCode = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7'
-export type PremiumModuleCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
 export type ModuleStatus = 'locked' | 'active' | 'completed'
 
 // ─── Agenda Oculta ────────────────────────────────────────────────────────────
@@ -37,7 +36,7 @@ export interface ChatMessage {
 export interface CaseModule {
   id: string
   case_id: string
-  module_code: ModuleCode | PremiumModuleCode
+  module_code: ModuleCode
   status: ModuleStatus
   credits_used: number
   unlocked_at: string | null
@@ -49,7 +48,7 @@ export interface CaseModule {
 export interface Session {
   id: string
   case_id: string
-  module_code: ModuleCode | PremiumModuleCode
+  module_code: ModuleCode
   user_id: string
   messages: ChatMessage[]
   last_message_at: string | null
@@ -126,22 +125,23 @@ export interface CheckIn {
 }
 
 // ─── KPIs (Módulo 8.4) ────────────────────────────────────────────────────────
+// Catálogo por caso — ver docs/PRD_RCPFAMTELL3PL.md sección 9.1. Reemplaza el
+// set fijo de 6 métricas por KPIs que el consultor define por caso.
+export interface KPIDefinition {
+  id: string
+  case_id: string
+  metric_key: string
+  label: string
+  target: number
+  unit: string
+  sort_order: number
+}
+
 export interface KPIRecord {
   id: string
   case_id: string
   week: number
-  revenue_actual: number
-  revenue_target: number
-  active_clients: number
-  active_clients_target: number
-  new_clients: number
-  reactivated_clients: number
-  warehouse_occupancy: number
-  fiscal_warehouse_occupancy: number
-  commercial_contacts: number
-  proposals_sent: number
-  close_rate: number
-  overdue_recovered: number
+  values: Record<string, number>
   recorded_at: string
 }
 
@@ -188,16 +188,6 @@ export interface Notification {
   status: 'sent' | 'failed' | 'pending'
   sent_at: string | null
   created_at: string
-}
-
-// ─── Módulos Premium ──────────────────────────────────────────────────────────
-export interface PremiumModule {
-  id: string
-  case_id: string
-  module_code: PremiumModuleCode
-  activated_by: string
-  activated_at: string
-  credits_cost: number
 }
 
 // ─── Intención estratégica ────────────────────────────────────────────────────
