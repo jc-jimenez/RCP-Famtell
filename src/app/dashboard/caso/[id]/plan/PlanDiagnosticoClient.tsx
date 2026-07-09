@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 type Override = { is_active: boolean; custom_text: string | null; job_position_ids: string[] }
@@ -284,7 +285,7 @@ export default function PlanDiagnosticoClient({
   }
 
   return (
-    <AppShell role={role} email={email ?? ''}>
+    <AppShell role={role} email={email ?? ''} tabBar={role === 'consultant' ? <CasoTabs caseId={caseId} activeTab="plan" /> : undefined}>
       <div className="max-w-5xl mx-auto space-y-4">
 
         <div>

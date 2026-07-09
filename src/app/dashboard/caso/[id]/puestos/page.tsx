@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
 import PuestosPanel from '@/components/consultor/PuestosPanel'
 
 export default async function CasoPuestosPage({
@@ -45,7 +46,7 @@ export default async function CasoPuestosPage({
     .order('sort_order', { ascending: true })
 
   return (
-    <AppShell role="consultant" email={session.user.email!}>
+    <AppShell role="consultant" email={session.user.email!} tabBar={<CasoTabs caseId={caseId} activeTab="puestos" />}>
       <div className="max-w-3xl mx-auto mb-2">
         <Link href={`/dashboard/caso/${caseId}?tab=diagnostico` as any} className="text-xs text-muted hover:text-ink">
           ← {caseData.company_name}
