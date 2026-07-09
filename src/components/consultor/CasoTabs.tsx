@@ -9,6 +9,10 @@ interface Tab {
   external?: boolean
 }
 
+// Radar (/caso/[id]/radar) se saca del menú a propósito: quedó fuera de
+// alcance y nunca se configuró DENUE_TOKEN, así que solo mostraba una
+// pantalla pidiendo setup técnico. La ruta y el código siguen intactos por
+// si se retoma más adelante.
 const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
@@ -17,7 +21,6 @@ const TABS: Tab[] = [
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
   { id: 'crm',         label: 'CRM',          external: true },
-  { id: 'radar',       label: 'Radar',        external: true },
   { id: 'propuestas',  label: 'Propuestas',   external: true },
   { id: 'tarifas',     label: 'Tarifas',      external: true },
   { id: 'capacidad',   label: 'Capacidad',    external: true },
@@ -37,7 +40,7 @@ const TABS: Tab[] = [
 interface Group { label: string; tabIds: string[] }
 const GROUPS: Group[] = [
   { label: 'Diagnóstico', tabIds: ['diagnostico', 'plan', 'puestos', 'participantes'] },
-  { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'radar', 'clima', 'competencia'] },
+  { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'clima', 'competencia'] },
   { label: 'Comercial', tabIds: ['crm', 'propuestas', 'tarifas', 'capacidad', 'escenarios', 'comunicacion'] },
   { label: 'Resultados', tabIds: ['tablas', 'kpis', 'checkin', 'brief'] },
   { label: 'Cliente', tabIds: ['portal'] },
