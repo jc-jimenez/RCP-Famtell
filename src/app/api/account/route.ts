@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -13,7 +14,13 @@ export async function GET() {
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ account: data })
+  // El super-admin no tiene fila en accounts (no consume créditos ni tiene
+  // empresa) — el email siempre viene de la sesión, no depende de esa fila.
+  return NextResponse.json({
+    account: data,
+    email: session.user.email,
+    isSuperAdmin: isSuperAdminEmail(session.user.email),
+  })
 }
 
 export async function PATCH(request: Request) {

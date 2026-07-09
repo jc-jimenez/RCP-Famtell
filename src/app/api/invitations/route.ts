@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
 import { sendWhatsApp } from '@/lib/twilio'
 import { getBaseUrl } from '@/lib/baseUrl'
@@ -28,23 +30,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
   }
 
-  const db = supabase as any
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
-  // Verificar que el caso pertenece al consultor
-  const { data: account } = await db
-    .from('accounts')
-    .select('id')
-    .eq('email', session.user.email)
-    .maybeSingle()
+  let caseData: { id: string; company_name: string } | null = null
 
-  if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  if (isSuperAdminEmail(session.user.email)) {
+    const { data } = await db.from('cases').select('id, company_name').eq('id', caseId).maybeSingle()
+    caseData = data
+  } else {
+    // Verificar que el caso pertenece al consultor
+    const { data: account } = await db
+      .from('accounts')
+      .select('id')
+      .eq('email', session.user.email)
+      .maybeSingle()
 
-  const { data: caseData } = await db
-    .from('cases')
-    .select('id, company_name')
-    .eq('id', caseId)
-    .eq('account_id', account.id)
-    .single()
+    if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+
+    const { data } = await db
+      .from('cases')
+      .select('id, company_name')
+      .eq('id', caseId)
+      .eq('account_id', account.id)
+      .maybeSingle()
+    caseData = data
+  }
 
   if (!caseData) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
 

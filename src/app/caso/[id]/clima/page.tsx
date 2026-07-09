@@ -30,18 +30,31 @@ export default async function ClimaPage({ params }: { params: Promise<{ id: stri
 
   if (!account) redirect('/dashboard')
 
-  const { data: surveys } = await db
+  const { data: rawSurveys } = await db
     .from('case_climate_surveys')
-    .select('id, token, title, questions, status, created_at')
+    .select('id, token, title, questions, status, created_at, job_position_id, case_job_positions (name)')
     .eq('case_id', id)
     .order('created_at', { ascending: false })
+
+  const surveys = (rawSurveys ?? []).map((s: any) => ({
+    ...s,
+    job_position_name: s.case_job_positions?.name ?? null,
+    case_job_positions: undefined,
+  }))
+
+  const { data: positions } = await db
+    .from('case_job_positions')
+    .select('id, name')
+    .eq('case_id', id)
+    .order('created_at', { ascending: true })
 
   return (
     <ClimaClient
       caseId={id}
       companyName={caseData.company_name}
       email={session.user.email!}
-      initialSurveys={surveys ?? []}
+      initialSurveys={surveys}
+      initialPositions={positions ?? []}
     />
   )
 }

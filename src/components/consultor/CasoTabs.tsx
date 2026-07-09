@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 
 interface Tab {
   id: string
@@ -12,6 +13,7 @@ const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
   { id: 'plan',         label: 'Plan',        external: true },
+  { id: 'puestos',      label: 'Puestos',     external: true },
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
   { id: 'crm',         label: 'CRM',          external: true },
@@ -30,39 +32,103 @@ const TABS: Tab[] = [
   { id: 'portal',      label: 'Portal Cliente' },
 ]
 
+// Agrupación tipo árbol para el menú vertical del caso (sección 16, Obs 6) —
+// reemplaza la barra horizontal de 19 pestañas, difícil de escanear.
+interface Group { label: string; tabIds: string[] }
+const GROUPS: Group[] = [
+  { label: 'Diagnóstico', tabIds: ['diagnostico', 'plan', 'puestos', 'participantes'] },
+  { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'radar', 'clima', 'competencia'] },
+  { label: 'Comercial', tabIds: ['crm', 'propuestas', 'tarifas', 'capacidad', 'escenarios', 'comunicacion'] },
+  { label: 'Resultados', tabIds: ['tablas', 'kpis', 'checkin', 'brief'] },
+  { label: 'Cliente', tabIds: ['portal'] },
+]
+
+function tabHref(caseId: string, tab: Tab): string {
+  return tab.id === 'plan' || tab.id === 'puestos'
+    ? `/dashboard/caso/${caseId}/${tab.id}`
+    : tab.external
+      ? `/caso/${caseId}/${tab.id}`
+      : `/dashboard/caso/${caseId}?tab=${tab.id}`
+}
+
 interface Props {
   caseId: string
   activeTab: string
 }
 
 export default function CasoTabs({ caseId, activeTab }: Props) {
-  return (
-    <div className="overflow-x-auto pb-3">
-      <nav className="flex gap-1.5 min-w-max">
-        {TABS.map(tab => {
-          const isActive = tab.id === activeTab
-          const href = tab.id === 'plan'
-            ? `/dashboard/caso/${caseId}/plan`
-            : tab.external
-              ? `/caso/${caseId}/${tab.id}`
-              : `/dashboard/caso/${caseId}?tab=${tab.id}`
+  const activeGroupLabel = GROUPS.find(g => g.tabIds.includes(activeTab))?.label ?? null
+  const [open, setOpen] = useState(false)
+  const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel)
+  const [prevActiveTab, setPrevActiveTab] = useState(activeTab)
 
-          return (
-            <Link
-              key={tab.id}
-              href={href as any}
-              className={`
-                px-3.5 py-1.5 text-sm font-medium whitespace-nowrap rounded-full border transition-colors
-                ${isActive
-                  ? 'bg-accent text-white border-accent'
-                  : 'border-subtle text-muted bg-surface hover:text-ink hover:border-accent/40 hover:bg-accent-soft'}
-              `}
-            >
-              {tab.label}
-            </Link>
-          )
-        })}
-      </nav>
+  // Al cambiar de pestaña (navegación), reabre el grupo correspondiente y
+  // cierra el menú — ajuste de estado durante el render en vez de un efecto,
+  // siguiendo el patrón recomendado por React para sincronizar con props.
+  if (activeTab !== prevActiveTab) {
+    setPrevActiveTab(activeTab)
+    setOpenGroup(activeGroupLabel)
+    setOpen(false)
+  }
+
+  const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Menú'
+
+  return (
+    <div className="relative mb-3">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 text-sm font-medium text-ink px-3.5 py-1.5 rounded-xl border border-subtle bg-surface hover:border-accent/40 transition-colors"
+      >
+        <span className="text-faint">Menú</span>
+        <span className="text-faint">›</span>
+        <span>{activeTabLabel}</span>
+        <span className={`text-faint text-xs transition-transform ${open ? 'rotate-180' : ''}`}>⌄</span>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[70vh] overflow-y-auto card p-2 z-50 shadow-lg">
+            {GROUPS.map(group => {
+              const isGroupOpen = openGroup === group.label
+              return (
+                <div key={group.label} className="mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setOpenGroup(g => (g === group.label ? null : group.label))}
+                    className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-faint px-2 py-1.5 rounded-lg hover:bg-surface-2"
+                  >
+                    {group.label}
+                    <span className={`transition-transform ${isGroupOpen ? 'rotate-180' : ''}`}>⌄</span>
+                  </button>
+                  {isGroupOpen && (
+                    <div className="pl-2 space-y-0.5 mt-0.5">
+                      {group.tabIds.map(id => {
+                        const tab = TABS.find(t => t.id === id)
+                        if (!tab) return null
+                        const isActive = tab.id === activeTab
+                        return (
+                          <Link
+                            key={tab.id}
+                            href={tabHref(caseId, tab) as any}
+                            onClick={() => setOpen(false)}
+                            className={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                              isActive ? 'bg-accent text-white font-medium' : 'text-muted hover:bg-accent-soft hover:text-ink'
+                            }`}
+                          >
+                            {tab.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }

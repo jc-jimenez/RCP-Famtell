@@ -140,6 +140,58 @@ export async function computeModuleCompletion(db: any, caseId: string, moduleCod
   return { moduleCode, colorStatus, requiredTotal: requiredPositionIds.length, completedTotal, pending }
 }
 
+// Inverso de getRequiredPositionIds: dado un puesto, qué módulos tienen al
+// menos una pregunta activa mapeada a él. Se usa para auto-derivar los
+// módulos de un participante a partir de su puesto (sección 16, Obs 7) — ya
+// no se le pide al consultor seleccionarlos a mano.
+export async function getModulesForPosition(db: any, caseId: string, jobPositionId: string): Promise<string[]> {
+  const { data: templates } = await db
+    .from('module_templates')
+    .select('id, code, sections (id, questions (id, is_active))')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  const allQuestionIds: string[] = (templates ?? []).flatMap((t: any) =>
+    (t.sections ?? []).flatMap((s: any) => (s.questions ?? []).map((q: any) => q.id))
+  )
+  const allSectionIds: string[] = (templates ?? []).flatMap((t: any) => (t.sections ?? []).map((s: any) => s.id))
+
+  const [{ data: overrides }, { data: customQuestions }] = await Promise.all([
+    allQuestionIds.length > 0
+      ? db.from('case_question_overrides').select('question_id, is_active, job_position_ids').eq('case_id', caseId).in('question_id', allQuestionIds)
+      : Promise.resolve({ data: [] }),
+    allSectionIds.length > 0
+      ? db.from('case_custom_questions').select('section_id, job_position_ids, is_active').eq('case_id', caseId).in('section_id', allSectionIds).eq('is_active', true)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const overrideMap: Record<string, { is_active: boolean; job_position_ids: string[] }> = {}
+  ;(overrides ?? []).forEach((o: any) => { overrideMap[o.question_id] = { is_active: o.is_active, job_position_ids: o.job_position_ids ?? [] } })
+
+  const customBySection: Record<string, any[]> = {}
+  ;(customQuestions ?? []).forEach((q: any) => {
+    if (!customBySection[q.section_id]) customBySection[q.section_id] = []
+    customBySection[q.section_id].push(q)
+  })
+
+  const codes: string[] = []
+  ;(templates ?? []).forEach((t: any) => {
+    const hasMatch = (t.sections ?? []).some((s: any) => {
+      const baseMatch = (s.questions ?? []).some((q: any) => {
+        const ov = overrideMap[q.id]
+        const isActive = ov !== undefined ? ov.is_active : q.is_active
+        if (!isActive) return false
+        return (ov?.job_position_ids ?? []).includes(jobPositionId)
+      })
+      if (baseMatch) return true
+      return (customBySection[s.id] ?? []).some((q: any) => (q.job_position_ids ?? []).includes(jobPositionId))
+    })
+    if (hasMatch) codes.push(t.code)
+  })
+
+  return codes
+}
+
 export async function computeAllModulesCompletion(db: any, caseId: string): Promise<ModuleCompletion[]> {
   const { data: templates } = await db
     .from('module_templates')

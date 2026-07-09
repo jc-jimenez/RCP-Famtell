@@ -19,6 +19,8 @@ const PLAN_COLORS: Record<string, string> = {
 
 export default function SettingsPage() {
   const [account, setAccount]         = useState<any>(null)
+  const [email, setEmail]             = useState('')
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [companyName, setCompanyName] = useState('')
   const [saving, setSaving]           = useState(false)
   const [saved, setSaved]             = useState(false)
@@ -37,9 +39,11 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch('/api/account')
       .then(r => r.json())
-      .then(({ account }) => {
+      .then(({ account, email, isSuperAdmin }) => {
         setAccount(account)
         setCompanyName(account?.company_name ?? '')
+        setEmail(email ?? '')
+        setIsSuperAdmin(!!isSuperAdmin)
       })
   }, [])
 
@@ -74,12 +78,12 @@ export default function SettingsPage() {
   const plan         = account?.plan_id ?? 'starter'
 
   return (
-    <AppShell email={account?.email ?? ''} role="consultant">
+    <AppShell email={email} role={isSuperAdmin ? 'super_admin' : 'consultant'}>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
         <div>
           <h1 className="text-xl font-semibold text-ink">Configuración</h1>
-          <p className="text-sm text-muted mt-0.5">Gestiona tu cuenta, seguridad y plan.</p>
+          <p className="text-sm text-muted mt-0.5">Gestiona tu cuenta y seguridad{!isSuperAdmin ? ', y plan' : ''}.</p>
         </div>
 
         {/* ── Perfil ── */}
@@ -90,31 +94,37 @@ export default function SettingsPage() {
             <label className="text-xs text-muted block mb-1">Email</label>
             <input
               className="input-field w-full text-sm bg-surface-2 text-faint cursor-not-allowed"
-              value={account?.email ?? ''}
+              value={email}
               disabled
             />
           </div>
 
-          <div>
-            <label className="text-xs text-muted block mb-1">Nombre de empresa / consultoría</label>
-            <input
-              className="input-field w-full text-sm"
-              placeholder="Ej. Estrategia & Crecimiento S.A."
-              value={companyName}
-              onChange={e => setCompanyName(e.target.value)}
-            />
-          </div>
+          {isSuperAdmin ? (
+            <p className="text-xs text-muted">Cuenta de Super-Admin — sin empresa ni plan asociados.</p>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs text-muted block mb-1">Nombre de empresa / consultoría</label>
+                <input
+                  className="input-field w-full text-sm"
+                  placeholder="Ej. Estrategia & Crecimiento S.A."
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                />
+              </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={saveProfile}
-              disabled={saving}
-              className="btn-primary text-sm px-4 py-2 disabled:opacity-50"
-            >
-              {saving ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-            {saved && <span className="text-xs text-emerald-600">✓ Guardado</span>}
-          </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={saveProfile}
+                  disabled={saving}
+                  className="btn-primary text-sm px-4 py-2 disabled:opacity-50"
+                >
+                  {saving ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+                {saved && <span className="text-xs text-emerald-600">✓ Guardado</span>}
+              </div>
+            </>
+          )}
         </section>
 
         {/* ── Seguridad ── */}
@@ -159,47 +169,49 @@ export default function SettingsPage() {
         </section>
 
         {/* ── Plan y créditos ── */}
-        <section className="card p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink">Plan y créditos</h2>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PLAN_COLORS[plan] ?? PLAN_COLORS.starter}`}>
-              {PLAN_LABELS[plan] ?? plan}
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-muted">
-              <span>Créditos usados</span>
-              <span className="font-medium text-ink">{creditsUsed} / {creditsTotal}</span>
+        {!isSuperAdmin && (
+          <section className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">Plan y créditos</h2>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PLAN_COLORS[plan] ?? PLAN_COLORS.starter}`}>
+                {PLAN_LABELS[plan] ?? plan}
+              </span>
             </div>
-            <div className="w-full bg-surface-2 rounded-full h-2">
-              <div
-                className="h-2 rounded-full transition-all"
-                style={{
-                  width: `${pct}%`,
-                  background: pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#6366f1',
-                }}
-              />
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted">
+                <span>Créditos usados</span>
+                <span className="font-medium text-ink">{creditsUsed} / {creditsTotal}</span>
+              </div>
+              <div className="w-full bg-surface-2 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    background: pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#6366f1',
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted">
+                {creditsLeft} créditos disponibles
+              </p>
             </div>
-            <p className="text-xs text-muted">
-              {creditsLeft} créditos disponibles
-            </p>
-          </div>
 
-          {plan === 'starter' && (
-            <Link href="/dashboard/creditos" className="btn-primary text-sm px-4 py-2 inline-block">
-              Subir a Pro →
-            </Link>
-          )}
+            {plan === 'starter' && (
+              <Link href="/dashboard/creditos" className="btn-primary text-sm px-4 py-2 inline-block">
+                Subir a Pro →
+              </Link>
+            )}
 
-          <div className="pt-2 border-t border-subtle">
-            <p className="text-xs text-faint">
-              Miembro desde {account?.created_at
-                ? new Date(account.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long' })
-                : '—'}
-            </p>
-          </div>
-        </section>
+            <div className="pt-2 border-t border-subtle">
+              <p className="text-xs text-faint">
+                Miembro desde {account?.created_at
+                  ? new Date(account.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long' })
+                  : '—'}
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* ── Zona de peligro ── */}
         <section className="card p-5 space-y-3 border-rose-200">

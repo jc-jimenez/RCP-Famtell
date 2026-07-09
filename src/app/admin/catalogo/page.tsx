@@ -35,9 +35,16 @@ export default async function CatalogoAdminPage() {
       })),
   }))
 
+  // Catálogo global de roles de negocio — reemplaza la lista hardcodeada de
+  // "roles sugeridos" (sección 16 del PRD, Obs 2)
+  const { data: businessRoles } = await db
+    .from('business_roles')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
+
   return (
     <AppShell role="super_admin" email={session.user.email!}>
-      <CatalogoAdminClient initialModules={sorted} />
+      <CatalogoAdminClient initialModules={sorted} businessRoles={businessRoles ?? []} />
     </AppShell>
   )
 }

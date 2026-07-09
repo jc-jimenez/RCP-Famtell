@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { computeModuleCompletion } from '@/lib/moduleCompletion'
+import { generateAndStoreModuleBackup } from '@/lib/moduleBackup'
 import type { ModuleCode } from '@/types'
 
 export const runtime = 'nodejs'
@@ -208,6 +209,15 @@ export async function POST(request: Request) {
         .update({ status: 'active', unlocked_at: new Date().toISOString() })
         .eq('case_id', caseId)
         .eq('module_code', nextModule)
+    }
+
+    // Respaldo en PDF de la transcripción del módulo (sección 16, Obs 9).
+    // Requiere service role para escribir en Storage — si no está
+    // configurado, se omite en vez de tronar la respuesta.
+    if (admin) {
+      generateAndStoreModuleBackup(admin, caseId, moduleCode).catch(err => {
+        console.error('[modules/complete] Error al generar el PDF de respaldo:', err)
+      })
     }
   }
 

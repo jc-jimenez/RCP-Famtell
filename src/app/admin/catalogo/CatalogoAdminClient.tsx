@@ -3,14 +3,7 @@
 import { useState } from 'react'
 import ClimaCatalogoPanel from './ClimaCatalogoPanel'
 
-const ROLE_OPTIONS = [
-  { id: 'director_general',   label: 'Director General' },
-  { id: 'gerente_comercial',  label: 'Gerente Comercial' },
-  { id: 'gerente_operativo',  label: 'Gerente Operativo' },
-  { id: 'cfo_contador',       label: 'CFO / Contador' },
-  { id: 'rrhh_admin',         label: 'RRHH / Admin' },
-  { id: 'gerente_marketing',  label: 'Gerente Marketing' },
-]
+type BusinessRole = { id: string; name: string }
 
 type Question = {
   id: string; text: string; nova_hint: string | null
@@ -24,7 +17,7 @@ type Module = {
   id: string; code: string; name: string; sort_order: number; is_active: boolean; sections: Section[]
 }
 
-export default function CatalogoAdminClient({ initialModules }: { initialModules: Module[] }) {
+export default function CatalogoAdminClient({ initialModules, businessRoles }: { initialModules: Module[]; businessRoles: BusinessRole[] }) {
   const [tab, setTab] = useState<'diagnostico' | 'clima'>('diagnostico')
   const [modules, setModules] = useState<Module[]>(initialModules)
   const [activeModule, setActiveModule] = useState<string>(initialModules[0]?.code ?? '')
@@ -324,7 +317,7 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
                         )}
                         <div className="flex flex-wrap gap-1 mt-2">
                           {q.suggested_roles.map(r => (
-                            <span key={r} className="badge text-xs">{ROLE_OPTIONS.find(x => x.id === r)?.label ?? r}</span>
+                            <span key={r} className="badge text-xs">{businessRoles.find(x => x.id === r)?.name ?? r}</span>
                           ))}
                           <span className={`badge text-xs ${q.response_type === 'text' ? 'bg-sky-50 text-sky-700' : 'bg-purple-50 text-purple-700'}`}>
                             {q.response_type}
@@ -410,10 +403,10 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
             <div>
               <label className="label-text">Roles sugeridos</label>
               <div className="grid grid-cols-2 gap-1.5 mt-1">
-                {ROLE_OPTIONS.map(r => (
+                {businessRoles.map(r => (
                   <label key={r.id} className="flex items-center gap-2 text-xs cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
                     <input type="checkbox" checked={form.suggested_roles?.includes(r.id)} onChange={() => toggleRole(r.id)} />
-                    {r.label}
+                    {r.name}
                   </label>
                 ))}
               </div>
@@ -454,10 +447,10 @@ export default function CatalogoAdminClient({ initialModules }: { initialModules
             <div>
               <label className="label-text">Roles sugeridos</label>
               <div className="grid grid-cols-2 gap-1.5 mt-1">
-                {ROLE_OPTIONS.map(r => (
+                {businessRoles.map(r => (
                   <label key={r.id} className="flex items-center gap-2 text-xs cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
                     <input type="checkbox" checked={form.suggested_roles?.includes(r.id)} onChange={() => toggleRole(r.id)} />
-                    {r.label}
+                    {r.name}
                   </label>
                 ))}
               </div>

@@ -23,6 +23,17 @@ interface User {
   businessRole: string | null
 }
 
+interface CaseOption {
+  id: string
+  companyName: string
+  accountEmail: string | null
+}
+
+interface Position {
+  id: string
+  name: string
+}
+
 const KIND_LABEL: Record<string, string> = {
   super_admin: 'Super-Admin',
   consultant: 'Consultor',
@@ -38,8 +49,28 @@ const KIND_PILL: Record<string, string> = {
   unknown: 'bg-rose-50 text-rose-600 border-rose-200',
 }
 
+const NEW_USER_EMPTY = {
+  role: 'director' as 'consultant' | 'director' | 'collaborator',
+  fullName: '',
+  email: '',
+  whatsapp: '',
+  password: '',
+  // Consultor
+  companyName: '',
+  plan: 'starter',
+  credits: 100,
+  // Director / Colaborador
+  caseId: '',
+  positionId: '',
+}
+
+function generatePassword(): string {
+  return `Bd-${Math.random().toString(36).slice(2, 8)}-${Math.floor(Math.random() * 9000 + 1000)}`
+}
+
 export default function UsuariosAdminClient() {
   const [users, setUsers] = useState<User[]>([])
+  const [cases, setCases] = useState<CaseOption[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [filterKind, setFilterKind] = useState<string>('all')
@@ -52,14 +83,95 @@ export default function UsuariosAdminClient() {
   const [editEmail, setEditEmail] = useState('')
   const [editWhatsapp, setEditWhatsapp] = useState('')
 
+  const [showNewUser, setShowNewUser] = useState(false)
+  const [newUser, setNewUser] = useState(NEW_USER_EMPTY)
+  const [newUserPositions, setNewUserPositions] = useState<Position[]>([])
+  const [loadingPositions, setLoadingPositions] = useState(false)
+  const [newUserSaving, setNewUserSaving] = useState(false)
+  const [newUserError, setNewUserError] = useState<string | null>(null)
+  const [newUserResult, setNewUserResult] = useState<{ email: string; pw?: string; activationUrl?: string } | null>(null)
+
   async function load() {
     setLoading(true)
     const res = await fetch('/api/admin/usuarios')
     const data = await res.json()
     setUsers(data.users ?? [])
+    setCases(data.cases ?? [])
     setLoading(false)
   }
   useEffect(() => { load() }, [])
+
+  function setNewUserField(k: string, v: unknown) {
+    setNewUser(prev => ({ ...prev, [k]: v }))
+  }
+
+  async function onSelectCase(caseId: string) {
+    setNewUserField('caseId', caseId)
+    setNewUserField('positionId', '')
+    setNewUserPositions([])
+    if (!caseId) return
+    setLoadingPositions(true)
+    const res = await fetch(`/api/consultant/case-job-positions?caseId=${caseId}`)
+    const data = await res.json()
+    setNewUserPositions(data.positions ?? [])
+    setLoadingPositions(false)
+  }
+
+  function openNewUser() {
+    setNewUser(NEW_USER_EMPTY)
+    setNewUserPositions([])
+    setNewUserError(null)
+    setNewUserResult(null)
+    setShowNewUser(true)
+  }
+
+  async function createNewUser() {
+    setNewUserSaving(true)
+    setNewUserError(null)
+
+    if (newUser.role === 'consultant') {
+      const res = await fetch('/api/admin/consultores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newUser.email,
+          companyName: newUser.companyName,
+          fullName: newUser.fullName,
+          whatsapp: newUser.whatsapp,
+          plan: newUser.plan,
+          credits: newUser.credits,
+        }),
+      })
+      const data = await res.json()
+      setNewUserSaving(false)
+      if (!res.ok) { setNewUserError(data.error ?? 'Error al crear el consultor'); return }
+      setNewUserResult({ email: newUser.email, pw: data.tempPassword ?? undefined })
+      load()
+      return
+    }
+
+    // Director / Colaborador — alta directa con contraseña (activo de inmediato)
+    const res = await fetch('/api/consultant/create-participant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caseId: newUser.caseId,
+        email: newUser.email,
+        password: newUser.password,
+        role: newUser.role,
+        jobPositionId: newUser.positionId,
+        businessRoleId: null,
+        permissions: newUser.role === 'director' ? { modules: ['M1','M2','M3','M4','M5','M6','M7'] } : { modules: [] },
+        fullName: newUser.fullName,
+        whatsappPhone: newUser.whatsapp,
+      }),
+    })
+    const data = await res.json()
+    setNewUserSaving(false)
+    if (!res.ok) { setNewUserError(data.error ?? 'Error al crear el usuario'); return }
+    setNewUserResult({ email: newUser.email })
+    load()
+  }
 
   async function act(userId: string, action: string, extra?: any) {
     setBusy(userId + action)
@@ -139,9 +251,14 @@ export default function UsuariosAdminClient() {
           <h1 className="text-xl font-bold text-ink mt-1">Usuarios</h1>
           <p className="text-muted text-sm mt-0.5">Gestión de soporte: activar/bloquear, resetear contraseña, ajustar créditos, editar datos.</p>
         </div>
-        <Link href={'/admin/consultores' as any} className="btn-primary text-sm px-4 py-2 whitespace-nowrap">
-          + Crear consultor
-        </Link>
+        <div className="flex gap-2">
+          <button onClick={openNewUser} className="btn-primary text-sm px-4 py-2 whitespace-nowrap">
+            + Nuevo Usuario
+          </button>
+          <Link href={'/admin/consultores' as any} className="btn-secondary text-sm px-4 py-2 whitespace-nowrap">
+            + Crear consultor
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -245,6 +362,134 @@ export default function UsuariosAdminClient() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal nuevo usuario */}
+      {showNewUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setShowNewUser(false)}>
+          <div className="card p-6 max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-ink">Nuevo Usuario</h3>
+
+            {newUserResult ? (
+              <div className="space-y-3">
+                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  ✓ {newUserResult.email} creado correctamente.
+                </p>
+                {newUserResult.pw && (
+                  <div className="bg-surface-2 rounded-xl px-4 py-3 text-center">
+                    <p className="text-xs text-muted mb-1">Contraseña temporal</p>
+                    <p className="font-mono text-lg text-ink select-all">{newUserResult.pw}</p>
+                  </div>
+                )}
+                <button onClick={() => setShowNewUser(false)} className="btn-primary w-full text-sm">Listo</button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="label-text">Rol *</label>
+                  <select value={newUser.role} onChange={e => setNewUserField('role', e.target.value)} className="input-field text-sm">
+                    <option value="consultant">Consultor</option>
+                    <option value="director">Director</option>
+                    <option value="collaborator">Colaborador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label-text">Nombre del usuario</label>
+                  <input value={newUser.fullName} onChange={e => setNewUserField('fullName', e.target.value)} className="input-field text-sm" placeholder="Nombre y apellido" />
+                </div>
+
+                <div>
+                  <label className="label-text">Correo electrónico *</label>
+                  <input type="email" value={newUser.email} onChange={e => setNewUserField('email', e.target.value)} className="input-field text-sm" placeholder="usuario@empresa.com" />
+                </div>
+
+                <div>
+                  <label className="label-text">WhatsApp *</label>
+                  <input type="tel" value={newUser.whatsapp} onChange={e => setNewUserField('whatsapp', e.target.value)} className="input-field text-sm" placeholder="+52 55 1234 5678" />
+                </div>
+
+                {newUser.role === 'consultant' ? (
+                  <>
+                    <div>
+                      <label className="label-text">Nombre empresa *</label>
+                      <input value={newUser.companyName} onChange={e => setNewUserField('companyName', e.target.value)} className="input-field text-sm" placeholder="Consultoría XYZ" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label-text">Plan</label>
+                        <select value={newUser.plan} onChange={e => setNewUserField('plan', e.target.value)} className="input-field text-sm">
+                          <option value="starter">Starter</option>
+                          <option value="pro">Pro</option>
+                          <option value="enterprise">Enterprise</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label-text">Créditos iniciales</label>
+                        <input type="number" value={newUser.credits} onChange={e => setNewUserField('credits', Number(e.target.value))} className="input-field text-sm" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="label-text">Empresa / Caso *</label>
+                      <select value={newUser.caseId} onChange={e => onSelectCase(e.target.value)} className="input-field text-sm">
+                        <option value="">Seleccionar…</option>
+                        {cases.map(c => (
+                          <option key={c.id} value={c.id}>{c.companyName}{c.accountEmail ? ` — ${c.accountEmail}` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label-text">Puesto *</label>
+                      <select
+                        value={newUser.positionId}
+                        onChange={e => setNewUserField('positionId', e.target.value)}
+                        disabled={!newUser.caseId || loadingPositions}
+                        className="input-field text-sm disabled:opacity-50"
+                      >
+                        <option value="">{loadingPositions ? 'Cargando…' : newUser.caseId ? 'Seleccionar…' : 'Elige primero una empresa'}</option>
+                        {newUserPositions.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      {newUser.caseId && !loadingPositions && newUserPositions.length === 0 && (
+                        <p className="text-xs text-amber-600 mt-1">Este caso no tiene puestos creados todavía.</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="label-text">Contraseña *</label>
+                      <div className="flex gap-2">
+                        <input value={newUser.password} onChange={e => setNewUserField('password', e.target.value)} className="input-field text-sm flex-1" placeholder="Mínimo 8 caracteres" />
+                        <button type="button" onClick={() => setNewUserField('password', generatePassword())} className="btn-secondary text-xs whitespace-nowrap px-3">
+                          Generar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {newUserError && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{newUserError}</p>}
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setShowNewUser(false)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+                  <button
+                    onClick={createNewUser}
+                    disabled={newUserSaving || !newUser.email.trim() || !newUser.whatsapp.trim() || (
+                      newUser.role === 'consultant'
+                        ? !newUser.companyName.trim() || !newUser.fullName.trim()
+                        : !newUser.caseId || !newUser.positionId || newUser.password.length < 8
+                    )}
+                    className="btn-primary flex-1 text-sm disabled:opacity-50"
+                  >
+                    {newUserSaving ? 'Creando…' : 'Crear usuario'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { isSuperAdminEmail } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -35,18 +36,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
   }
 
-  const db = supabase as any
-  const { data: account } = await db.from('accounts').select('id').eq('email', session.user.email).maybeSingle()
-  if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
 
-  const { data: caseData } = await db.from('cases').select('id, company_name').eq('id', caseId).eq('account_id', account.id).single()
+  let caseData: { id: string; company_name: string } | null = null
+
+  if (isSuperAdminEmail(session.user.email)) {
+    const { data } = await db.from('cases').select('id, company_name').eq('id', caseId).maybeSingle()
+    caseData = data
+  } else {
+    const { data: account } = await db.from('accounts').select('id').eq('email', session.user.email).maybeSingle()
+    if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+
+    const { data } = await db.from('cases').select('id, company_name').eq('id', caseId).eq('account_id', account.id).maybeSingle()
+    caseData = data
+  }
   if (!caseData) return NextResponse.json({ error: 'Caso no encontrado' }, { status: 404 })
 
   const { data: existing } = await db.from('case_users').select('id').eq('case_id', caseId).or(`invitation_email.eq.${email}`).maybeSingle()
   if (existing) return NextResponse.json({ error: 'Este correo ya está registrado en este caso' }, { status: 409 })
-
-  const admin = getSupabaseAdmin()
-  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
 
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email,

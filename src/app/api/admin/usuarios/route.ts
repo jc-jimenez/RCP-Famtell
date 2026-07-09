@@ -34,7 +34,7 @@ export async function GET() {
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     db.from('accounts').select('id, email, company_name, full_name, whatsapp_phone, plan_id, credits_total, credits_used, status'),
     db.from('case_users').select('id, user_id, role, job_title, case_id, business_role_id, full_name, whatsapp_phone').not('user_id', 'is', null),
-    db.from('cases').select('id, company_name'),
+    db.from('cases').select('id, company_name, account_id'),
     db.from('business_roles').select('id, name'),
   ])
 
@@ -89,7 +89,16 @@ export async function GET() {
   const rank: Record<string, number> = { super_admin: 0, consultant: 1, director: 2, collaborator: 3, unknown: 4 }
   users.sort((a: any, b: any) => (rank[a.kind] ?? 9) - (rank[b.kind] ?? 9) || (a.email ?? '').localeCompare(b.email ?? ''))
 
-  return NextResponse.json({ users })
+  // Casos/empresas, para el dropdown "Empresa" del alta de Director/Colaborador
+  const accountById: Record<string, any> = {}
+  ;(accounts ?? []).forEach((a: any) => { accountById[a.id] = a })
+  const caseOptions = (cases ?? []).map((c: any) => ({
+    id: c.id,
+    companyName: c.company_name,
+    accountEmail: accountById[c.account_id]?.email ?? null,
+  }))
+
+  return NextResponse.json({ users, cases: caseOptions })
 }
 
 // PATCH — acciones de soporte sobre un usuario:

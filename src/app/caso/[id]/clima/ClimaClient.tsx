@@ -12,6 +12,13 @@ interface Survey {
   questions: ClimateQuestion[]
   status: 'draft' | 'open' | 'closed'
   created_at: string
+  job_position_id: string | null
+  job_position_name: string | null
+}
+
+interface Position {
+  id: string
+  name: string
 }
 
 interface Response {
@@ -27,6 +34,7 @@ interface Props {
   companyName: string
   email: string
   initialSurveys: Survey[]
+  initialPositions: Position[]
 }
 
 const STATUS_LABEL: Record<string, string> = { draft: 'Borrador', open: 'Abierta', closed: 'Cerrada' }
@@ -36,24 +44,35 @@ const STATUS_COLOR: Record<string, string> = {
   closed: 'bg-amber-100 text-amber-700',
 }
 
-export default function ClimaClient({ caseId, companyName, email, initialSurveys }: Props) {
+export default function ClimaClient({ caseId, companyName, email, initialSurveys, initialPositions }: Props) {
   const [surveys, setSurveys] = useState<Survey[]>(initialSurveys)
   const [creating, setCreating] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [responsesBySurvey, setResponsesBySurvey] = useState<Record<string, Response[]>>({})
   const [loadingResponses, setLoadingResponses] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+  const [showNewSurvey, setShowNewSurvey] = useState(false)
+  const [newSurveyPositionId, setNewSurveyPositionId] = useState('')
 
-  async function createSurvey() {
+  const hasPositions = initialPositions.length > 0
+
+  function openNewSurvey() {
+    if (!hasPositions) { createSurvey(null); return }
+    setNewSurveyPositionId('')
+    setShowNewSurvey(true)
+  }
+
+  async function createSurvey(jobPositionId: string | null) {
     setCreating(true)
     const res = await fetch('/api/consultant/climate-surveys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId }),
+      body: JSON.stringify({ caseId, jobPositionId }),
     })
     const data = await res.json()
     if (data.survey) setSurveys(prev => [data.survey, ...prev])
     setCreating(false)
+    setShowNewSurvey(false)
   }
 
   async function setStatus(surveyId: string, status: string) {
@@ -108,13 +127,51 @@ export default function ClimaClient({ caseId, companyName, email, initialSurveys
             <h1 className="text-xl font-bold text-ink">Encuesta de Clima</h1>
             <p className="text-sm text-muted mt-1">Anónima de verdad: sin nombre, sin IP — solo área y nivel autodeclarados</p>
           </div>
-          <button onClick={createSurvey} disabled={creating} className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50">
+          <button onClick={openNewSurvey} disabled={creating} className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50">
             {creating ? 'Creando…' : '+ Nueva encuesta'}
           </button>
         </div>
 
         {surveys.length === 0 && (
-          <div className="card p-10 text-center text-sm text-muted">Sin encuestas todavía. Crea una para empezar (se siembra con las 10 preguntas del Kit).</div>
+          <div className="card p-10 text-center text-sm text-muted">
+            Sin encuestas todavía. Crea una para empezar (se siembra con las 10 preguntas del Kit)
+            {hasPositions ? ' — cada puesto tiene su propio link, así puedes segmentar sin perder el anonimato dentro de cada puesto.' : '.'}
+          </div>
+        )}
+
+        {showNewSurvey && (
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="card w-full max-w-sm p-5 space-y-3">
+              <h3 className="text-sm font-bold text-ink">Nueva encuesta de clima</h3>
+              <p className="text-xs text-muted">
+                Elige el puesto al que le corresponde este link. Cada puesto tiene su propio link — las respuestas
+                siguen siendo anónimas dentro del puesto, pero puedes comparar entre puestos.
+              </p>
+              <div>
+                <label className="label-text">Puesto</label>
+                <select
+                  value={newSurveyPositionId}
+                  onChange={e => setNewSurveyPositionId(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Selecciona un puesto…</option>
+                  {initialPositions.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setShowNewSurvey(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button
+                  onClick={() => createSurvey(newSurveyPositionId)}
+                  disabled={creating || !newSurveyPositionId}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {creating ? 'Creando…' : 'Crear'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="space-y-3">
@@ -125,9 +182,12 @@ export default function ClimaClient({ caseId, companyName, email, initialSurveys
               <div key={survey.id} className="card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-sm font-semibold text-ink">{survey.title}</h2>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[survey.status]}`}>{STATUS_LABEL[survey.status]}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent font-medium">
+                        {survey.job_position_name ?? 'General (todos los puestos)'}
+                      </span>
                     </div>
                     <p className="text-xs text-faint mt-0.5">{survey.questions.length} preguntas · creada {new Date(survey.created_at).toLocaleDateString('es-MX')}</p>
                   </div>

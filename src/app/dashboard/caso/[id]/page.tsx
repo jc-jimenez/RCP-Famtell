@@ -8,7 +8,7 @@ import AgendaPanel from '@/components/consultor/AgendaPanel'
 import ParticipantesPanel from '@/components/consultor/ParticipantesPanel'
 import CasoTabs from '@/components/consultor/CasoTabs'
 import SharePortalPanel from '@/components/consultor/SharePortalPanel'
-import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
+import { computeAllModulesCompletion, getModulesForPosition } from '@/lib/moduleCompletion'
 import type { ModuleCode } from '@/types'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
@@ -58,7 +58,7 @@ export default async function CasoDetallePage({
 
   const { data: modules } = await db
     .from('modules')
-    .select('module_code, status, completed_at, credits_used')
+    .select('module_code, status, completed_at, credits_used, backup_pdf_path')
     .eq('case_id', id)
 
   const moduleMap: Record<string, any> = {}
@@ -74,11 +74,15 @@ export default async function CasoDetallePage({
     .select('id, role, job_title, job_position_id, business_role_id, invitation_email, full_name, permissions_json, activated_at')
     .eq('case_id', id)
 
-  const { data: positions } = await db
+  const { data: rawPositions } = await db
     .from('case_job_positions')
     .select('id, name, job_description, business_role_id')
     .eq('case_id', id)
     .order('created_at', { ascending: true })
+
+  const positions = await Promise.all(
+    (rawPositions ?? []).map(async (p: any) => ({ ...p, moduleCodes: await getModulesForPosition(db, id, p.id) }))
+  )
 
   const { data: businessRoles } = await db
     .from('business_roles')
@@ -148,11 +152,23 @@ export default async function CasoDetallePage({
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-faint flex-shrink-0">
-                      {status === 'completed'
-                        ? (m.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '')
-                        : status === 'active' ? (colorStatus === 'amber' ? 'Incompleto' : 'No iniciado') : 'Pendiente'}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-xs text-faint">
+                        {status === 'completed'
+                          ? (m.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '')
+                          : status === 'active' ? (colorStatus === 'amber' ? 'Incompleto' : 'No iniciado') : 'Pendiente'}
+                      </span>
+                      {status === 'completed' && m.backup_pdf_path && (
+                        <a
+                          href={`/api/modules/backup?caseId=${id}&moduleCode=${code}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-accent hover:underline"
+                        >
+                          📄 PDF de respaldo
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -161,7 +177,7 @@ export default async function CasoDetallePage({
         )}
 
         {tab === 'participantes' && (
-          <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} initialPositions={positions ?? []} businessRoles={businessRoles ?? []} />
+          <ParticipantesPanel caseId={id} initialParticipants={participants ?? []} initialPositions={positions} businessRoles={businessRoles ?? []} />
         )}
 
         {tab === 'agenda' && (

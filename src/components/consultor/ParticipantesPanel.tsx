@@ -18,6 +18,7 @@ interface Position {
   name: string
   job_description: string
   business_role_id: string | null
+  moduleCodes: string[]
 }
 
 interface BusinessRole {
@@ -68,7 +69,6 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
     positionId: '',
     businessRoleId: '',
     platformRole: 'collaborator' as 'director' | 'collaborator',
-    customModules: [] as string[],
     whatsapp: '',
     landlinePhone: '',
     seniority: '',
@@ -77,7 +77,14 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
   const [form, setForm] = useState(emptyForm)
 
   const isDirector = form.platformRole === 'director'
-  const effectiveModules = isDirector ? ALL_CODES : form.customModules
+  const selectedPosition = positions.find(p => p.id === form.positionId)
+  const derivedModules = selectedPosition?.moduleCodes ?? []
+  const noModulesMapped = !isDirector && !!form.positionId && derivedModules.length === 0
+  const effectiveModules = isDirector
+    ? ALL_CODES
+    : form.positionId
+      ? (derivedModules.length > 0 ? derivedModules : ALL_CODES)
+      : []
   const noPositions = positions.length === 0
   const roleNameById = Object.fromEntries(businessRoles.map(r => [r.id, r.name]))
 
@@ -93,15 +100,6 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
   function selectPosition(positionId: string) {
     const pos = positions.find(x => x.id === positionId)
     setForm(f => ({ ...f, positionId, businessRoleId: pos?.business_role_id ?? f.businessRoleId }))
-  }
-
-  function toggleCustomModule(code: string) {
-    setForm(f => ({
-      ...f,
-      customModules: f.customModules.includes(code)
-        ? f.customModules.filter(c => c !== code)
-        : [...f.customModules, code],
-    }))
   }
 
   const canSubmit = !!form.email && !!form.positionId && !!form.whatsapp.trim() && effectiveModules.length > 0
@@ -395,31 +393,29 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                   </div>
                 </div>
 
-                {/* Módulos custom (solo colaborador) */}
-                {!isDirector && (
-                  <div>
-                    <label className="label-text">Selecciona los módulos</label>
-                    <div className="grid grid-cols-1 gap-1.5 mt-1">
-                      {MODULES.map(m => (
-                        <label key={m.code} className="flex items-center gap-2 text-sm text-ink cursor-pointer rounded-lg px-2 py-1.5 hover:bg-surface-2">
-                          <input
-                            type="checkbox"
-                            checked={form.customModules.includes(m.code)}
-                            onChange={() => toggleCustomModule(m.code)}
-                            className="accent-brand"
-                          />
-                          <span className="font-medium text-xs w-6 text-faint">{m.code}</span>
-                          <span className="text-muted text-xs">{m.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {isDirector && (
+                {/* Módulos — se derivan del puesto (qué preguntas están mapeadas a él), ya no se seleccionan a mano */}
+                {isDirector ? (
                   <div className="bg-surface-2 rounded-xl px-4 py-3">
                     <p className="text-xs text-muted mb-1">Módulos asignados automáticamente:</p>
                     <p className="text-xs font-semibold text-ink">{ALL_CODES.join(' · ')}</p>
+                  </div>
+                ) : (
+                  <div className="bg-surface-2 rounded-xl px-4 py-3">
+                    <p className="text-xs text-muted mb-1">
+                      {!form.positionId
+                        ? 'Módulos:'
+                        : noModulesMapped
+                          ? 'Módulos asignados (temporal — el puesto aún no tiene preguntas mapeadas):'
+                          : 'Módulos asignados automáticamente según el puesto:'}
+                    </p>
+                    <p className="text-xs font-semibold text-ink">
+                      {form.positionId ? effectiveModules.join(' · ') : 'Selecciona un puesto para ver sus módulos'}
+                    </p>
+                    {noModulesMapped && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Este puesto todavía no tiene preguntas mapeadas en el Plan de Diagnóstico — se le asignan todos los módulos mientras tanto. Mapea preguntas al puesto para afinar el acceso.
+                      </p>
+                    )}
                   </div>
                 )}
               </>
