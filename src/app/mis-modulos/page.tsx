@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
+import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { hasCapability } from '@/lib/permissions'
 import { getModulesForPosition } from '@/lib/moduleCompletion'
 
@@ -28,7 +30,7 @@ export default async function MisModulosPage() {
 
   const { data: caseUser } = await db
     .from('case_users')
-    .select('case_id, role, job_title, job_position_id, cases(company_name, industry)')
+    .select('case_id, role, job_title, job_position_id, onboarding_dismissed_at, cases(company_name, industry)')
     .eq('user_id', session.user.id)
     .maybeSingle()
 
@@ -36,6 +38,18 @@ export default async function MisModulosPage() {
   if (!hasCapability(caseUser.role, 'access_collaborator_workspace')) redirect('/login')
 
   const caseData = caseUser.cases as any
+
+  if (!caseUser.onboarding_dismissed_at) {
+    return (
+      <AppShell role="collaborator" email={session.user.email!}>
+        <OnboardingWizard
+          steps={colaboradorOnboardingSteps}
+          dismissEndpoint="/api/onboarding/participante"
+          dismissBody={{ caseId: caseUser.case_id }}
+        />
+      </AppShell>
+    )
+  }
   // Se recalcula en cada carga a partir del mapeo vigente en Plan de
   // Diagnóstico — no se usa un snapshot guardado al invitar, porque el
   // consultor puede remapear preguntas a puestos después de la invitación.

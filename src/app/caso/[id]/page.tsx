@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
+import { directorOnboardingSteps } from '@/components/onboarding/directorSteps'
+import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import type { ModuleCode } from '@/types'
 
@@ -35,7 +38,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
 
   const { data: caseUser } = await db
     .from('case_users')
-    .select('role, job_title')
+    .select('role, job_title, onboarding_dismissed_at')
     .eq('case_id', id)
     .eq('user_id', session.user.id)
     .maybeSingle()
@@ -50,6 +53,18 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
 
   const role = caseUser.role as 'director' | 'collaborator' | 'consultant'
   const isDirector = role === 'director'
+
+  if (!caseUser.onboarding_dismissed_at && (role === 'director' || role === 'collaborator')) {
+    return (
+      <AppShell role={role === 'director' ? 'director' : 'collaborator'} email={session.user.email!} caseCompanyName={caseData.company_name}>
+        <OnboardingWizard
+          steps={role === 'director' ? directorOnboardingSteps : colaboradorOnboardingSteps}
+          dismissEndpoint="/api/onboarding/participante"
+          dismissBody={{ caseId: id }}
+        />
+      </AppShell>
+    )
+  }
 
   // Módulos del caso
   const { data: modules } = await db

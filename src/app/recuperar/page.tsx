@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
+import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
 export default function RecuperarPage() {
   const [email, setEmail] = useState('')
@@ -25,7 +26,7 @@ export default function RecuperarPage() {
     <main className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-ink">www.bizdoctor<span className="text-accent">.site</span></h1>
+          <h1 className="text-3xl font-bold text-ink"><BizdoctorLogo withWww /></h1>
         </div>
 
         <div className="card p-8">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
+import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
 type Step = 'datos' | 'whatsapp' | 'revisa-correo' | 'listo'
 
@@ -160,7 +161,7 @@ export default function RegistroPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-ink">
-            www.bizdoctor<span className="text-accent">.site</span>
+            <BizdoctorLogo withWww />
           </h1>
           <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
         </div>

@@ -5,6 +5,8 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import CreditsBadge from '@/components/shared/CreditsBadge'
 import CasesPanel from '@/components/dashboard/CasesPanel'
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
+import { consultorOnboardingSteps } from '@/components/onboarding/consultorSteps'
 import Link from 'next/link'
 
 export default async function DashboardPage() {
@@ -18,11 +20,19 @@ export default async function DashboardPage() {
   // Datos del consultor
   const { data: account } = await db
     .from('accounts')
-    .select('id, credits_total, credits_used, plan_id, status')
+    .select('id, credits_total, credits_used, plan_id, status, onboarding_dismissed_at')
     .eq('email', session.user.email)
     .maybeSingle()
 
   if (!account) redirect('/login')
+
+  if (!account.onboarding_dismissed_at) {
+    return (
+      <AppShell role="consultant" email={session.user.email!}>
+        <OnboardingWizard steps={consultorOnboardingSteps} dismissEndpoint="/api/onboarding/consultor" />
+      </AppShell>
+    )
+  }
 
   // Casos del consultor
   const { data: cases } = await db

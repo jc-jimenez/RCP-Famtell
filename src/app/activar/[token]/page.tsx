@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
+import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
 type Step = 'validating' | 'form' | 'success' | 'error'
 
@@ -107,7 +108,7 @@ export default function ActivatePage() {
     <main className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-ink">www.bizdoctor<span className="text-accent">.site</span></h1>
+          <h1 className="text-3xl font-bold text-ink"><BizdoctorLogo withWww /></h1>
         </div>
 
         <div className="card p-8">

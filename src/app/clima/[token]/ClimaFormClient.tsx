@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { AREA_OPTIONS } from '@/lib/climateQuestions'
 import type { ClimateQuestion } from '@/lib/climateQuestions'
+import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
 interface Props {
   token: string
@@ -70,7 +71,7 @@ export default function ClimaFormClient({ token, title, companyName, questions, 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <header className="bg-white border-b border-[#e2e8f0] px-6 py-4">
-        <span className="text-lg font-bold text-[#1e293b]">bizdoctor<span className="text-[#4f46e5]">.site</span></span>
+        <span className="text-lg font-bold text-[#1e293b]"><BizdoctorLogo /></span>
         <span className="text-xs text-[#94a3b8] ml-2">Encuesta anónima</span>
       </header>
 

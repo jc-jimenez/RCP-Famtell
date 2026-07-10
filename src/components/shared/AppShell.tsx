@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { UserRole } from '@/types'
 import NotificationsBell from './NotificationsBell'
+import BizdoctorLogo from './BizdoctorLogo'
 
 interface NavItem {
   label: string
@@ -28,13 +29,16 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Mis casos',      href: '/dashboard',            icon: '▤' },
     { label: 'Nuevo caso',     href: '/dashboard/nuevo-caso', icon: '＋' },
     { label: 'Créditos',       href: '/dashboard/creditos',   icon: '◍' },
+    { label: 'Onboarding',     href: '/onboarding',           icon: '🎓' },
     { label: 'Configuración',  href: '/settings',             icon: '⚙' },
   ],
   director: [
     { label: 'Mi diagnóstico', href: '/mi-caso',  icon: '▤' },
+    { label: 'Onboarding',     href: '/onboarding', icon: '🎓' },
   ],
   collaborator: [
     { label: 'Mis módulos',    href: '/mis-modulos',          icon: '▤' },
+    { label: 'Onboarding',     href: '/onboarding',           icon: '🎓' },
   ],
 }
 
@@ -44,14 +48,6 @@ const ROLE_PILL: Record<UserRole, string> = {
   consultant:   'bg-accent-soft text-role-consultor',
   director:     'bg-accent-soft text-role-directivo',
   collaborator: 'bg-emerald-50 text-role-colaborador',
-}
-
-// Color del punto del logo según rol
-const ROLE_DOT: Record<UserRole, string> = {
-  super_admin:  'text-role-admin',
-  consultant:   'text-role-consultor',
-  director:     'text-role-directivo',
-  collaborator: 'text-role-colaborador',
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -105,7 +101,7 @@ export default function AppShell({
           {/* Logo / marca */}
           <div className="px-5 py-5 flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-ink">
-              bizdoctor<span className={ROLE_DOT[role]}>.site</span>
+              <BizdoctorLogo />
             </span>
             <span className={`badge ${ROLE_PILL[role]} ml-auto`}>{ROLE_LABEL[role]}</span>
           </div>
@@ -153,7 +149,7 @@ export default function AppShell({
           <div className="flex items-center gap-3">
             {!showSidebar && (
               <span className="text-base font-bold text-ink">
-                bizdoctor<span className={ROLE_DOT[role]}>.site</span>
+                <BizdoctorLogo />
               </span>
             )}
             {caseCompanyName && (

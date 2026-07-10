@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
 const MODULE_INFO: Record<string, { label: string; desc: string }> = {
   M1: { label: 'Radiografía Comercial',   desc: 'Ingresos, clientes y modelo comercial' },
@@ -52,7 +53,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       {/* Header público */}
       <header className="bg-white border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-[#1e293b]">bizdoctor<span className="text-[#4f46e5]">.site</span></span>
+          <span className="text-lg font-bold text-[#1e293b]"><BizdoctorLogo /></span>
           <span className="text-[#94a3b8] text-sm">·</span>
           <span className="text-sm text-[#64748b]">Portal del Cliente</span>
         </div>
