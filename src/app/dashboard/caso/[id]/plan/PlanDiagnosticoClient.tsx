@@ -297,7 +297,7 @@ export default function PlanDiagnosticoClient({
               Modo soporte — editando el caso de otro consultor
             </p>
           )}
-          <h1 className="text-xl font-bold text-ink">Plan de Diagnóstico</h1>
+          <h1 className="text-xl font-bold text-ink">Módulos</h1>
           <p className="text-sm text-muted">Activa/desactiva preguntas, edita su texto, mapea puestos o agrega preguntas propias</p>
         </div>
 

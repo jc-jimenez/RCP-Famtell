@@ -145,7 +145,7 @@ export default function PuestosPanel({ caseId, companyName, initialPositions, bu
           {positions.length === 0
             ? 'Sin puestos creados todavía — las preguntas sin puesto mapeado no se le muestran a nadie'
             : `${positions.length} puesto${positions.length !== 1 ? 's' : ''} creado${positions.length !== 1 ? 's' : ''}`}
-          . La asignación de preguntas a cada puesto se hace en Plan de Diagnóstico.
+          . La asignación de preguntas a cada puesto se hace en Módulos.
         </p>
       </div>
 

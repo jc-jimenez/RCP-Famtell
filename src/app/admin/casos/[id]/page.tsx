@@ -23,7 +23,7 @@ const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
 
 // Hub del caso en modo soporte del super-admin — espejo acotado del hub del
 // consultor (dashboard/caso/[id]/page.tsx): resumen de diagnóstico +
-// Participantes. El Plan de Diagnóstico (puestos + asignación puesto↔pregunta)
+// Participantes. Módulos (puestos + asignación puesto↔pregunta)
 // vive en /admin/casos/[id]/plan, igual que en el consultor. Ver sección 16
 // del PRD, Obs 4/5.
 export default async function AdminCasoHubPage({
@@ -123,7 +123,7 @@ export default async function AdminCasoHubPage({
             href={`/admin/casos/${caseId}/plan` as any}
             className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors"
           >
-            Plan de Diagnóstico
+            Módulos
           </Link>
           <Link
             href={`/admin/casos/${caseId}/puestos` as any}

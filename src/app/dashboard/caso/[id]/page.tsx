@@ -120,7 +120,27 @@ export default async function CasoDetallePage({
         {/* Contenido del tab activo */}
         {tab === 'diagnostico' && (
           <div className="card p-5">
-            <h2 className="text-sm font-semibold text-ink mb-4">Módulos de diagnóstico</h2>
+            <h2 className="text-sm font-semibold text-ink mb-3">Módulos de diagnóstico</h2>
+            <div className="flex gap-1 mb-4">
+              {MODULE_ORDER.map((code) => {
+                const m = moduleMap[code]
+                const status = m?.status ?? 'locked'
+                const completion = status === 'active' ? completionMap[code] : undefined
+                const colorStatus = completion?.colorStatus
+                const barColor =
+                  status === 'completed' ? 'bg-emerald-500' :
+                  status === 'active' && colorStatus === 'amber' ? 'bg-amber-500' :
+                  status === 'active' ? 'bg-rose-500' :
+                  'bg-surface-2'
+                return (
+                  <div
+                    key={code}
+                    title={`${code} · ${MODULE_LABELS[code]}`}
+                    className={`flex-1 h-2 rounded-full ${barColor}`}
+                  />
+                )
+              })}
+            </div>
             <div className="space-y-2">
               {MODULE_ORDER.map((code) => {
                 const m = moduleMap[code]

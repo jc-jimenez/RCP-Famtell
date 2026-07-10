@@ -286,7 +286,7 @@ export default function NuevoCasoPage() {
                   className="input-field resize-none"
                 />
                 <p className="text-xs text-faint mt-1">
-                  Este puesto queda en el catálogo del caso — luego podrás editarlo y mapear preguntas a él en Plan de Diagnóstico.
+                  Este puesto queda en el catálogo del caso — luego podrás editarlo y mapear preguntas a él en Módulos.
                 </p>
               </div>
 

@@ -91,7 +91,7 @@ export async function computeModuleCompletion(db: any, caseId: string, moduleCod
     // en absoluto). Bloquea igual que un puesto pendiente, no se da por bueno.
     return {
       moduleCode, colorStatus: 'red', requiredTotal: 0, completedTotal: 0,
-      pending: [{ jobPositionId: '', jobPositionName: 'Sin preguntas mapeadas a ningún puesto en este módulo — falta configurar en Plan de Diagnóstico', hasOccupant: false }],
+      pending: [{ jobPositionId: '', jobPositionName: 'Sin preguntas mapeadas a ningún puesto en este módulo — falta configurar en Módulos', hasOccupant: false }],
     }
   }
 

@@ -16,7 +16,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
-  { id: 'plan',         label: 'Plan',        external: true },
+  { id: 'plan',         label: 'Módulos',     external: true },
   { id: 'puestos',      label: 'Puestos',     external: true },
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
@@ -39,7 +39,7 @@ const TABS: Tab[] = [
 // reemplaza la barra horizontal de 19 pestañas, difícil de escanear.
 interface Group { label: string; tabIds: string[] }
 const GROUPS: Group[] = [
-  { label: 'Diagnóstico', tabIds: ['diagnostico', 'plan', 'puestos', 'participantes'] },
+  { label: 'Preparación', tabIds: ['puestos', 'participantes', 'plan'] },
   { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'clima', 'competencia'] },
   { label: 'Comercial', tabIds: ['crm', 'propuestas', 'tarifas', 'capacidad', 'escenarios', 'comunicacion'] },
   { label: 'Resultados', tabIds: ['tablas', 'kpis', 'checkin', 'brief'] },
@@ -93,6 +93,22 @@ export default function CasoTabs({ caseId, activeTab }: Props) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[70vh] overflow-y-auto card p-2 z-50 shadow-lg">
+            {(() => {
+              const homeTab = TABS.find(t => t.id === 'diagnostico')
+              if (!homeTab) return null
+              const isActive = homeTab.id === activeTab
+              return (
+                <Link
+                  href={tabHref(caseId, homeTab) as any}
+                  onClick={() => setOpen(false)}
+                  className={`block text-sm px-3 py-1.5 rounded-lg mb-1.5 transition-colors ${
+                    isActive ? 'bg-accent text-white font-medium' : 'text-muted hover:bg-accent-soft hover:text-ink'
+                  }`}
+                >
+                  {homeTab.label}
+                </Link>
+              )
+            })()}
             {GROUPS.map(group => {
               const isGroupOpen = openGroup === group.label
               return (

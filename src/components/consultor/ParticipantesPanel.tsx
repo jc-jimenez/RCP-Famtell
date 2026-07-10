@@ -216,7 +216,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
                 <p className="text-sm font-semibold text-amber-800">Todavía no hay puestos en el catálogo de este caso</p>
                 <p className="text-xs text-amber-700">
-                  Antes de agregar participantes, ve a "Plan de Diagnóstico" y da de alta los puestos reales de la empresa
+                  Antes de agregar participantes, ve a "Puestos" y da de alta los puestos reales de la empresa
                   (con su descriptivo) — cada participante se asigna a uno de esos puestos.
                 </p>
               </div>
@@ -413,7 +413,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                     </p>
                     {noModulesMapped && (
                       <p className="text-xs text-amber-700 mt-1">
-                        Este puesto todavía no tiene preguntas mapeadas en el Plan de Diagnóstico — se le asignan todos los módulos mientras tanto. Mapea preguntas al puesto para afinar el acceso.
+                        Este puesto todavía no tiene preguntas mapeadas en Módulos — se le asignan todos los módulos mientras tanto. Mapea preguntas al puesto para afinar el acceso.
                       </p>
                     )}
                   </div>
