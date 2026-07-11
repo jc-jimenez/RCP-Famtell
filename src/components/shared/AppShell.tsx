@@ -63,8 +63,10 @@ interface AppShellProps {
   email: string
   /** Para directivos: nombre de la empresa del caso */
   caseCompanyName?: string
-  /** Para directivos: progreso de módulos (0-7) */
+  /** Para directivos: progreso de módulos */
   modulesCompleted?: number
+  /** Para directivos: total de módulos del caso (default 7, catálogo global) */
+  modulesTotal?: number
   /** Barra de tabs que aparece justo debajo del header */
   tabBar?: React.ReactNode
 }
@@ -75,6 +77,7 @@ export default function AppShell({
   email,
   caseCompanyName,
   modulesCompleted = 0,
+  modulesTotal = 7,
   tabBar,
 }: AppShellProps) {
   const pathname = usePathname()
@@ -160,7 +163,7 @@ export default function AppShell({
             )}
             {role === 'director' && (
               <div className="flex items-center gap-1.5 ml-4">
-                {Array.from({ length: 7 }).map((_, i) => (
+                {Array.from({ length: modulesTotal }).map((_, i) => (
                   <div
                     key={i}
                     className={`w-5 h-1.5 rounded-full transition-colors ${
@@ -168,7 +171,7 @@ export default function AppShell({
                     }`}
                   />
                 ))}
-                <span className="text-xs text-muted ml-1">{modulesCompleted}/7</span>
+                <span className="text-xs text-muted ml-1">{modulesCompleted}/{modulesTotal}</span>
               </div>
             )}
           </div>

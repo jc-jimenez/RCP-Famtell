@@ -153,6 +153,7 @@ export default function ModuleStartClient({
             caseId={caseId}
             sessionId={sessionId}
             moduleCode={moduleCode}
+            moduleName={label}
             initialMessages={existingMessages}
             onModuleComplete={handleComplete}
             autoStart={existingMessages.length === 0}

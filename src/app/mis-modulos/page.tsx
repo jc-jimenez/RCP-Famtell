@@ -8,18 +8,7 @@ import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
 import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { hasCapability } from '@/lib/permissions'
 import { getModulesForPosition } from '@/lib/moduleCompletion'
-
-const MODULE_LABELS: Record<string, string> = {
-  M1: 'Radiografía Comercial',
-  M2: 'Radiografía Operativa',
-  M3: 'Base de Contactos',
-  M4: 'Radiografía Financiera',
-  M5: 'Radiografía Competitiva',
-  M6: 'Radiografía Interna',
-  M7: 'Síntesis y Plan RCP',
-}
-
-const ALL_MODULE_CODES = Object.keys(MODULE_LABELS)
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 export default async function MisModulosPage() {
   const supabase = await createSupabaseServerClient()
@@ -50,9 +39,17 @@ export default async function MisModulosPage() {
       </AppShell>
     )
   }
-  // Se recalcula en cada carga a partir del mapeo vigente en Plan de
-  // Diagnóstico — no se usa un snapshot guardado al invitar, porque el
-  // consultor puede remapear preguntas a puestos después de la invitación.
+  // Catálogo real del caso (propio si existe, si no el global M1-M7)
+  const catalogScope = await resolveCatalogScope(db, caseUser.case_id)
+  const templatesQuery = db.from('module_templates').select('code, name').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, caseUser.case_id).order('sort_order', { ascending: true })
+  const moduleLabels: Record<string, string> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleLabels[t.code] = t.name })
+  const allModuleCodes = (templates ?? []).map((t: any) => t.code)
+
+  // Se recalcula en cada carga a partir del mapeo vigente en Módulos — no
+  // se usa un snapshot guardado al invitar, porque el consultor puede
+  // remapear preguntas a puestos después de la invitación.
   const derivedModules = caseUser.job_position_id
     ? await getModulesForPosition(db, caseUser.case_id, caseUser.job_position_id)
     : []
@@ -61,7 +58,7 @@ export default async function MisModulosPage() {
   // no hay nada que mostrar.
   const assignedInstruments: string[] = !caseUser.job_position_id
     ? []
-    : derivedModules.length > 0 ? derivedModules : ALL_MODULE_CODES
+    : derivedModules.length > 0 ? derivedModules : allModuleCodes
 
   const { data: sessions } = await db
     .from('sessions')
@@ -125,7 +122,7 @@ export default async function MisModulosPage() {
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-ink text-sm group-hover:text-accent transition-colors">
-                        {MODULE_LABELS[code] ?? code}
+                        {moduleLabels[code] ?? code}
                       </p>
                       <p className="text-xs text-faint mt-0.5">
                         {completed ? 'Completado' : hasProgress ? 'En progreso' : 'Pendiente de respuesta'}

@@ -8,18 +8,7 @@ import { isSuperAdminEmail } from '@/lib/permissions'
 import AppShell from '@/components/shared/AppShell'
 import ParticipantesPanel from '@/components/consultor/ParticipantesPanel'
 import { computeAllModulesCompletion, getModulesForPosition } from '@/lib/moduleCompletion'
-import type { ModuleCode } from '@/types'
-
-const MODULE_LABELS: Record<ModuleCode, string> = {
-  M1: 'Radiografía Comercial',
-  M2: 'Radiografía Operativa',
-  M3: 'Base de Contactos',
-  M4: 'Radiografía Financiera',
-  M5: 'Radiografía Competitiva',
-  M6: 'Radiografía Interna',
-  M7: 'Síntesis y Plan RCP',
-}
-const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 // Hub del caso en modo soporte del super-admin — espejo acotado del hub del
 // consultor (dashboard/caso/[id]/page.tsx): resumen de diagnóstico +
@@ -50,6 +39,13 @@ export default async function AdminCasoHubPage({
     .eq('id', caseId)
     .maybeSingle()
   if (!caseData) redirect('/admin/casos')
+
+  const catalogScope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('code, name').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, caseId).order('sort_order', { ascending: true })
+  const moduleOrder: string[] = (templates ?? []).map((t: any) => t.code)
+  const moduleLabels: Record<string, string> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleLabels[t.code] = t.name })
 
   const { data: modules } = await db
     .from('modules')
@@ -101,7 +97,7 @@ export default async function AdminCasoHubPage({
           </div>
           <div className="text-right">
             <p className="text-xs text-faint">Avance</p>
-            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-faint text-lg">/7</span></p>
+            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-faint text-lg">/{moduleOrder.length}</span></p>
           </div>
         </div>
 
@@ -137,7 +133,7 @@ export default async function AdminCasoHubPage({
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-ink mb-4">Módulos de diagnóstico</h2>
             <div className="space-y-2">
-              {MODULE_ORDER.map((code) => {
+              {moduleOrder.map((code) => {
                 const m = moduleMap[code]
                 const status = m?.status ?? 'locked'
                 const completion = status === 'active' ? completionMap[code] : undefined
@@ -159,7 +155,7 @@ export default async function AdminCasoHubPage({
                     </span>
                     <div className="flex-1 min-w-0">
                       <span className={`text-sm block ${status === 'locked' ? 'text-faint' : 'text-ink'}`}>
-                        {MODULE_LABELS[code]}
+                        {moduleLabels[code]}
                       </span>
                       {status === 'active' && completion && completion.pending.length > 0 && (
                         <span className={`text-xs block mt-0.5 ${colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>

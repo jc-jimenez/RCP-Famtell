@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { ensureModulesInitialized } from '@/lib/modules'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import ModuleStartClient from './ModuleStartClient'
 import type { ModuleCode } from '@/types'
 
@@ -87,8 +88,12 @@ export default async function ModuloPage({
     existingSession = sess
   }
 
-  const label = MODULE_LABELS[moduleCode] ?? moduleCode
-  const description = MODULE_DESCRIPTIONS[moduleCode] ?? ''
+  const catalogScope = await resolveCatalogScope(db, caseId)
+  const templateQuery = db.from('module_templates').select('name, description').eq('code', moduleCode)
+  const { data: template } = await applyCatalogScope(templateQuery, catalogScope, caseId).maybeSingle()
+
+  const label = template?.name ?? MODULE_LABELS[moduleCode] ?? moduleCode
+  const description = template?.description ?? MODULE_DESCRIPTIONS[moduleCode] ?? ''
   const duration = MODULE_DURATION[moduleCode] ?? '20-30 minutos'
   const isCompleted = status === 'completed'
 

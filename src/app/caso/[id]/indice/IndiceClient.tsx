@@ -22,15 +22,7 @@ interface Props {
   byModule: Record<string, { blue: number; yellow: number; red: number }>
   dominant: 'growth' | 'restructure' | 'exit' | 'mixed'
   score: number | null
-}
-
-const MODULE_NAMES: Record<string, string> = {
-  M1: 'Radiografía Comercial',
-  M2: 'Radiografía Operativa',
-  M3: 'Base de Contactos',
-  M4: 'Radiografía Financiera',
-  M5: 'Radiografía Competitiva',
-  M6: 'Radiografía Interna',
+  moduleNames: Record<string, string>
 }
 
 const INTENT_CONFIG = {
@@ -82,7 +74,7 @@ const SIGNAL_COLOR = {
   red:    { dot: 'bg-rose-500',   text: 'text-rose-700',   bg: 'bg-rose-50',   label: 'Salida' },
 }
 
-export default function IndiceClient({ caseId, companyName, role, email, signals, byModule, dominant, score }: Props) {
+export default function IndiceClient({ caseId, companyName, role, email, signals, byModule, dominant, score, moduleNames }: Props) {
   const shellRole: UserRole = role === 'consultant' ? 'consultant' : 'director'
   const isDirector = role === 'director'
   const intent = INTENT_CONFIG[dominant]
@@ -184,7 +176,7 @@ export default function IndiceClient({ caseId, companyName, role, email, signals
                     <div key={mod}>
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-xs font-mono text-faint bg-surface-2 px-2 py-0.5 rounded">{mod}</span>
-                        <span className="text-xs text-muted">{MODULE_NAMES[mod]}</span>
+                        <span className="text-xs text-muted">{moduleNames[mod] ?? mod}</span>
                         {isM6 && <span className="text-xs text-accent ml-auto">×2 peso</span>}
                       </div>
                       <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5">

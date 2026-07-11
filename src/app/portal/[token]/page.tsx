@@ -3,18 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
-
-const MODULE_INFO: Record<string, { label: string; desc: string }> = {
-  M1: { label: 'Radiografía Comercial',   desc: 'Ingresos, clientes y modelo comercial' },
-  M2: { label: 'Radiografía Operativa',   desc: 'Procesos, capacidad y cuellos de botella' },
-  M3: { label: 'Base de Contactos',       desc: '30 contactos clave para el CRM' },
-  M4: { label: 'Radiografía Financiera',  desc: 'Rentabilidad, deuda y flujo de caja' },
-  M5: { label: 'Radiografía Competitiva', desc: 'Competidores y posicionamiento de mercado' },
-  M6: { label: 'Radiografía Interna',     desc: 'Equipo, cultura y brechas de talento' },
-  M7: { label: 'Síntesis y Plan RCP',     desc: 'Diagnóstico completo + Plan 90 días' },
-}
-
-const MODULE_ORDER = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 function formatDate(iso: string | null) {
   if (!iso) return ''
@@ -41,6 +30,14 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   const { data: moduleRows } = await db.rpc('get_share_link_modules', { p_token: token })
   const moduleMap: Record<string, { status: string; completed_at: string | null }> = {}
   ;(moduleRows ?? []).forEach((m: any) => { moduleMap[m.module_code] = m })
+
+  // Catálogo real del caso (propio si existe, si no el global M1-M7)
+  const catalogScope = await resolveCatalogScope(db, caseData.case_id)
+  const templatesQuery = db.from('module_templates').select('code, name, description').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, caseData.case_id).order('sort_order', { ascending: true })
+  const moduleOrder: string[] = (templates ?? []).map((t: any) => t.code)
+  const moduleInfo: Record<string, { label: string; desc: string }> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleInfo[t.code] = { label: t.name, desc: t.description ?? '' } })
 
   // Brief (resumen ejecutivo + prioridades + plan 90d)
   const { data: briefRows } = await db.rpc('get_share_link_brief', { p_token: token })
@@ -76,15 +73,15 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-[#1e293b]">Progreso del diagnóstico</h2>
             <span className="text-2xl font-bold text-[#1e293b]">
-              {completedCount}<span className="text-base font-normal text-[#94a3b8]">/7</span>
+              {completedCount}<span className="text-base font-normal text-[#94a3b8]">/{moduleOrder.length}</span>
             </span>
           </div>
           {/* Barra */}
           <div className="flex items-center gap-1.5 mb-3">
-            {MODULE_ORDER.map((code, i) => {
+            {moduleOrder.map((code, i) => {
               const mod = moduleMap[code]
               const done = mod?.status === 'completed'
-              const nextModule = MODULE_ORDER.find(c => moduleMap[c]?.status !== 'completed')
+              const nextModule = moduleOrder.find(c => moduleMap[c]?.status !== 'completed')
               const active = !done && code === nextModule
               return (
                 <div key={code} className="flex items-center gap-1.5 flex-1 last:flex-none">
@@ -95,7 +92,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                   }`}>
                     {done ? '✓' : i + 1}
                   </div>
-                  {i < MODULE_ORDER.length - 1 && (
+                  {i < moduleOrder.length - 1 && (
                     <div className={`flex-1 h-0.5 ${done ? 'bg-emerald-400' : 'bg-[#e2e8f0]'}`} />
                   )}
                 </div>
@@ -105,15 +102,15 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           <div className="w-full bg-[#f1f5f9] rounded-full h-1.5">
             <div
               className="bg-emerald-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${(completedCount / 7) * 100}%` }}
+              style={{ width: `${moduleOrder.length > 0 ? (completedCount / moduleOrder.length) * 100 : 0}%` }}
             />
           </div>
           <p className="text-xs text-[#64748b] mt-2">
             {completedCount === 0
               ? 'Diagnóstico en proceso'
-              : completedCount === 7
+              : completedCount === moduleOrder.length
               ? 'Diagnóstico completo'
-              : `${completedCount} de 7 módulos completados`}
+              : `${completedCount} de ${moduleOrder.length} módulos completados`}
           </p>
         </div>
 
@@ -121,11 +118,11 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         <div>
           <h2 className="text-sm font-semibold text-[#1e293b] mb-3">Módulos de diagnóstico</h2>
           <div className="space-y-2">
-            {MODULE_ORDER.map((code, i) => {
-              const info = MODULE_INFO[code]
+            {moduleOrder.map((code, i) => {
+              const info = moduleInfo[code]
               const mod = moduleMap[code]
               const done = mod?.status === 'completed'
-              const nextModule = MODULE_ORDER.find(c => moduleMap[c]?.status !== 'completed')
+              const nextModule = moduleOrder.find(c => moduleMap[c]?.status !== 'completed')
               const active = !done && code === nextModule
               const locked = !done && !active
               return (

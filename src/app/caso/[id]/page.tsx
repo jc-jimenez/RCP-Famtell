@@ -9,19 +9,7 @@ import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
 import { directorOnboardingSteps } from '@/components/onboarding/directorSteps'
 import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
-import type { ModuleCode } from '@/types'
-
-const MODULE_INFO: Record<ModuleCode, { label: string; desc: string }> = {
-  M1: { label: 'Radiografía Comercial',   desc: 'Ingresos, clientes y modelo comercial' },
-  M2: { label: 'Radiografía Operativa',   desc: 'Procesos, capacidad y cuellos de botella' },
-  M3: { label: 'Base de Contactos',       desc: '30 contactos clave para el CRM' },
-  M4: { label: 'Radiografía Financiera',  desc: 'Rentabilidad, deuda y flujo de caja' },
-  M5: { label: 'Radiografía Competitiva', desc: 'Competidores y posicionamiento de mercado' },
-  M6: { label: 'Radiografía Interna',     desc: 'Equipo, cultura y brechas de talento' },
-  M7: { label: 'Síntesis y Plan RCP',     desc: 'Diagnóstico completo + Plan 90 días' },
-}
-
-const MODULE_ORDER: ModuleCode[] = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 function formatDate(iso: string | null): string {
   if (!iso) return ''
@@ -66,6 +54,14 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
     )
   }
 
+  // Catálogo real del caso (propio si existe, si no el global M1-M7)
+  const catalogScope = await resolveCatalogScope(db, id)
+  const templatesQuery = db.from('module_templates').select('code, name, description').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, id).order('sort_order', { ascending: true })
+  const moduleOrder: string[] = (templates ?? []).map((t: any) => t.code)
+  const moduleInfo: Record<string, { label: string; desc: string }> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleInfo[t.code] = { label: t.name, desc: t.description ?? '' } })
+
   // Módulos del caso
   const { data: modules } = await db
     .from('modules')
@@ -94,7 +90,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
   const shellRole = role === 'consultant' ? 'consultant' : 'director'
 
   // Próximo módulo activo
-  const nextModule = MODULE_ORDER.find(code => {
+  const nextModule = moduleOrder.find(code => {
     const mod = moduleMap[code]
     return !mod || mod.status !== 'completed'
   })
@@ -112,6 +108,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
       email={session.user.email!}
       caseCompanyName={caseData.company_name}
       modulesCompleted={completedCount}
+      modulesTotal={moduleOrder.length}
       tabBar={isDirector ? <DirectorTabs caseId={id} /> : undefined}
     >
       <div className="max-w-3xl mx-auto space-y-6">
@@ -131,7 +128,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-base font-normal text-muted">/7</span></p>
+            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-base font-normal text-muted">/{moduleOrder.length}</span></p>
             <p className="text-xs text-muted">módulos</p>
           </div>
         </div>
@@ -139,7 +136,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
         {/* Barra de progreso */}
         <div className="card p-4">
           <div className="flex items-center gap-1.5 mb-3">
-            {MODULE_ORDER.map((code, i) => {
+            {moduleOrder.map((code, i) => {
               const mod = moduleMap[code]
               const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
               const done = status === 'completed'
@@ -155,7 +152,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
                   }`}>
                     {done ? '✓' : i + 1}
                   </div>
-                  {i < MODULE_ORDER.length - 1 && (
+                  {i < moduleOrder.length - 1 && (
                     <div className={`flex-1 h-0.5 ${done ? 'bg-emerald-400' : 'bg-subtle'}`} />
                   )}
                 </div>
@@ -165,22 +162,22 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
           <div className="w-full bg-surface-2 rounded-full h-1.5">
             <div
               className="bg-emerald-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${(completedCount / 7) * 100}%` }}
+              style={{ width: `${moduleOrder.length > 0 ? (completedCount / moduleOrder.length) * 100 : 0}%` }}
             />
           </div>
           <p className="text-xs text-muted mt-2">
             {completedCount === 0
               ? 'Comienza con el Módulo 1 para activar tu diagnóstico'
-              : completedCount === 7
-              ? '¡Diagnóstico completo! Revisa tu Brief en la pestaña Brief M7'
-              : `${7 - completedCount} módulos restantes`}
+              : completedCount === moduleOrder.length
+              ? '¡Diagnóstico completo! Revisa tu Brief en la pestaña Brief'
+              : `${moduleOrder.length - completedCount} módulos restantes`}
           </p>
         </div>
 
         {/* Lista de módulos */}
         <div className="space-y-2">
-          {MODULE_ORDER.map((code, i) => {
-            const info = MODULE_INFO[code]
+          {moduleOrder.map((code, i) => {
+            const info = moduleInfo[code]
             const mod = moduleMap[code]
             const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
             const isCompleted = status === 'completed'
@@ -270,8 +267,8 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             </Link>
             <Link href={`/caso/${id}/brief` as any} className="card p-4 hover:shadow-sm transition-shadow text-center">
               <p className="text-lg mb-1">📋</p>
-              <p className="text-xs font-medium text-ink">Brief M7</p>
-              <p className="text-xs text-muted mt-0.5">{completedCount === 7 ? 'Ver diagnóstico' : 'Disponible al completar'}</p>
+              <p className="text-xs font-medium text-ink">Brief</p>
+              <p className="text-xs text-muted mt-0.5">{completedCount === moduleOrder.length ? 'Ver diagnóstico' : 'Disponible al completar'}</p>
             </Link>
           </div>
         )}

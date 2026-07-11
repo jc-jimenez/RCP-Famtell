@@ -66,7 +66,7 @@ export const directorOnboardingSteps: OnboardingStep[] = [
     title: 'Si no termino la entrevista',
     body: (
       <>
-        <p>Un módulo sin terminar queda marcado en rojo o ámbar, y el Brief final (tu Plan 90d/1a/3a) no se genera hasta que los 7 módulos estén completos.</p>
+        <p>Un módulo sin terminar queda marcado en rojo o ámbar, y el Brief final (tu Plan 90d/1a/3a) no se genera hasta que todos los módulos estén completos.</p>
         <p>Puedes pausar y volver cuando quieras — lo importante es terminar antes de que tu consultor necesite publicar el diagnóstico.</p>
       </>
     ),

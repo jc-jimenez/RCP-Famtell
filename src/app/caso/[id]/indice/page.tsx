@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import IndiceClient from './IndiceClient'
 import { getDominantIntent } from '@/lib/anthropic/agenda-detector'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import type { AgendaSignalType } from '@/types'
 
 export default async function IndicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,6 +76,12 @@ export default async function IndicePage({ params }: { params: Promise<{ id: str
     ? null
     : Math.round(weighted.reduce((s, sig) => s + scoreMap[sig.signal_type], 0) / totalWeight)
 
+  const catalogScope = await resolveCatalogScope(db, id)
+  const templatesQuery = db.from('module_templates').select('code, name').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, id).order('sort_order', { ascending: true })
+  const moduleNames: Record<string, string> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleNames[t.code] = t.name })
+
   return (
     <IndiceClient
       caseId={id}
@@ -85,6 +92,7 @@ export default async function IndicePage({ params }: { params: Promise<{ id: str
       byModule={byModule}
       dominant={dominant}
       score={rawScore}
+      moduleNames={moduleNames}
     />
   )
 }

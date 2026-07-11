@@ -21,6 +21,7 @@ interface NovaChatProps {
   caseId: string
   sessionId: string
   moduleCode: ModuleCode
+  moduleName?: string
   initialMessages?: ChatMessage[]
   onModuleComplete?: (result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) => void
   autoStart?: boolean
@@ -30,6 +31,7 @@ export default function NovaChat({
   caseId,
   sessionId,
   moduleCode,
+  moduleName,
   initialMessages = [],
   onModuleComplete,
   autoStart = true,
@@ -139,7 +141,7 @@ export default function NovaChat({
         </div>
         <div>
           <p className="text-sm font-semibold text-ink">Nova</p>
-          <p className="text-xs text-muted">{MODULE_LABELS[moduleCode]}</p>
+          <p className="text-xs text-muted">{moduleName ?? MODULE_LABELS[moduleCode]}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {streaming && (
