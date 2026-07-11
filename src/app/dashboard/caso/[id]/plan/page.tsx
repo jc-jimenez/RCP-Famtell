@@ -3,6 +3,9 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import AppShell from '@/components/shared/AppShell'
+import CasoTabs from '@/components/consultor/CasoTabs'
+import GenerateCatalogPanel from '@/components/consultor/GenerateCatalogPanel'
 import PlanDiagnosticoClient from './PlanDiagnosticoClient'
 
 export default async function PlanDiagnosticoPage({
@@ -26,7 +29,7 @@ export default async function PlanDiagnosticoPage({
 
   const { data: caseData } = await db
     .from('cases')
-    .select('id, company_name')
+    .select('id, company_name, case_type, department_name')
     .eq('id', caseId)
     .eq('account_id', account.id)
     .maybeSingle()
@@ -44,6 +47,24 @@ export default async function PlanDiagnosticoPage({
       )
     `)
   const { data: modules } = await applyCatalogScope(modulesQuery, scope, caseId).order('sort_order', { ascending: true })
+
+  // Caso v2 (case_type definido) que todavía resuelve al catálogo global
+  // porque no tiene filas propias — un caso legacy (case_type nulo) nunca
+  // entra aquí, siempre ve el catálogo global directo como hoy.
+  if (caseData.case_type && scope === 'global') {
+    return (
+      <AppShell role="consultant" email={session.user.email!} tabBar={<CasoTabs caseId={caseId} activeTab="plan" />}>
+        <div className="max-w-3xl mx-auto py-10">
+          <GenerateCatalogPanel
+            caseId={caseId}
+            companyName={caseData.company_name}
+            caseType={caseData.case_type}
+            departmentName={caseData.department_name}
+          />
+        </div>
+      </AppShell>
+    )
+  }
 
   // Overrides del consultor para este caso
   const { data: overrides } = await db
