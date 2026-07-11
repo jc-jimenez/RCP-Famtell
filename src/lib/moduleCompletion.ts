@@ -5,6 +5,8 @@
 // si había otros puestos con preguntas propias todavía sin contestar.
 // Ver docs/PRD_RCPFAMTELL3PL.md sección 7.1.
 
+import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
+
 export type ModuleColorStatus = 'red' | 'amber' | 'green'
 
 export interface PendingPosition {
@@ -25,11 +27,9 @@ export interface ModuleCompletion {
 // Una pregunta (base o personalizada) sin ningún puesto mapeado en el caso
 // no cuenta para nadie (regla "sin puesto mapeado = oculta", sección 7).
 async function getRequiredPositionIds(db: any, caseId: string, moduleCode: string): Promise<string[]> {
-  const { data: moduleTemplate } = await db
-    .from('module_templates')
-    .select('id')
-    .eq('code', moduleCode)
-    .maybeSingle()
+  const scope = await resolveCatalogScope(db, caseId)
+  const moduleTemplateQuery = db.from('module_templates').select('id').eq('code', moduleCode)
+  const { data: moduleTemplate } = await applyCatalogScope(moduleTemplateQuery, scope, caseId).maybeSingle()
 
   if (!moduleTemplate) return []
 
@@ -145,11 +145,9 @@ export async function computeModuleCompletion(db: any, caseId: string, moduleCod
 // módulos de un participante a partir de su puesto (sección 16, Obs 7) — ya
 // no se le pide al consultor seleccionarlos a mano.
 export async function getModulesForPosition(db: any, caseId: string, jobPositionId: string): Promise<string[]> {
-  const { data: templates } = await db
-    .from('module_templates')
-    .select('id, code, sections (id, questions (id, is_active))')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  const scope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('id, code, sections (id, questions (id, is_active))').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, scope, caseId).order('sort_order', { ascending: true })
 
   const allQuestionIds: string[] = (templates ?? []).flatMap((t: any) =>
     (t.sections ?? []).flatMap((s: any) => (s.questions ?? []).map((q: any) => q.id))
@@ -193,11 +191,9 @@ export async function getModulesForPosition(db: any, caseId: string, jobPosition
 }
 
 export async function computeAllModulesCompletion(db: any, caseId: string): Promise<ModuleCompletion[]> {
-  const { data: templates } = await db
-    .from('module_templates')
-    .select('code')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  const scope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('code').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, scope, caseId).order('sort_order', { ascending: true })
 
   const codes: string[] = (templates ?? []).map((t: any) => t.code)
   return Promise.all(codes.map(code => computeModuleCompletion(db, caseId, code)))

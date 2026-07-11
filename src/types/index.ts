@@ -5,7 +5,10 @@ export type UserRole = 'super_admin' | 'consultant' | 'director' | 'collaborator
 export type PlanType = 'starter' | 'consultant' | 'agency' | 'white_label'
 
 // ─── Módulos ──────────────────────────────────────────────────────────────────
-export type ModuleCode = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7'
+// La unión mantiene autocompletado para M1-M7 (catálogo global) sin dejar de
+// aceptar códigos arbitrarios (catálogo propio de un caso, v2) — la BD nunca
+// restringió module_code a estos 7 valores.
+export type ModuleCode = 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | (string & {})
 export type ModuleStatus = 'locked' | 'active' | 'completed'
 
 // ─── Agenda Oculta ────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { isSuperAdminEmail } from '@/lib/permissions'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import PlanDiagnosticoClient from '@/app/dashboard/caso/[id]/plan/PlanDiagnosticoClient'
 
 // Modo soporte del super-admin: mismo Plan de Diagnóstico que ve el consultor
@@ -30,9 +31,8 @@ export default async function AdminCasoPlanPage({
     .maybeSingle()
   if (!caseData) redirect('/admin/casos')
 
-  const { data: modules } = await db
-    .from('module_templates')
-    .select(`
+  const scope = await resolveCatalogScope(db, caseId)
+  const modulesQuery = db.from('module_templates').select(`
       id, code, name, sort_order,
       sections (
         id, code, name, sort_order,
@@ -41,7 +41,7 @@ export default async function AdminCasoPlanPage({
         )
       )
     `)
-    .order('sort_order', { ascending: true })
+  const { data: modules } = await applyCatalogScope(modulesQuery, scope, caseId).order('sort_order', { ascending: true })
 
   const { data: overrides } = await db
     .from('case_question_overrides')

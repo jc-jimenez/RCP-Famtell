@@ -12,6 +12,8 @@ export default async function CatalogoAdminPage() {
   if (!session || !isSuperAdminEmail(session.user.email)) redirect('/login')
 
   const db = supabase as any
+  // Catálogo global editable — explícitamente case_id nulo, nunca mezcla
+  // catálogos propios de casos (v2).
   const { data: modules } = await db
     .from('module_templates')
     .select(`
@@ -23,6 +25,7 @@ export default async function CatalogoAdminPage() {
         )
       )
     `)
+    .is('case_id', null)
     .order('sort_order', { ascending: true })
 
   const sorted = (modules ?? []).map((m: any) => ({

@@ -1,4 +1,5 @@
 import { generateModuleBackupPdf, type BackupParticipant } from './moduleBackupPdf'
+import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
 import type { ModuleCode } from '@/types'
 
 // Genera el PDF de respaldo de un módulo recién completado y lo sube al
@@ -6,9 +7,11 @@ import type { ModuleCode } from '@/types'
 // no bloquea la respuesta de /api/modules) desde el mismo punto donde el
 // módulo pasa a 'completed' — ver sección 16 del PRD, Obs 9.
 export async function generateAndStoreModuleBackup(db: any, caseId: string, moduleCode: ModuleCode): Promise<void> {
+  const scope = await resolveCatalogScope(db, caseId)
+  const templateQuery = db.from('module_templates').select('name').eq('code', moduleCode)
   const [{ data: caseData }, { data: template }] = await Promise.all([
     db.from('cases').select('company_name').eq('id', caseId).maybeSingle(),
-    db.from('module_templates').select('name').eq('code', moduleCode).maybeSingle(),
+    applyCatalogScope(templateQuery, scope, caseId).maybeSingle(),
   ])
   if (!caseData) return
 

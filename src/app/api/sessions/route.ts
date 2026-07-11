@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { checkCredits } from '@/lib/credits'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import type { ModuleCode } from '@/types'
 
 // POST — crear o recuperar sesión de un módulo
@@ -50,11 +51,9 @@ export async function POST(request: Request) {
     .single()
 
   if (caseData?.account_id) {
-    const { data: moduleTemplate } = await (admin ?? db)
-      .from('module_templates')
-      .select('credit_cost')
-      .eq('code', moduleCode)
-      .maybeSingle()
+    const scope = await resolveCatalogScope(admin ?? db, caseId)
+    const templateQuery = (admin ?? db).from('module_templates').select('credit_cost').eq('code', moduleCode)
+    const { data: moduleTemplate } = await applyCatalogScope(templateQuery, scope, caseId).maybeSingle()
     const cost = moduleTemplate?.credit_cost ?? 10
     const { ok, remaining } = await checkCredits(creditsClient, caseData.account_id, cost)
     if (!ok) {

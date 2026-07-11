@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   const { data: maxRow } = await db
     .from('module_templates')
     .select('sort_order')
+    .is('case_id', null)
     .order('sort_order', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
 
   const { data, error } = await db
     .from('module_templates')
-    .insert({ code: code.trim(), name: name.trim(), description: description?.trim() || null, sort_order: nextSort, is_active: true })
+    .insert({ code: code.trim(), name: name.trim(), description: description?.trim() || null, sort_order: nextSort, is_active: true, case_id: null })
     .select()
     .single()
 
@@ -58,6 +59,7 @@ export async function PATCH(req: Request) {
     .from('module_templates')
     .update(updates)
     .eq('id', id)
+    .is('case_id', null)
     .select()
     .single()
 
@@ -77,7 +79,7 @@ export async function DELETE(req: Request) {
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
-  const { error } = await db.from('module_templates').delete().eq('id', id)
+  const { error } = await db.from('module_templates').delete().eq('id', id).is('case_id', null)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })
 }

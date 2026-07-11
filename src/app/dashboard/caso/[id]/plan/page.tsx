@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import PlanDiagnosticoClient from './PlanDiagnosticoClient'
 
 export default async function PlanDiagnosticoPage({
@@ -31,10 +32,9 @@ export default async function PlanDiagnosticoPage({
     .maybeSingle()
   if (!caseData) redirect('/dashboard')
 
-  // Catálogo completo
-  const { data: modules } = await db
-    .from('module_templates')
-    .select(`
+  // Catálogo completo — propio del caso si existe, si no el global
+  const scope = await resolveCatalogScope(db, caseId)
+  const modulesQuery = db.from('module_templates').select(`
       id, code, name, sort_order,
       sections (
         id, code, name, sort_order,
@@ -43,7 +43,7 @@ export default async function PlanDiagnosticoPage({
         )
       )
     `)
-    .order('sort_order', { ascending: true })
+  const { data: modules } = await applyCatalogScope(modulesQuery, scope, caseId).order('sort_order', { ascending: true })
 
   // Overrides del consultor para este caso
   const { data: overrides } = await db

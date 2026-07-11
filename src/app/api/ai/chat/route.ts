@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { getModulePrompt } from '@/lib/anthropic/prompts'
 import { buildModulePromptFromCatalog } from '@/lib/anthropic/prompts/build-from-catalog'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import { extractAgendaSignals, stripAgendaTags } from '@/lib/anthropic/agenda-detector'
 import type { ModuleCode, ChatMessage } from '@/types'
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
@@ -74,13 +75,10 @@ export async function POST(request: Request) {
       jobPositionName = position?.name ?? null
     }
 
-    // 2. Cargar módulo del catálogo
-    const { data: moduleTemplate } = await db
-      .from('module_templates')
-      .select('id, code, name, description')
-      .eq('code', moduleCode)
-      .eq('is_active', true)
-      .maybeSingle()
+    // 2. Cargar módulo del catálogo (propio del caso si existe, si no el global)
+    const scope = await resolveCatalogScope(db, sessionData.case_id)
+    const moduleTemplateQuery = db.from('module_templates').select('id, code, name, description').eq('code', moduleCode).eq('is_active', true)
+    const { data: moduleTemplate } = await applyCatalogScope(moduleTemplateQuery, scope, sessionData.case_id).maybeSingle()
 
     if (!moduleTemplate) throw new Error('módulo no en catálogo')
 

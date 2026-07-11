@@ -1,3 +1,5 @@
+import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
+
 // Inicialización de módulos de un caso — compartido entre la ruta API
 // (api/modules GET) y componentes de servidor que necesitan garantizar que
 // las filas de `modules` existan antes de leerlas, sin depender de un
@@ -12,11 +14,9 @@ export async function ensureModulesInitialized(db: any, caseId: string): Promise
 
   if (existing && existing.length > 0) return
 
-  const { data: templates } = await db
-    .from('module_templates')
-    .select('code')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  const scope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('code').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, scope, caseId).order('sort_order', { ascending: true })
 
   const toInsert = (templates ?? []).map((t: any, i: number) => ({
     case_id: caseId,

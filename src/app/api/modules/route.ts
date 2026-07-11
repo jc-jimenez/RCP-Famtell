@@ -5,6 +5,7 @@ import { deductCredits } from '@/lib/credits'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { computeModuleCompletion } from '@/lib/moduleCompletion'
 import { generateAndStoreModuleBackup } from '@/lib/moduleBackup'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import type { ModuleCode } from '@/types'
 
 export const runtime = 'nodejs'
@@ -12,12 +13,10 @@ export const runtime = 'nodejs'
 // Catálogo de módulos activos del caso, en orden — fuente de verdad en
 // module_templates (sort_order, credit_cost), no un array hardcoded.
 // Ver docs/PRD_RCPFAMTELL3PL.md sección 9.2.
-async function getActiveModuleTemplates(db: any): Promise<{ code: ModuleCode; credit_cost: number }[]> {
-  const { data } = await db
-    .from('module_templates')
-    .select('code, credit_cost')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+async function getActiveModuleTemplates(db: any, caseId: string): Promise<{ code: ModuleCode; credit_cost: number }[]> {
+  const scope = await resolveCatalogScope(db, caseId)
+  const query = db.from('module_templates').select('code, credit_cost').eq('is_active', true)
+  const { data } = await applyCatalogScope(query, scope, caseId).order('sort_order', { ascending: true })
   return data ?? []
 }
 
@@ -110,7 +109,7 @@ export async function GET(request: Request) {
 
   // Si no hay módulos creados para el caso, inicializarlos
   if (!modules || modules.length === 0) {
-    const templates = await getActiveModuleTemplates(db)
+    const templates = await getActiveModuleTemplates(db, caseId)
     const toInsert = templates.map((t, i) => ({
       case_id: caseId,
       module_code: t.code,
@@ -184,7 +183,7 @@ export async function POST(request: Request) {
   await db.from('sessions').update({ completed: true }).eq('id', sessionId)
 
   // Orden y costo vienen del catálogo (module_templates), no de un array fijo
-  const templates = await getActiveModuleTemplates(db)
+  const templates = await getActiveModuleTemplates(db, caseId)
   const currentIndex = templates.findIndex(t => t.code === moduleCode)
   const creditsUsed = templates[currentIndex]?.credit_cost ?? 10
 
