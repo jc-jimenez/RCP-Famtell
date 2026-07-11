@@ -25,6 +25,11 @@ const INTENTS = [
   { value: 'mixed',       label: '⬜ Sin definir aún',       desc: 'Lo determinaremos en el diagnóstico' },
 ]
 
+const CASE_TYPES = [
+  { value: 'empresa',      label: 'Una empresa',                   desc: 'El diagnóstico cubre toda la organización' },
+  { value: 'departamento', label: 'Un departamento de una empresa', desc: 'El diagnóstico se enfoca en un área específica' },
+]
+
 export default function NuevoCasoPage() {
   const router = useRouter()
   const { email } = useSupabaseUser()
@@ -34,9 +39,13 @@ export default function NuevoCasoPage() {
   const [caseId, setCaseId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
+    caseType: 'empresa',
     companyName: '',
     industry: '',
     description: '',
+    productsServices: '',
+    departmentName: '',
+    diagnosticObjectives: '',
     intent: 'mixed',
     strategicNotes: '',
     directorEmail: '',
@@ -44,6 +53,7 @@ export default function NuevoCasoPage() {
     directorJobTitle: 'Director General',
     directorJobDescription: '',
   })
+  const isDepartamento = form.caseType === 'departamento'
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -59,9 +69,13 @@ export default function NuevoCasoPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        caseType: form.caseType,
         companyName: form.companyName,
         industry: form.industry,
         description: form.description,
+        productsServices: form.productsServices,
+        departmentName: form.departmentName,
+        diagnosticObjectives: form.diagnosticObjectives,
         strategicIntent: form.intent,
         strategicNotes: form.strategicNotes,
       }),
@@ -143,7 +157,25 @@ export default function NuevoCasoPage() {
         {step === 1 && (
           <form onSubmit={handleCreateCase} className="space-y-5">
             <div className="card p-6 space-y-5">
-              <h1 className="text-lg font-bold text-ink">Datos de la empresa</h1>
+              <h1 className="text-lg font-bold text-ink">¿Qué vas a diagnosticar?</h1>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {CASE_TYPES.map(ct => (
+                  <button
+                    key={ct.value}
+                    type="button"
+                    onClick={() => set('caseType', ct.value)}
+                    className={`text-left rounded-xl border p-3 transition-all ${
+                      form.caseType === ct.value
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-subtle bg-surface-2 hover:border-accent/30'
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-ink">{ct.label}</p>
+                    <p className="text-xs text-faint mt-0.5">{ct.desc}</p>
+                  </button>
+                ))}
+              </div>
 
               <div>
                 <label className="label-text">Nombre de la empresa *</label>
@@ -175,6 +207,19 @@ export default function NuevoCasoPage() {
                 />
               </div>
 
+              {isDepartamento && (
+                <div>
+                  <label className="label-text">Productos/servicios que ofrece la empresa</label>
+                  <textarea
+                    value={form.productsServices}
+                    onChange={e => set('productsServices', e.target.value)}
+                    rows={2}
+                    placeholder="Ej. Almacenaje fiscal, distribución y transporte de carga"
+                    className="input-field resize-none"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="label-text">Intención estratégica inicial</label>
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
@@ -196,8 +241,23 @@ export default function NuevoCasoPage() {
                 </div>
               </div>
 
+              {isDepartamento && (
+                <div>
+                  <label className="label-text">Nombre del departamento o área de diagnóstico *</label>
+                  <input
+                    value={form.departmentName}
+                    onChange={e => set('departmentName', e.target.value)}
+                    placeholder="Ej. Almacén Fiscal"
+                    required={isDepartamento}
+                    className="input-field"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="label-text">Motivo del diagnóstico / dolores del cliente</label>
+                <label className="label-text">
+                  {isDepartamento ? 'Hipótesis o problemática del departamento' : 'Motivo del diagnóstico / dolores del cliente'}
+                </label>
                 <textarea
                   value={form.strategicNotes}
                   onChange={e => set('strategicNotes', e.target.value)}
@@ -209,13 +269,26 @@ export default function NuevoCasoPage() {
                   Tu hipótesis inicial. El diagnóstico la usará para enfocar las preguntas y la contrastará con la evidencia.
                 </p>
               </div>
+
+              {isDepartamento && (
+                <div>
+                  <label className="label-text">Objetivos a obtener con el diagnóstico</label>
+                  <textarea
+                    value={form.diagnosticObjectives}
+                    onChange={e => set('diagnosticObjectives', e.target.value)}
+                    rows={2}
+                    placeholder="¿Qué te gustaría lograr al terminar el diagnóstico de este departamento?"
+                    className="input-field resize-none"
+                  />
+                </div>
+              )}
             </div>
 
             {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>}
 
             <button
               type="submit"
-              disabled={loading || !form.companyName.trim()}
+              disabled={loading || !form.companyName.trim() || (isDepartamento && !form.departmentName.trim())}
               className="btn-primary w-full disabled:opacity-50"
             >
               {loading ? 'Creando caso…' : 'Crear caso →'}
