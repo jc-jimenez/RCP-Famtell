@@ -21,6 +21,35 @@ interface ModuleTemplate {
   description: string | null
 }
 
+export interface CaseBusinessContext {
+  companyName: string
+  industry: string | null
+  description: string | null
+  productsServices: string | null
+  isDepartamento: boolean
+  departmentName: string | null
+  diagnosticObjectives: string | null
+  hypothesis: string | null
+}
+
+function buildBusinessContextBlock(ctx: CaseBusinessContext): string {
+  const lines = [
+    `- Empresa: ${ctx.companyName}`,
+    `- Giro: ${ctx.industry?.trim() || 'no especificado'}`,
+    `- Descripción: ${ctx.description?.trim() || 'no especificada'}`,
+    `- Productos/servicios: ${ctx.productsServices?.trim() || 'no especificados'}`,
+  ]
+  if (ctx.isDepartamento) {
+    lines.push(`- Este diagnóstico es del departamento/área: ${ctx.departmentName ?? 'sin nombre'}`)
+    lines.push(`- Objetivos del diagnóstico: ${ctx.diagnosticObjectives?.trim() || 'no especificados'}`)
+  }
+  lines.push(`- Hipótesis/problemática a contrastar (NO asumir como verdad, profundizar cuando la respuesta se relacione con ella): ${ctx.hypothesis?.trim() || 'no especificada'}`)
+
+  return `CONTEXTO DEL NEGOCIO (úsalo para enfocar tus preguntas de seguimiento, no lo leas literalmente al usuario):
+${lines.join('\n')}
+`
+}
+
 /**
  * Construye el system prompt de Nova para un módulo dado, usando el
  * catálogo de la BD. Filtra por el puesto (job_position_id) del caso al
@@ -28,12 +57,17 @@ interface ModuleTemplate {
  * Una pregunta sin ningún puesto mapeado en este caso se excluye del
  * guion (no se le pregunta a nadie), no se le muestra "a todos" por
  * defecto — a diferencia del enum de roles anterior.
+ *
+ * caseContext es opcional a propósito: solo se pasa para casos v2 (con
+ * case_type) — los casos legacy siguen generando el prompt exactamente
+ * igual que antes, sin este bloque.
  */
 export function buildModulePromptFromCatalog(
   module: ModuleTemplate,
   sections: Section[],
   jobPositionId: string | null,
   jobPositionName: string | null,
+  caseContext?: CaseBusinessContext,
 ): string {
   const sectionBlocks = sections.map((sec, idx) => {
     const relevantQuestions = jobPositionId
@@ -53,11 +87,14 @@ export function buildModulePromptFromCatalog(
   }).filter(Boolean)
 
   const userRoleLabel = jobPositionName ?? 'el participante'
+  // Sin caseContext, contextSection queda vacío y el prompt es idéntico al
+  // de antes de esta fase — ni una línea en blanco de diferencia.
+  const contextSection = caseContext ? `${buildBusinessContextBlock(caseContext)}\n` : ''
 
   return `
 ${NOVA_BASE_SYSTEM}
 
-MÓDULO ACTUAL: ${module.code} — ${module.name}
+${contextSection}MÓDULO ACTUAL: ${module.code} — ${module.name}
 OBJETIVO: ${module.description ?? ''}
 PUESTO DEL USUARIO: ${userRoleLabel}
 

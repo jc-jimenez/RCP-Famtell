@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { getModulePrompt } from '@/lib/anthropic/prompts'
-import { buildModulePromptFromCatalog } from '@/lib/anthropic/prompts/build-from-catalog'
+import { buildModulePromptFromCatalog, type CaseBusinessContext } from '@/lib/anthropic/prompts/build-from-catalog'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 import { extractAgendaSignals, stripAgendaTags } from '@/lib/anthropic/agenda-detector'
 import type { ModuleCode, ChatMessage } from '@/types'
@@ -82,6 +82,30 @@ export async function POST(request: Request) {
 
     if (!moduleTemplate) throw new Error('módulo no en catálogo')
 
+    // Contexto de negocio solo para casos v2 (catálogo propio, generado con
+    // IA) — un caso legacy nunca resuelve a scope === 'case', así que nunca
+    // recibe este bloque y su prompt sigue siendo idéntico a antes.
+    let caseContext: CaseBusinessContext | undefined
+    if (scope === 'case') {
+      const { data: caseRow } = await db
+        .from('cases')
+        .select('company_name, industry, description, products_services, case_type, department_name, diagnostic_objectives, strategic_notes')
+        .eq('id', sessionData.case_id)
+        .maybeSingle()
+      if (caseRow) {
+        caseContext = {
+          companyName: caseRow.company_name,
+          industry: caseRow.industry,
+          description: caseRow.description,
+          productsServices: caseRow.products_services,
+          isDepartamento: caseRow.case_type === 'departamento',
+          departmentName: caseRow.department_name,
+          diagnosticObjectives: caseRow.diagnostic_objectives,
+          hypothesis: caseRow.strategic_notes,
+        }
+      }
+    }
+
     // 3. Cargar secciones con preguntas del catálogo base
     const { data: sectionsRaw } = await db
       .from('sections')
@@ -156,7 +180,7 @@ export async function POST(request: Request) {
       return { ...s, questions: [...baseQuestions, ...customQuestions] }
     })
 
-    systemPrompt = buildModulePromptFromCatalog(moduleTemplate, sections, jobPositionId, jobPositionName)
+    systemPrompt = buildModulePromptFromCatalog(moduleTemplate, sections, jobPositionId, jobPositionName, caseContext)
 
   } catch {
     // Fallback al prompt estático si el catálogo no está disponible aún
