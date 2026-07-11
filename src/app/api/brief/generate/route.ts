@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { CREDIT_COSTS, deductCreditsByEmail } from '@/lib/credits'
 import { isCaseFullyComplete } from '@/lib/moduleCompletion'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 export const runtime = 'nodejs'
 
@@ -67,6 +68,17 @@ export async function POST(request: Request) {
       })),
     }, { status: 409 })
   }
+
+  // Catálogo real de módulos del caso (propio si existe, si no el global) —
+  // reemplaza el M1-M7 fijo para que los prompts describan los módulos que
+  // el caso realmente tiene, sean los de siempre o los generados por IA.
+  const catalogScope = await resolveCatalogScope(db2, caseId)
+  const caseModulesQuery = db2.from('module_templates').select('code, name, description').eq('is_active', true)
+  const { data: caseModulesRaw } = await applyCatalogScope(caseModulesQuery, catalogScope, caseId).order('sort_order', { ascending: true })
+  const caseModules = caseModulesRaw ?? []
+  const moduleLabelByCode: Record<string, string> = {}
+  caseModules.forEach((m: any) => { moduleLabelByCode[m.code] = m.name })
+  const moduleListDescription = caseModules.map((m: any) => `${m.code} — ${m.name}${m.description ? `: ${m.description}` : ''}`).join('\n')
 
   // Señales IER
   const { data: signals } = await db2
@@ -158,6 +170,9 @@ export async function POST(request: Request) {
 
 Analiza las transcripciones de los módulos de diagnóstico de ${company} (${sector}) e identifica los DIAGNÓSTICOS CLAVE: los problemas críticos internos que la empresa debe resolver para estabilizarse y crecer.
 
+MÓDULOS DE ESTE DIAGNÓSTICO:
+${moduleListDescription || 'No hay módulos configurados.'}
+
 TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
 
@@ -171,7 +186,7 @@ Genera entre 4 y 7 diagnósticos clave. Para cada uno incluye:
 - area: una de [Comercial, Operativo, Financiero, Organizacional, Tecnología, Estrategia, Capital Humano]
 - pain_level: "alto" (bloquea el crecimiento hoy) / "medio" (importante pero manejable) / "bajo" (mejora deseable)
 - urgency: "urgente" (hay que atacarlo en las primeras 4 semanas) / "importante" (semanas 5-12) / "deseable" (horizonte 6+ meses)
-- module_origin: código del módulo donde se evidenció (M1..M7)
+- module_origin: código del módulo donde se evidenció (uno de los listados arriba en MÓDULOS DE ESTE DIAGNÓSTICO)
 
 ${descriptivoVsActividadBlocks ? `ADEMÁS, compara el DESCRIPTIVO DE PUESTO de cada persona (lo que se supone que debe hacer) contra lo que REALMENTE dijo que hace en sus entrevistas. Busca brechas significativas: funciones del descriptivo que la persona nunca menciona hacer, actividades reales que no están en su descriptivo, o contradicciones claras. Cuando el puesto tenga un "Rol" indicado (Dirección / Mando Medio / Operativo), úsalo como contexto para calibrar pain_level y urgency: una brecha en un puesto de Dirección suele tener mayor impacto organizacional que la misma brecha en un puesto Operativo. Si encuentras una brecha real, agrégala como un diagnóstico más en el MISMO array, con "tag": "descriptivo_vs_actividad" y "puesto": "<nombre exacto del puesto>". Si un puesto no tiene brechas significativas, no generes nada para ese puesto — no inventes brechas donde no las hay. Los diagnósticos generales (los del párrafo anterior) NO llevan el campo "tag".
 
@@ -204,7 +219,10 @@ Responde ÚNICAMENTE con JSON:
 
     jtbd_comercial: `Eres un consultor de estrategia comercial especializado en operadores logísticos 3PL.
 
-Analiza las transcripciones de los módulos M1 (comercial) y M3 (contactos y relaciones) de ${company} (${sector}) e identifica los JOBS TO BE DONE COMERCIALES: los trabajos que los clientes actuales y potenciales contratan a ${company} para que los realice.
+Analiza, entre los módulos de este diagnóstico, los que hablen de clientes, relación comercial o contactos de ${company} (${sector}), e identifica los JOBS TO BE DONE COMERCIALES: los trabajos que los clientes actuales y potenciales contratan a ${company} para que los realice. Si ninguno de los módulos toca este tema (por ejemplo, un diagnóstico enfocado en un área puramente interna/operativa), responde con un array vacío — no inventes JTBD sin evidencia.
+
+MÓDULOS DE ESTE DIAGNÓSTICO:
+${moduleListDescription || 'No hay módulos configurados.'}
 
 TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
@@ -223,7 +241,7 @@ Genera entre 4 y 6 JTBD comerciales. Para cada uno incluye:
 - frequency: "recurrente" (necesidad constante) / "estacional" (picos predecibles) / "ocasional" (evento específico)
 - market_size: "grande" (muchos clientes potenciales) / "mediano" / "nicho" (pocos pero valiosos)
 - evidence: cita o paráfrasis de la transcripción que evidencia que este job existe
-- source_module: "M1" o "M3"
+- source_module: código del módulo de donde salió la evidencia
 
 Responde ÚNICAMENTE con JSON:
 [{
@@ -285,7 +303,7 @@ Genera 3-5 segmentos. ÚNICAMENTE JSON:
 
     priorities: `Eres un consultor estratégico. Basándote en los hallazgos del diagnóstico, los diagnósticos clave confirmados y los segmentos aprobados de ${company} (${sector}), define las prioridades de intervención.
 
-HALLAZGOS M1-M7:
+HALLAZGOS POR MÓDULO:
 ${JSON.stringify(findings, null, 2)}
 
 DIAGNÓSTICOS CLAVE CONFIRMADOS:
@@ -315,22 +333,19 @@ Genera 5-8 prioridades. ÚNICAMENTE JSON:
   "approved": false
 }]`,
 
-    module_findings: `Eres un consultor estratégico. Para ${company} (${sector}), redacta un hallazgo ejecutivo de 2-3 oraciones por módulo del diagnóstico RCP.
+    module_findings: `Eres un consultor estratégico. Para ${company} (${sector}), redacta un hallazgo ejecutivo de 2-3 oraciones por cada módulo listado abajo.
+
+MÓDULOS DE ESTE DIAGNÓSTICO:
+${moduleListDescription || 'No hay módulos configurados.'}
 
 TRANSCRIPCIONES DISPONIBLES:
 ${transcripts || 'Genera hallazgos hipotéticos basados en el sector.'}
 
 IER: ${ierSummary}
 
-ÚNICAMENTE JSON:
+Responde ÚNICAMENTE con un JSON plano donde cada llave es el código EXACTO de uno de los módulos listados arriba y el valor es su hallazgo:
 {
-  "M1": "Hallazgo comercial...",
-  "M2": "Hallazgo operativo...",
-  "M3": "Hallazgo de contactos...",
-  "M4": "Hallazgo financiero...",
-  "M5": "Hallazgo competitivo...",
-  "M6": "Hallazgo interno...",
-  "M7": "Síntesis..."
+${caseModules.map((m: any) => `  "${m.code}": "Hallazgo de ${m.name}..."`).join(',\n') || '  "M1": "Hallazgo..."'}
 }`,
 
     market_context: (() => {

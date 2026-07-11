@@ -11,6 +11,11 @@ interface PendingModule {
   pending: { jobPositionId: string; jobPositionName: string; hasOccupant: boolean }[]
 }
 
+interface CaseModule {
+  code: string
+  name: string
+}
+
 interface Props {
   caseId: string
   companyName: string
@@ -20,14 +25,15 @@ interface Props {
   ierCounts: { blue: number; yellow: number; red: number }
   modulesCompleted: number
   incompleteModules: PendingModule[]
+  modules: CaseModule[]
 }
 
 // ── Track steps ────────────────────────────────────────────────────────────
 
 const STEPS = [
   { id: 'interviews',    label: 'Entrevistas',    desc: 'Módulos con sesiones completadas' },
-  { id: 'levantamiento', label: 'Levantamiento',  desc: 'Los 7 módulos completados' },
-  { id: 'analisis',      label: 'Análisis',       desc: 'Hallazgos M1-M7 generados' },
+  { id: 'levantamiento', label: 'Levantamiento',  desc: 'Todos los módulos completados' },
+  { id: 'analisis',      label: 'Análisis',       desc: 'Hallazgos por módulo generados' },
   { id: 'jtbd',           label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
   { id: 'jtbd_comercial', label: 'JTBD Comercial', desc: 'Jobs de clientes validados' },
   { id: 'segmentos',     label: 'Segmentos',      desc: 'Segmentos validados y priorizados' },
@@ -74,7 +80,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 }
 
 export default function BriefConsultorClient({
-  caseId, companyName, industry, email, initialBrief, ierCounts, modulesCompleted, incompleteModules,
+  caseId, companyName, industry, email, initialBrief, ierCounts, modulesCompleted, incompleteModules, modules,
 }: Props) {
   const [brief, setBrief]           = useState<any>(initialBrief ?? {})
   const [activeStep, setActiveStep] = useState<StepId>('interviews')
@@ -86,7 +92,7 @@ export default function BriefConsultorClient({
   const [blockedError, setBlockedError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const interviewsComplete = modulesCompleted >= 7
+  const interviewsComplete = modules.length > 0 && modulesCompleted >= modules.length
 
   const track: Record<string, { status: 'complete' | 'active' | 'pending' }> = brief?.track_status ?? {}
 
@@ -313,7 +319,7 @@ export default function BriefConsultorClient({
                 {modulesCompleted}/7
               </div>
               <div>
-                <p className="text-sm font-medium text-ink">{modulesCompleted} de 7 módulos realmente completos</p>
+                <p className="text-sm font-medium text-ink">{modulesCompleted} de {modules.length} módulos realmente completos</p>
                 <p className="text-xs text-muted mt-0.5">
                   {interviewsComplete
                     ? 'Todos los puestos con preguntas mapeadas ya contestaron.'
@@ -357,7 +363,7 @@ export default function BriefConsultorClient({
           </div>
         )}
 
-        {/* ── Etapa: Análisis (Hallazgos M1-M7) ── */}
+        {/* ── Etapa: Análisis (hallazgos por módulo) ── */}
         {activeStep === 'analisis' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -369,14 +375,14 @@ export default function BriefConsultorClient({
             </div>
             <NovaHintInput section="module_findings" hints={novaHints} setHints={setNovaHints} />
             <div className="space-y-3">
-              {['M1','M2','M3','M4','M5','M6','M7'].map(mod => (
-                <div key={mod}>
-                  <label className="text-xs font-mono bg-surface-2 text-muted px-2 py-0.5 rounded mb-1 inline-block">{mod}</label>
+              {modules.map(mod => (
+                <div key={mod.code}>
+                  <label className="text-xs font-mono bg-surface-2 text-muted px-2 py-0.5 rounded mb-1 inline-block">{mod.code} — {mod.name}</label>
                   <textarea rows={2} className="input-field w-full text-sm resize-none"
-                    placeholder={`Hallazgo del ${mod}…`}
-                    value={brief?.module_findings?.[mod] ?? ''}
+                    placeholder={`Hallazgo de ${mod.name}…`}
+                    value={brief?.module_findings?.[mod.code] ?? ''}
                     onChange={e => setBrief((p: any) => ({
-                      ...p, module_findings: { ...(p.module_findings ?? {}), [mod]: e.target.value }
+                      ...p, module_findings: { ...(p.module_findings ?? {}), [mod.code]: e.target.value }
                     }))}
                   />
                 </div>
@@ -500,7 +506,7 @@ export default function BriefConsultorClient({
             {jtbdComercialList.length === 0 ? (
               <div className="card p-8 text-center space-y-2">
                 <p className="text-sm text-muted">
-                  Nova leerá las transcripciones de M1 y M3 para identificar los trabajos que los clientes contratan a {companyName}: qué situación los lleva a buscar un 3PL, qué necesitan lograr y qué resultado esperan.
+                  Nova leerá las transcripciones de los módulos relacionados con clientes y relación comercial para identificar los trabajos que los clientes contratan a {companyName}: qué situación los lleva a buscar un 3PL, qué necesitan lograr y qué resultado esperan.
                 </p>
                 <p className="text-xs text-faint">Formato: "Cuando tengo [situación], necesito [job], para [resultado esperado]"</p>
               </div>

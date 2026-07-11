@@ -11,9 +11,12 @@ interface Props {
   email: string
   brief: any
   role: string
+  moduleNames?: Record<string, string>
 }
 
-const MODULE_NAMES: Record<string, string> = {
+// Catálogo global de siempre — se usa como respaldo si moduleNames no trae
+// el código (no debería pasar, pero evita una etiqueta vacía).
+const FALLBACK_MODULE_NAMES: Record<string, string> = {
   M1: 'Radiografía Comercial', M2: 'Radiografía Operativa',
   M3: 'Base de Contactos',     M4: 'Radiografía Financiera',
   M5: 'Radiografía Competitiva', M6: 'Radiografía Interna', M7: 'Síntesis y Plan RCP',
@@ -26,7 +29,7 @@ const IER_CONFIG: Record<string, { label: string; emoji: string; color: string }
   mixed:       { label: 'Intención mixta',       emoji: '⚪', color: 'text-muted' },
 }
 
-export default function BriefDirectorClient({ caseId, companyName, email, brief, role }: Props) {
+export default function BriefDirectorClient({ caseId, companyName, email, brief, role, moduleNames = {} }: Props) {
   const shellRole: UserRole = 'director'
   const publishedDate = brief?.published_at
     ? new Date(brief.published_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -156,7 +159,7 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
                 <div key={mod} className="flex gap-4">
                   <span className="text-xs font-mono bg-accent-soft text-accent px-2 py-1 rounded h-fit flex-shrink-0">{mod}</span>
                   <div>
-                    <p className="text-xs font-medium text-muted mb-0.5">{MODULE_NAMES[mod]}</p>
+                    <p className="text-xs font-medium text-muted mb-0.5">{moduleNames[mod] ?? FALLBACK_MODULE_NAMES[mod] ?? mod}</p>
                     <p className="text-sm text-ink leading-relaxed">{text as string}</p>
                   </div>
                 </div>

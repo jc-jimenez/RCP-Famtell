@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import BriefConsultorClient from './BriefConsultorClient'
 import BriefDirectorClient from './BriefDirectorClient'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
+import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -61,6 +62,12 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   const modulesCompleted = allCompletion.filter(m => m.colorStatus === 'green').length
   const incompleteModules = allCompletion.filter(m => m.colorStatus !== 'green')
 
+  // Catálogo real del caso (propio si existe, si no el global M1-M7) — el
+  // stage de Análisis y el copy de JTBD Comercial ya no asumen M1-M7 fijo.
+  const catalogScope = await resolveCatalogScope(db, id)
+  const modulesQuery = db.from('module_templates').select('code, name').eq('is_active', true)
+  const { data: caseModules } = await applyCatalogScope(modulesQuery, catalogScope, id).order('sort_order', { ascending: true })
+
   if (isConsultant) {
     return (
       <BriefConsultorClient
@@ -72,9 +79,13 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         ierCounts={ierCounts}
         modulesCompleted={modulesCompleted}
         incompleteModules={incompleteModules}
+        modules={caseModules ?? []}
       />
     )
   }
+
+  const moduleNames: Record<string, string> = {}
+  ;(caseModules ?? []).forEach((m: any) => { moduleNames[m.code] = m.name })
 
   // Director — solo puede ver el brief si está publicado
   if (!brief || brief.status !== 'published') {
@@ -85,6 +96,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         email={session.user.email!}
         brief={null}
         role="director"
+        moduleNames={moduleNames}
       />
     )
   }
@@ -96,6 +108,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
       email={session.user.email!}
       brief={brief}
       role="director"
+      moduleNames={moduleNames}
     />
   )
 }
