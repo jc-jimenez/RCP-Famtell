@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import readExcelFile from 'read-excel-file/universal'
 import { useNovaChat, type FileAttachment } from '@/hooks/useNovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
 import type { ModuleCompletion } from '@/lib/moduleCompletion'
@@ -16,6 +17,8 @@ const MODULE_LABELS: Record<ModuleCode, string> = {
 }
 
 const ACCEPTED_TYPES = '.pdf,.png,.jpg,.jpeg,.csv,.txt,.xlsx'
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+const MAX_EXCEL_TEXT_CHARS = 50000
 
 interface NovaChatProps {
   caseId: string
@@ -40,6 +43,8 @@ export default function NovaChat({
   const [completing, setCompleting] = useState(false)
   const [attachment, setAttachment] = useState<FileAttachment | null>(null)
   const [attachLoading, setAttachLoading] = useState(false)
+  const [attachError, setAttachError] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -62,35 +67,89 @@ export default function NovaChat({
     }
   }, [autoStart, messages.length, sendMessage])
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  function bytesToBase64(bytes: Uint8Array): string {
+    let binary = ''
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+    return btoa(binary)
+  }
+
+  function cellToText(cell: unknown): string {
+    if (cell === null || cell === undefined) return ''
+    if (cell instanceof Date) return cell.toISOString().slice(0, 10)
+    return String(cell)
+  }
+
+  async function parseExcelToText(file: File): Promise<string> {
+    const sheets = (await readExcelFile(file)) as { sheet: string; data: unknown[][] }[]
+    const text = sheets
+      .map(({ sheet, data }) => {
+        const rows = data.map(row => row.map(cellToText).join(', ')).join('\n')
+        return `## Hoja: ${sheet}\n${rows}`
+      })
+      .join('\n\n')
+    return text.length > MAX_EXCEL_TEXT_CHARS
+      ? `${text.slice(0, MAX_EXCEL_TEXT_CHARS)}\n\n[…contenido truncado, el archivo tiene más datos de los que se pueden analizar completos]`
+      : text
+  }
+
+  async function processFile(file: File) {
+    setAttachError(null)
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setAttachError(`El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB, el máximo permitido es 10 MB.`)
+      return
+    }
+
     setAttachLoading(true)
 
     try {
-      // Para Excel (.xlsx), convertir a CSV-like text description
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        // Los archivos Excel no se pueden enviar directamente a Claude como base64 útil
-        // Se notifica al usuario y se incluye solo el nombre
-        const fakeBase64 = btoa(`[Archivo Excel: ${file.name} — ${(file.size / 1024).toFixed(0)} KB. Indícame los datos clave que contiene este archivo.]`)
-        setAttachment({ base64: fakeBase64, mimeType: 'text/plain', fileName: file.name })
-        setAttachLoading(false)
-        return
+      const lowerName = file.name.toLowerCase()
+
+      if (lowerName.endsWith('.xls')) {
+        throw new Error('Los archivos .xls antiguos no son compatibles. Guarda el archivo como .xlsx o .csv e inténtalo de nuevo.')
       }
 
-      const buffer = await file.arrayBuffer()
-      const bytes = new Uint8Array(buffer)
-      let binary = ''
-      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
-      const base64 = btoa(binary)
-
-      setAttachment({ base64, mimeType: file.type || 'application/octet-stream', fileName: file.name })
-    } catch {
-      // silently ignore read errors
+      if (lowerName.endsWith('.xlsx')) {
+        const text = await parseExcelToText(file)
+        if (!text.trim()) throw new Error('El archivo Excel no tiene datos legibles en sus hojas.')
+        setAttachment({ base64: bytesToBase64(new TextEncoder().encode(text)), mimeType: 'text/plain', fileName: file.name })
+      } else {
+        const buffer = await file.arrayBuffer()
+        setAttachment({ base64: bytesToBase64(new Uint8Array(buffer)), mimeType: file.type || 'application/octet-stream', fileName: file.name })
+      }
+    } catch (err) {
+      setAttachment(null)
+      setAttachError(err instanceof Error ? err.message : 'No se pudo leer el archivo. Intenta con otro archivo o descríbeme los datos directamente en el chat.')
+    } finally {
+      setAttachLoading(false)
+      // reset input so same file can be re-selected
+      if (fileRef.current) fileRef.current.value = ''
     }
-    setAttachLoading(false)
-    // reset input so same file can be re-selected
-    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    processFile(file)
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    setDragActive(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    setDragActive(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    setDragActive(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
   }
 
   async function handleSend() {
@@ -132,7 +191,17 @@ export default function NovaChat({
   const visibleMessages = messages.filter(m => m.content !== '' || m.role === 'assistant')
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div
+      className="relative flex flex-col h-full min-h-0"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragActive && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-accent-soft/90 border-2 border-dashed border-accent rounded-xl pointer-events-none">
+          <p className="text-sm font-medium text-accent">Suelta el archivo para adjuntarlo</p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-subtle bg-surface flex-shrink-0">
@@ -177,6 +246,23 @@ export default function NovaChat({
       {error && (
         <div className="px-5 py-2 bg-red-50 border-t border-red-100">
           <p className="text-xs text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Error de adjunto */}
+      {attachError && (
+        <div className="px-4 pt-2 flex-shrink-0">
+          <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+            <span className="text-sm">⚠️</span>
+            <span className="text-xs text-red-700 flex-1">{attachError}</span>
+            <button
+              onClick={() => setAttachError(null)}
+              className="text-red-400 hover:text-red-700 text-xs leading-none"
+              aria-label="Descartar error"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 

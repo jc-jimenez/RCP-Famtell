@@ -10,6 +10,8 @@ import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resource
 
 export const runtime = 'nodejs'
 
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
@@ -24,6 +26,13 @@ export async function POST(request: Request) {
 
   if (!sessionId || !message || !moduleCode) {
     return NextResponse.json({ error: 'sessionId, message y moduleCode requeridos' }, { status: 400 })
+  }
+
+  if (attachment) {
+    const decodedSize = Math.ceil((attachment.base64.length * 3) / 4)
+    if (decodedSize > MAX_ATTACHMENT_BYTES) {
+      return NextResponse.json({ error: 'El archivo adjunto supera el máximo permitido de 10 MB' }, { status: 413 })
+    }
   }
 
   const db = supabase as any
@@ -42,11 +51,13 @@ export async function POST(request: Request) {
 
   const history: ChatMessage[] = sessionData.messages ?? []
 
-  // Agregar mensaje del usuario
+  // Agregar mensaje del usuario (incluye referencia al adjunto, si hay, para
+  // que sobreviva a un refresh — el cliente solo la guarda en memoria)
   const isStartTrigger = message === '__NOVA_START__'
+  const userText = isStartTrigger ? '' : message.trim()
   const userMsg: ChatMessage = {
     role: 'user',
-    content: isStartTrigger ? '' : message,
+    content: attachment ? `${userText}${userText ? '\n' : ''}📎 ${attachment.fileName}` : userText,
     timestamp: new Date().toISOString(),
   }
   const updatedHistory = isStartTrigger ? history : [...history, userMsg]
@@ -198,7 +209,6 @@ export async function POST(request: Request) {
   } else if (attachment) {
     // El último mensaje del usuario se reemplaza con un mensaje multimodal
     const prevMessages = historyForClaude.slice(0, -1)
-    const userText = message.trim()
 
     const contentBlocks: ContentBlockParam[] = []
 
