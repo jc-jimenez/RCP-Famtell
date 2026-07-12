@@ -36,7 +36,7 @@ const TABS: Tab[] = [
 ]
 
 // Agrupación tipo árbol para el menú vertical del caso (sección 16, Obs 6) —
-// reemplaza la barra horizontal de 19 pestañas, difícil de escanear.
+// vive en el sidebar como sección persistente, no como dropdown flotante.
 interface Group { label: string; tabIds: string[] }
 const GROUPS: Group[] = [
   { label: 'Preparación', tabIds: ['puestos', 'participantes', 'plan'] },
@@ -61,93 +61,70 @@ interface Props {
 
 export default function CasoTabs({ caseId, activeTab }: Props) {
   const activeGroupLabel = GROUPS.find(g => g.tabIds.includes(activeTab))?.label ?? null
-  const [open, setOpen] = useState(false)
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel)
   const [prevActiveTab, setPrevActiveTab] = useState(activeTab)
 
-  // Al cambiar de pestaña (navegación), reabre el grupo correspondiente y
-  // cierra el menú — ajuste de estado durante el render en vez de un efecto,
-  // siguiendo el patrón recomendado por React para sincronizar con props.
+  // Al cambiar de pestaña (navegación), reabre el grupo correspondiente —
+  // ajuste de estado durante el render en vez de un efecto, siguiendo el
+  // patrón recomendado por React para sincronizar con props.
   if (activeTab !== prevActiveTab) {
     setPrevActiveTab(activeTab)
     setOpenGroup(activeGroupLabel)
-    setOpen(false)
   }
 
-  const activeTabLabel = TABS.find(t => t.id === activeTab)?.label ?? 'Menú'
+  const homeTab = TABS.find(t => t.id === 'diagnostico')
 
   return (
-    <div className="relative mb-3">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 text-sm font-medium text-ink px-3.5 py-1.5 rounded-xl border border-subtle bg-surface hover:border-accent/40 transition-colors"
-      >
-        <span className="text-faint">Menú</span>
-        <span className="text-faint">›</span>
-        <span>{activeTabLabel}</span>
-        <span className={`text-faint text-xs transition-transform ${open ? 'rotate-180' : ''}`}>⌄</span>
-      </button>
+    <nav>
+      <p className="section-label px-3 mb-1.5">Este caso</p>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[70vh] overflow-y-auto card p-2 z-50 shadow-lg">
-            {(() => {
-              const homeTab = TABS.find(t => t.id === 'diagnostico')
-              if (!homeTab) return null
-              const isActive = homeTab.id === activeTab
-              return (
-                <Link
-                  href={tabHref(caseId, homeTab) as any}
-                  onClick={() => setOpen(false)}
-                  className={`block text-sm px-3 py-1.5 rounded-lg mb-1.5 transition-colors ${
-                    isActive ? 'bg-accent text-white font-medium' : 'text-muted hover:bg-accent-soft hover:text-ink'
-                  }`}
-                >
-                  {homeTab.label}
-                </Link>
-              )
-            })()}
-            {GROUPS.map(group => {
-              const isGroupOpen = openGroup === group.label
-              return (
-                <div key={group.label} className="mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setOpenGroup(g => (g === group.label ? null : group.label))}
-                    className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-faint px-2 py-1.5 rounded-lg hover:bg-surface-2"
-                  >
-                    {group.label}
-                    <span className={`transition-transform ${isGroupOpen ? 'rotate-180' : ''}`}>⌄</span>
-                  </button>
-                  {isGroupOpen && (
-                    <div className="pl-2 space-y-0.5 mt-0.5">
-                      {group.tabIds.map(id => {
-                        const tab = TABS.find(t => t.id === id)
-                        if (!tab) return null
-                        const isActive = tab.id === activeTab
-                        return (
-                          <Link
-                            key={tab.id}
-                            href={tabHref(caseId, tab) as any}
-                            onClick={() => setOpen(false)}
-                            className={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                              isActive ? 'bg-accent text-white font-medium' : 'text-muted hover:bg-accent-soft hover:text-ink'
-                            }`}
-                          >
-                            {tab.label}
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </>
+      {homeTab && (
+        <Link
+          href={tabHref(caseId, homeTab) as any}
+          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium mb-1 transition-colors ${
+            homeTab.id === activeTab ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink hover:bg-surface-2'
+          }`}
+        >
+          <span className="text-base leading-none w-4 text-center">🩺</span>
+          {homeTab.label}
+        </Link>
       )}
-    </div>
+
+      {GROUPS.map(group => {
+        const isGroupOpen = openGroup === group.label
+        return (
+          <div key={group.label} className="mb-0.5">
+            <button
+              type="button"
+              onClick={() => setOpenGroup(g => (g === group.label ? null : group.label))}
+              className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-faint px-3 py-1.5 rounded-lg hover:bg-surface-2"
+            >
+              {group.label}
+              <span className={`transition-transform ${isGroupOpen ? 'rotate-180' : ''}`}>⌄</span>
+            </button>
+            {isGroupOpen && (
+              <div className="pl-2 space-y-0.5 mt-0.5 mb-1">
+                {group.tabIds.map(id => {
+                  const tab = TABS.find(t => t.id === id)
+                  if (!tab) return null
+                  const isActive = tab.id === activeTab
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={tabHref(caseId, tab) as any}
+                      className={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                        isActive ? 'bg-accent-soft text-accent font-medium' : 'text-muted hover:bg-surface-2 hover:text-ink'
+                      }`}
+                    >
+                      {tab.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </nav>
   )
 }

@@ -2,6 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens de color como tripletes "R G B" (no hex) para que las clases de
+ * Tailwind con opacidad (bg-accent/20, ring-accent/15, etc.) sigan
+ * funcionando — ver tailwind.config.ts, cada color usa
+ * rgb(var(--color-x) / <alpha-value>). :root = tema claro (valores idénticos
+ * a los hex que había antes, cero cambio visual por defecto). .dark = paleta
+ * oscura premium (aplicada por ThemeToggle.tsx sobre <html>).
+ */
+:root {
+  --color-canvas: 246 245 242;
+  --color-surface: 255 255 255;
+  --color-surface-2: 250 250 248;
+  --color-subtle: 232 231 227;
+
+  --color-ink: 27 36 48;
+  --color-muted: 107 114 128;
+  --color-faint: 156 163 175;
+
+  --color-brand: 30 58 95;
+  --color-brand-hover: 22 48 78;
+  --color-accent: 37 99 235;
+  --color-accent-soft: 239 244 255;
+
+  --color-role-admin: 180 83 9;
+  --color-role-consultor: 37 99 235;
+  --color-role-directivo: 24 95 165;
+  --color-role-colaborador: 15 110 86;
+  --color-role-admin-soft: 255 251 235;
+  --color-role-consultor-soft: 239 244 255;
+  --color-role-directivo-soft: 239 244 255;
+  --color-role-colaborador-soft: 236 253 245;
+
+  --color-module-completed: 22 163 74;
+  --color-module-active: 37 99 235;
+  --color-module-pending: 148 163 184;
+  --color-module-locked: 203 213 225;
+
+  --color-agenda-blue: 59 130 246;
+  --color-agenda-yellow: 245 158 11;
+  --color-agenda-red: 239 68 68;
+
+  --color-badge-success-bg: 236 253 245;
+  --color-badge-success-text: 4 120 87;
+  --color-badge-warning-bg: 255 251 235;
+  --color-badge-warning-text: 180 83 9;
+  --color-badge-danger-bg: 254 242 242;
+  --color-badge-danger-text: 185 28 28;
+  --color-badge-neutral-bg: 241 245 249;
+  --color-badge-neutral-text: 71 85 105;
+}
+
+.dark {
+  --color-canvas: 6 12 26;
+  --color-surface: 13 21 38;
+  --color-surface-2: 19 31 54;
+  --color-subtle: 30 42 68;
+
+  --color-ink: 238 241 248;
+  --color-muted: 148 163 184;
+  --color-faint: 100 116 139;
+
+  --color-brand: 79 110 247;
+  --color-brand-hover: 61 89 214;
+  --color-accent: 124 147 255;
+  --color-accent-soft: 22 33 58;
+
+  --color-role-admin: 251 191 36;
+  --color-role-consultor: 96 165 250;
+  --color-role-directivo: 56 189 248;
+  --color-role-colaborador: 52 211 153;
+  --color-role-admin-soft: 36 26 11;
+  --color-role-consultor-soft: 22 33 58;
+  --color-role-directivo-soft: 18 33 46;
+  --color-role-colaborador-soft: 15 38 32;
+
+  --color-module-completed: 34 197 94;
+  --color-module-active: 124 147 255;
+  --color-module-pending: 100 116 139;
+  --color-module-locked: 42 54 80;
+
+  --color-agenda-blue: 96 165 250;
+  --color-agenda-yellow: 251 191 36;
+  --color-agenda-red: 248 113 113;
+
+  --color-badge-success-bg: 16 40 31;
+  --color-badge-success-text: 52 211 153;
+  --color-badge-warning-bg: 43 33 9;
+  --color-badge-warning-text: 251 191 36;
+  --color-badge-danger-bg: 43 20 20;
+  --color-badge-danger-text: 248 113 113;
+  --color-badge-neutral-bg: 27 36 54;
+  --color-badge-neutral-text: 148 163 184;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -54,9 +148,9 @@ body {
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
-  .badge-success { @apply bg-emerald-50 text-emerald-700; }
-  .badge-warning { @apply bg-amber-50 text-amber-700; }
-  .badge-danger  { @apply bg-red-50 text-red-700; }
-  .badge-neutral { @apply bg-slate-100 text-slate-600; }
+  .badge-success { @apply bg-badge-success-bg text-badge-success-text; }
+  .badge-warning { @apply bg-badge-warning-bg text-badge-warning-text; }
+  .badge-danger  { @apply bg-badge-danger-bg text-badge-danger-text; }
+  .badge-neutral { @apply bg-badge-neutral-bg text-badge-neutral-text; }
   .badge-info    { @apply bg-accent-soft text-accent; }
 }

@@ -7,6 +7,7 @@ interface Tab {
   id: string
   label: string
   href: string
+  icon: string
 }
 
 interface Props {
@@ -17,15 +18,15 @@ export default function DirectorTabs({ caseId }: Props) {
   const pathname = usePathname()
 
   const TABS: Tab[] = [
-    { id: 'modulos',   label: 'Mis Módulos', href: `/caso/${caseId}` },
-    { id: 'kpis',     label: 'KPIs',         href: `/caso/${caseId}/kpis` },
-    { id: 'checkin',  label: 'Check-in',     href: `/caso/${caseId}/checkin` },
-    { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad` },
-    { id: 'escenarios',  label: 'Escenarios',  href: `/caso/${caseId}/escenarios` },
-    { id: 'competencia', label: 'Competencia', href: `/caso/${caseId}/competencia` },
-    { id: 'tablas',     label: 'Tablas',      href: `/caso/${caseId}/tablas` },
-    { id: 'indice',     label: 'Índice IER',  href: `/caso/${caseId}/indice` },
-    { id: 'brief',      label: 'Brief M7',   href: `/caso/${caseId}/brief` },
+    { id: 'modulos',    label: 'Mis Módulos', href: `/caso/${caseId}`,             icon: '🧭' },
+    { id: 'kpis',       label: 'KPIs',        href: `/caso/${caseId}/kpis`,        icon: '📊' },
+    { id: 'checkin',    label: 'Check-in',    href: `/caso/${caseId}/checkin`,     icon: '✅' },
+    { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad`,   icon: '🏗' },
+    { id: 'escenarios', label: 'Escenarios',  href: `/caso/${caseId}/escenarios`,  icon: '🔀' },
+    { id: 'competencia',label: 'Competencia', href: `/caso/${caseId}/competencia`, icon: '🎯' },
+    { id: 'tablas',     label: 'Tablas',      href: `/caso/${caseId}/tablas`,      icon: '📋' },
+    { id: 'indice',     label: 'Índice IER',  href: `/caso/${caseId}/indice`,      icon: '📈' },
+    { id: 'brief',      label: 'Brief M7',    href: `/caso/${caseId}/brief`,       icon: '📄' },
   ]
 
   function isActive(tab: Tab) {
@@ -34,23 +35,25 @@ export default function DirectorTabs({ caseId }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto pb-3">
-      <nav className="flex gap-1.5 min-w-max">
-        {TABS.map(tab => (
-          <Link
-            key={tab.id}
-            href={tab.href as any}
-            className={`
-              px-3.5 py-1.5 text-sm font-medium whitespace-nowrap rounded-full border transition-colors
-              ${isActive(tab)
-                ? 'bg-accent text-white border-accent'
-                : 'border-subtle text-muted bg-surface hover:text-ink hover:border-accent/40 hover:bg-accent-soft'}
-            `}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
-    </div>
+    <nav>
+      <p className="section-label px-3 mb-1.5">Este caso</p>
+      <div className="space-y-0.5">
+        {TABS.map(tab => {
+          const active = isActive(tab)
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href as any}
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                active ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink hover:bg-surface-2'
+              }`}
+            >
+              <span className="text-base leading-none w-4 text-center">{tab.icon}</span>
+              {tab.label}
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
   )
 }

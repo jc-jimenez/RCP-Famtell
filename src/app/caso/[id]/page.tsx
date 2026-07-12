@@ -10,6 +10,14 @@ import { directorOnboardingSteps } from '@/components/onboarding/directorSteps'
 import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { countQuestionsForPosition, countAnsweredMessages } from '@/lib/moduleQuestions'
+import ModuleJourneyCard, { JOURNEY_ACCENTS } from '@/components/shared/ModuleJourneyCard'
+import CustomerJourneyMap from '@/components/shared/CustomerJourneyMap'
+import { computeCustomerJourney } from '@/lib/customerJourney'
+
+const MODULE_EMOJI: Record<string, string> = {
+  M1: '💼', M2: '⚙️', M3: '🤝', M4: '💰', M5: '🎯', M6: '🧑‍🤝‍🧑', M7: '📋',
+}
 
 function formatDate(iso: string | null): string {
   if (!iso) return ''
@@ -26,7 +34,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
 
   const { data: caseUser } = await db
     .from('case_users')
-    .select('role, job_title, onboarding_dismissed_at')
+    .select('role, job_title, job_position_id, onboarding_dismissed_at')
     .eq('case_id', id)
     .eq('user_id', session.user.id)
     .maybeSingle()
@@ -73,17 +81,21 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
     moduleMap[m.module_code] = { status: m.status, completed_at: m.completed_at, updated_at: m.updated_at }
   })
 
-  // Última sesión por módulo (para mostrar "Última actividad")
+  // Última sesión por módulo (para mostrar "Última actividad" y el % de avance)
   const { data: sessions } = await db
     .from('sessions')
-    .select('module_code, last_message_at')
+    .select('module_code, last_message_at, messages')
     .eq('case_id', id)
     .eq('user_id', session.user.id)
     .order('last_message_at', { ascending: false })
 
   const lastSessionMap: Record<string, string> = {}
+  const answeredMap: Record<string, number> = {}
   ;(sessions ?? []).forEach((s: any) => {
-    if (!lastSessionMap[s.module_code]) lastSessionMap[s.module_code] = s.last_message_at
+    if (!lastSessionMap[s.module_code]) {
+      lastSessionMap[s.module_code] = s.last_message_at
+      answeredMap[s.module_code] = countAnsweredMessages(s.messages)
+    }
   })
 
   const completedCount = Object.values(moduleMap).filter(m => m.status === 'completed').length
@@ -102,6 +114,19 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
     all.forEach(c => { completionMap[c.moduleCode] = c })
   }
 
+  // % de avance de MI entrevista en el módulo actual — antes no existía
+  // ningún numero, solo el semáforo rojo/ámbar/verde de arriba (que mide
+  // puestos completados, no mi propio avance dentro de la entrevista).
+  let currentModulePercent = 0
+  if (nextModule && caseUser.job_position_id) {
+    const total = await countQuestionsForPosition(db, id, nextModule, caseUser.job_position_id)
+    const answered = answeredMap[nextModule] ?? 0
+    currentModulePercent = total > 0 ? Math.min(100, Math.round((answered / total) * 100)) : 0
+  }
+
+  const journey = await computeCustomerJourney(id)
+  const journeyContinueHref = nextModule ? `/caso/${id}/modulo/${nextModule}` : `/caso/${id}/checkin`
+
   return (
     <AppShell
       role={shellRole}
@@ -111,7 +136,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
       modulesTotal={moduleOrder.length}
       tabBar={isDirector ? <DirectorTabs caseId={id} /> : undefined}
     >
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
@@ -132,6 +157,9 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             <p className="text-xs text-muted">módulos</p>
           </div>
         </div>
+
+        {/* Mapa de Customer Journey */}
+        <CustomerJourneyMap journey={journey} continueHref={journeyContinueHref} showFindings={false} />
 
         {/* Barra de progreso */}
         <div className="card p-4">
@@ -174,82 +202,49 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
           </p>
         </div>
 
-        {/* Lista de módulos */}
-        <div className="space-y-2">
-          {moduleOrder.map((code, i) => {
-            const info = moduleInfo[code]
-            const mod = moduleMap[code]
-            const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
-            const isCompleted = status === 'completed'
-            const isCurrent = code === nextModule
-            const isLocked = !isCompleted && !isCurrent
-            const lastActivity = lastSessionMap[code]
-            const hasSession = !!lastActivity
-            const completion = isCurrent ? completionMap[code] : undefined
-            const colorStatus = completion?.colorStatus
+        {/* Módulos de diagnóstico */}
+        <div className="card p-5">
+          <h2 className="text-sm font-semibold text-ink mb-4">Tu recorrido de diagnóstico</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {moduleOrder.map((code, i) => {
+              const info = moduleInfo[code]
+              const mod = moduleMap[code]
+              const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
+              const isCompleted = status === 'completed'
+              const isCurrent = code === nextModule
+              const isLocked = !isCompleted && !isCurrent
+              const lastActivity = lastSessionMap[code]
+              const hasSession = !!lastActivity
+              const percent = isCompleted ? 100 : isCurrent ? currentModulePercent : 0
 
-            return (
-              <div
-                key={code}
-                className={`card transition-all ${
-                  isCompleted ? 'border-emerald-200 bg-emerald-50/40' :
-                  isCurrent && colorStatus === 'amber' ? 'border-amber-300 shadow-sm' :
-                  isCurrent   ? 'border-rose-300 shadow-sm' :
-                  'opacity-55'
-                }`}
-              >
-                <div className="flex items-center gap-4 p-4">
-                  {/* Ícono de estado */}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                    isCompleted ? 'bg-emerald-100 text-emerald-700' :
-                    isCurrent && colorStatus === 'amber' ? 'bg-amber-100 text-amber-700' :
-                    isCurrent   ? 'bg-rose-100 text-rose-700' :
-                    'bg-surface-2 text-faint'
-                  }`}>
-                    {isCompleted ? '✓' : i + 1}
-                  </div>
+              const subtext = isCompleted && mod?.completed_at
+                ? `Completado ${formatDate(mod.completed_at)}`
+                : isCurrent && hasSession
+                  ? `Última sesión ${formatDate(lastActivity)}`
+                  : undefined
 
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${isLocked ? 'text-faint' : 'text-ink'}`}>
-                      {info.label}
-                    </p>
-                    <p className="text-xs text-muted mt-0.5">{info.desc}</p>
-                    {isCompleted && mod?.completed_at && (
-                      <p className="text-xs text-emerald-600 mt-0.5">Completado {formatDate(mod.completed_at)}</p>
-                    )}
-                    {!isCompleted && hasSession && (
-                      <p className="text-xs text-accent mt-0.5">Última sesión {formatDate(lastActivity)}</p>
-                    )}
-                    {isCurrent && completion && completion.pending.length > 0 && (
-                      <p className={`text-xs mt-0.5 ${colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>
-                        Falta: {completion.pending.map(p => p.jobPositionName).join(', ')}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex-shrink-0">
-                    {isCompleted ? (
-                      <Link
-                        href={`/caso/${id}/modulo/${code}` as any}
-                        className="btn-secondary text-xs px-3 py-1.5"
-                      >
-                        Ver sesión
-                      </Link>
-                    ) : isCurrent ? (
-                      <Link
-                        href={`/caso/${id}/modulo/${code}` as any}
-                        className="btn-primary text-xs px-4 py-2"
-                      >
-                        {hasSession ? 'Continuar →' : 'Iniciar →'}
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-faint">Bloqueado</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+              return (
+                <ModuleJourneyCard
+                  key={code}
+                  index={i + 1}
+                  label={info.label}
+                  emoji={MODULE_EMOJI[code] ?? '📄'}
+                  percent={percent}
+                  isCompleted={isCompleted}
+                  isLocked={isLocked}
+                  subtext={subtext}
+                  href={!isLocked ? `/caso/${id}/modulo/${code}` : undefined}
+                  ctaLabel={isCompleted ? 'Ver sesión' : hasSession ? 'Continuar →' : 'Iniciar →'}
+                  accent={JOURNEY_ACCENTS[i % JOURNEY_ACCENTS.length]}
+                />
+              )
+            })}
+          </div>
+          {nextModule && completionMap[nextModule] && completionMap[nextModule]!.pending.length > 0 && (
+            <p className={`text-xs mt-4 ${completionMap[nextModule]!.colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>
+              Falta por contestar en {moduleInfo[nextModule]?.label}: {completionMap[nextModule]!.pending.map(p => p.jobPositionName).join(', ')}
+            </p>
+          )}
         </div>
 
         {/* Accesos rápidos (solo directivo con módulos en progreso) */}

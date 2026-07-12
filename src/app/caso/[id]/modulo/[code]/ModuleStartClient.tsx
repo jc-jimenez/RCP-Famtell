@@ -16,6 +16,8 @@ interface Props {
   isCompleted: boolean
   existingSessionId: string | null
   existingMessages: ChatMessage[]
+  /** Total de preguntas del guion que le tocan a este puesto en este módulo — para la barra de avance dentro del chat */
+  totalQuestions?: number
   userEmail: string
   userRole?: 'director' | 'collaborator'
   collaboratorVoices?: CollaboratorVoice[]
@@ -39,6 +41,7 @@ export default function ModuleStartClient({
   isCompleted,
   existingSessionId,
   existingMessages,
+  totalQuestions = 0,
   userEmail,
   userRole = 'director',
   collaboratorVoices = [],
@@ -162,6 +165,7 @@ export default function ModuleStartClient({
             moduleCode={moduleCode}
             moduleName={label}
             initialMessages={chatMessages}
+            totalQuestions={totalQuestions}
             onModuleComplete={handleComplete}
             autoStart={chatMessages.length === 0}
           />

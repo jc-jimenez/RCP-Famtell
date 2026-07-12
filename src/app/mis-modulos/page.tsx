@@ -9,6 +9,12 @@ import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorS
 import { hasCapability } from '@/lib/permissions'
 import { getModulesForPosition } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { countQuestionsForPosition, countAnsweredMessages } from '@/lib/moduleQuestions'
+import ModuleJourneyCard, { JOURNEY_ACCENTS } from '@/components/shared/ModuleJourneyCard'
+
+const MODULE_EMOJI: Record<string, string> = {
+  M1: '💼', M2: '⚙️', M3: '🤝', M4: '💰', M5: '🎯', M6: '🧑‍🤝‍🧑', M7: '📋',
+}
 
 export default async function MisModulosPage() {
   const supabase = await createSupabaseServerClient()
@@ -62,14 +68,27 @@ export default async function MisModulosPage() {
 
   const { data: sessions } = await db
     .from('sessions')
-    .select('module_code, completed, last_message_at')
+    .select('module_code, completed, last_message_at, messages')
     .eq('case_id', caseUser.case_id)
     .eq('user_id', session.user.id)
 
-  const sessionMap: Record<string, { completed: boolean; last_message_at: string | null }> = {}
+  const sessionMap: Record<string, { completed: boolean; last_message_at: string | null; answered: number }> = {}
   ;(sessions ?? []).forEach((s: any) => {
-    sessionMap[s.module_code] = { completed: s.completed, last_message_at: s.last_message_at }
+    sessionMap[s.module_code] = { completed: s.completed, last_message_at: s.last_message_at, answered: countAnsweredMessages(s.messages) }
   })
+
+  // % de avance de mi entrevista por instrumento en progreso — antes solo
+  // había un estado categórico (completado/en progreso/pendiente), sin
+  // ningún número real de cuánto falta.
+  const percentMap: Record<string, number> = {}
+  if (caseUser.job_position_id) {
+    for (const code of assignedInstruments) {
+      const sess = sessionMap[code]
+      if (!sess || sess.completed || !sess.last_message_at) continue
+      const total = await countQuestionsForPosition(db, caseUser.case_id, code, caseUser.job_position_id)
+      percentMap[code] = total > 0 ? Math.min(100, Math.round((sess.answered / total) * 100)) : 0
+    }
+  }
 
   return (
     <AppShell role="collaborator" email={session.user.email!}>
@@ -94,47 +113,27 @@ export default async function MisModulosPage() {
             <p className="text-faint text-sm">Tu consultor te asignará instrumentos próximamente</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {assignedInstruments.map((code) => {
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {assignedInstruments.map((code, i) => {
               const sess = sessionMap[code]
               const completed = sess?.completed ?? false
               const hasProgress = !!sess?.last_message_at && !completed
+              const percent = completed ? 100 : hasProgress ? (percentMap[code] ?? 0) : 0
 
               return (
-                <Link
+                <ModuleJourneyCard
                   key={code}
-                  href={`/mis-modulos/${caseUser.case_id}/${code}` as any}
-                  className={`block rounded-xl border transition-all p-4 group ${
-                    completed
-                      ? 'bg-emerald-50/50 border-emerald-100'
-                      : hasProgress
-                      ? 'bg-accent-soft border-accent/20 hover:border-accent/40'
-                      : 'bg-surface border-subtle hover:border-accent/30 hover:bg-accent-soft'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      completed ? 'bg-emerald-100 text-emerald-700' :
-                      hasProgress ? 'bg-accent/10 text-accent' :
-                      'bg-surface-2 text-muted'
-                    }`}>
-                      {completed ? '✓' : code}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-ink text-sm group-hover:text-accent transition-colors">
-                        {moduleLabels[code] ?? code}
-                      </p>
-                      <p className="text-xs text-faint mt-0.5">
-                        {completed ? 'Completado' : hasProgress ? 'En progreso' : 'Pendiente de respuesta'}
-                      </p>
-                    </div>
-                    {!completed && (
-                      <span className="text-xs font-medium text-muted group-hover:text-accent transition-colors">
-                        {hasProgress ? 'Continuar →' : 'Iniciar →'}
-                      </span>
-                    )}
-                  </div>
-                </Link>
+                  index={i + 1}
+                  label={moduleLabels[code] ?? code}
+                  emoji={MODULE_EMOJI[code] ?? '📄'}
+                  percent={percent}
+                  isCompleted={completed}
+                  isLocked={false}
+                  subtext={completed ? 'Completado' : hasProgress ? 'En progreso' : 'Pendiente de respuesta'}
+                  href={`/mis-modulos/${caseUser.case_id}/${code}`}
+                  ctaLabel={completed ? 'Ver sesión' : hasProgress ? 'Continuar →' : 'Iniciar →'}
+                  accent={JOURNEY_ACCENTS[i % JOURNEY_ACCENTS.length]}
+                />
               )
             })}
           </div>

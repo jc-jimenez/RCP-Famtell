@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { ensureModulesInitialized } from '@/lib/modules'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { countQuestionsForPosition } from '@/lib/moduleQuestions'
 import ModuleStartClient from './ModuleStartClient'
 import type { ModuleCode } from '@/types'
 
@@ -54,12 +55,14 @@ export default async function ModuloPage({
   // Verificar acceso al caso
   const { data: caseUser } = await db
     .from('case_users')
-    .select('role')
+    .select('role, job_position_id')
     .eq('case_id', caseId)
     .eq('user_id', session.user.id)
     .maybeSingle()
 
   if (!caseUser) redirect('/login')
+
+  const totalQuestions = await countQuestionsForPosition(db, caseId, moduleCode, caseUser.job_position_id)
 
   // Verificar que el módulo esté activo o completado
   const { data: moduleData } = await db
@@ -139,6 +142,7 @@ export default async function ModuloPage({
       isCompleted={isCompleted}
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
+      totalQuestions={totalQuestions}
       userEmail={session.user.email!}
       userRole={caseUser.role === 'collaborator' ? 'collaborator' : 'director'}
       collaboratorVoices={collaboratorVoices}

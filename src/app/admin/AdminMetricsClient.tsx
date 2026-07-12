@@ -65,12 +65,15 @@ export default function AdminMetricsClient({ totalConsultants, totalCases, recen
       {/* Metric cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Consultores activos', value: totalConsultants, sub: 'cuentas registradas' },
-          { label: 'Casos totales', value: totalCases, sub: 'en la plataforma' },
-          { label: 'Planes activos', value: activos, sub: 'al corriente' },
-          { label: 'Por atender', value: suspendidos, sub: 'suspendidos' },
+          { label: 'Consultores activos', value: totalConsultants, sub: 'cuentas registradas', icon: '👤', accent: 'bg-role-consultor-soft text-role-consultor' },
+          { label: 'Casos totales', value: totalCases, sub: 'en la plataforma', icon: '📁', accent: 'bg-accent-soft text-accent' },
+          { label: 'Planes activos', value: activos, sub: 'al corriente', icon: '✅', accent: 'bg-badge-success-bg text-badge-success-text' },
+          { label: 'Por atender', value: suspendidos, sub: 'suspendidos', icon: '⚠️', accent: 'bg-badge-warning-bg text-badge-warning-text' },
         ].map((m) => (
           <div key={m.label} className="card p-5">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm mb-3 ${m.accent}`}>
+              {m.icon}
+            </div>
             <p className="text-3xl font-bold text-ink">{m.value}</p>
             <p className="text-sm font-semibold text-ink mt-1">{m.label}</p>
             <p className="text-xs text-faint mt-0.5">{m.sub}</p>

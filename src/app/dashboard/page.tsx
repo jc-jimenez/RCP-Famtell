@@ -44,6 +44,28 @@ export default async function DashboardPage() {
   const activeCases = cases?.filter((c: any) => c.status === 'active') ?? []
   const allCases = cases ?? []
 
+  // Salud rápida por caso (módulos completados/total) — una sola query para
+  // todos los casos, no N+1. El semáforo real por puesto vive en el detalle
+  // de cada caso (tab Diagnóstico); aquí solo es un vistazo rápido al
+  // navegar la lista.
+  const caseIds = allCases.map((c: any) => c.id)
+  const { data: allModules } = caseIds.length > 0
+    ? await db.from('modules').select('case_id, status').in('case_id', caseIds)
+    : { data: [] }
+
+  const healthByCase: Record<string, { completed: number; total: number }> = {}
+  ;(allModules ?? []).forEach((m: any) => {
+    if (!healthByCase[m.case_id]) healthByCase[m.case_id] = { completed: 0, total: 0 }
+    healthByCase[m.case_id].total++
+    if (m.status === 'completed') healthByCase[m.case_id].completed++
+  })
+
+  const casesWithHealth = allCases.map((c: any) => ({
+    ...c,
+    modulesCompleted: healthByCase[c.id]?.completed ?? 0,
+    modulesTotal: healthByCase[c.id]?.total ?? 0,
+  }))
+
   return (
     <AppShell role="consultant" email={session.user.email!}>
       <div className="max-w-5xl mx-auto space-y-6">
@@ -68,7 +90,7 @@ export default async function DashboardPage() {
         />
 
         {/* Lista de casos */}
-        <CaseListWithDelete initialCases={allCases} />
+        <CaseListWithDelete initialCases={casesWithHealth} />
       </div>
     </AppShell>
   )

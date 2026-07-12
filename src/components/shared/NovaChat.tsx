@@ -5,6 +5,7 @@ import readExcelFile from 'read-excel-file/universal'
 import { useNovaChat, type FileAttachment } from '@/hooks/useNovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
 import type { ModuleCompletion } from '@/lib/moduleCompletion'
+import ProgressBar from './ProgressBar'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
   M1: 'Radiografía Comercial',
@@ -26,6 +27,8 @@ interface NovaChatProps {
   moduleCode: ModuleCode
   moduleName?: string
   initialMessages?: ChatMessage[]
+  /** Total de preguntas del guion que le tocan a este puesto en este módulo — 0/undefined oculta la barra de avance */
+  totalQuestions?: number
   onModuleComplete?: (result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) => void
   autoStart?: boolean
 }
@@ -36,6 +39,7 @@ export default function NovaChat({
   moduleCode,
   moduleName,
   initialMessages = [],
+  totalQuestions = 0,
   onModuleComplete,
   autoStart = true,
 }: NovaChatProps) {
@@ -190,6 +194,13 @@ export default function NovaChat({
 
   const visibleMessages = messages.filter(m => m.content !== '' || m.role === 'assistant')
 
+  // Avance aproximado: cada mensaje de usuario ~ una pregunta contestada
+  // (mismo criterio que ya usa el botón "Marcar módulo como completado" más
+  // abajo). Antes no había ningún indicador — el usuario no sabía cuánto le
+  // faltaba dentro de la entrevista.
+  const answeredCount = messages.filter(m => m.role === 'user').length
+  const progressPercent = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0
+
   return (
     <div
       className="relative flex flex-col h-full min-h-0"
@@ -221,6 +232,19 @@ export default function NovaChat({
           )}
         </div>
       </div>
+
+      {/* Avance de la entrevista */}
+      {totalQuestions > 0 && (
+        <div className="px-5 py-2 border-b border-subtle bg-surface flex-shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted">Avance de tu entrevista</span>
+            <span className="text-xs font-semibold text-ink">
+              {Math.min(answeredCount, totalQuestions)} de {totalQuestions} · {progressPercent}%
+            </span>
+          </div>
+          <ProgressBar percent={progressPercent} heightClassName="h-1" />
+        </div>
+      )}
 
       {/* Mensajes */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">

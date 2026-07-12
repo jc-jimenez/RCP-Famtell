@@ -7,6 +7,7 @@ import type { ModuleCode } from '@/types'
 import { hasCapability } from '@/lib/permissions'
 import { getModulesForPosition } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { countQuestionsForPosition } from '@/lib/moduleQuestions'
 
 const ALL_MODULE_CODES = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
 
@@ -65,6 +66,8 @@ export default async function ColaboradorModuloPage({
   const templateQuery = db.from('module_templates').select('name').eq('code', moduleCode)
   const { data: template } = await applyCatalogScope(templateQuery, catalogScope, caseId).maybeSingle()
 
+  const totalQuestions = await countQuestionsForPosition(db, caseId, moduleCode, caseUser.job_position_id)
+
   return (
     <ModuleStartClient
       caseId={caseId}
@@ -75,6 +78,7 @@ export default async function ColaboradorModuloPage({
       isCompleted={existingSession?.completed ?? false}
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
+      totalQuestions={totalQuestions}
       userEmail={session.user.email!}
       userRole="collaborator"
     />

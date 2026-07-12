@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import ProgressBar from '@/components/shared/ProgressBar'
 
 interface CaseItem {
   id: string
@@ -10,6 +11,8 @@ interface CaseItem {
   status: string
   created_at: string
   credits_used: number
+  modulesCompleted: number
+  modulesTotal: number
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -86,6 +89,12 @@ export default function CaseListWithDelete({ initialCases }: { initialCases: Cas
                 <span>{caso.credits_used} créditos usados</span>
               )}
             </div>
+            {caso.modulesTotal > 0 && (
+              <div className="mt-3 flex items-center gap-2">
+                <ProgressBar percent={(caso.modulesCompleted / caso.modulesTotal) * 100} heightClassName="h-1" />
+                <span className="text-xs text-faint flex-shrink-0">{caso.modulesCompleted}/{caso.modulesTotal}</span>
+              </div>
+            )}
           </Link>
           <button
             onClick={() => deleteCase(caso.id)}
