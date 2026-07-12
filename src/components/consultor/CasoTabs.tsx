@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
 
 interface Tab {
   id: string
@@ -59,19 +58,10 @@ interface Props {
   activeTab: string
 }
 
+// Todos los grupos van siempre expandidos — el usuario pidió explícitamente
+// que este menú no requiera clics para revelar sus opciones, a diferencia
+// del acordeón anterior que solo abría el grupo activo.
 export default function CasoTabs({ caseId, activeTab }: Props) {
-  const activeGroupLabel = GROUPS.find(g => g.tabIds.includes(activeTab))?.label ?? null
-  const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel)
-  const [prevActiveTab, setPrevActiveTab] = useState(activeTab)
-
-  // Al cambiar de pestaña (navegación), reabre el grupo correspondiente —
-  // ajuste de estado durante el render en vez de un efecto, siguiendo el
-  // patrón recomendado por React para sincronizar con props.
-  if (activeTab !== prevActiveTab) {
-    setPrevActiveTab(activeTab)
-    setOpenGroup(activeGroupLabel)
-  }
-
   const homeTab = TABS.find(t => t.id === 'diagnostico')
 
   return (
@@ -90,41 +80,29 @@ export default function CasoTabs({ caseId, activeTab }: Props) {
         </Link>
       )}
 
-      {GROUPS.map(group => {
-        const isGroupOpen = openGroup === group.label
-        return (
-          <div key={group.label} className="mb-0.5">
-            <button
-              type="button"
-              onClick={() => setOpenGroup(g => (g === group.label ? null : group.label))}
-              className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-faint px-3 py-1.5 rounded-lg hover:bg-surface-2"
-            >
-              {group.label}
-              <span className={`transition-transform ${isGroupOpen ? 'rotate-180' : ''}`}>⌄</span>
-            </button>
-            {isGroupOpen && (
-              <div className="pl-2 space-y-0.5 mt-0.5 mb-1">
-                {group.tabIds.map(id => {
-                  const tab = TABS.find(t => t.id === id)
-                  if (!tab) return null
-                  const isActive = tab.id === activeTab
-                  return (
-                    <Link
-                      key={tab.id}
-                      href={tabHref(caseId, tab) as any}
-                      className={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                        isActive ? 'bg-accent-soft text-accent font-medium' : 'text-muted hover:bg-surface-2 hover:text-ink'
-                      }`}
-                    >
-                      {tab.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+      {GROUPS.map(group => (
+        <div key={group.label} className="mb-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-faint px-3 py-1">{group.label}</p>
+          <div className="pl-2 space-y-0.5">
+            {group.tabIds.map(id => {
+              const tab = TABS.find(t => t.id === id)
+              if (!tab) return null
+              const isActive = tab.id === activeTab
+              return (
+                <Link
+                  key={tab.id}
+                  href={tabHref(caseId, tab) as any}
+                  className={`block text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                    isActive ? 'bg-accent-soft text-accent font-medium' : 'text-muted hover:bg-surface-2 hover:text-ink'
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              )
+            })}
           </div>
-        )
-      })}
+        </div>
+      ))}
     </nav>
   )
 }

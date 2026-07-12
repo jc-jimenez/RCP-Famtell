@@ -166,7 +166,15 @@ export default async function CasoDetallePage({
   ;(signals ?? []).forEach((s: any) => { signalCounts[s.signal_type as 'blue' | 'yellow' | 'red']++ })
 
   return (
-    <AppShell role="consultant" email={session.user.email!}>
+    <AppShell
+      role="consultant"
+      email={session.user.email!}
+      caseCompanyName={caseData.company_name}
+      modulesCompleted={completedCount}
+      modulesTotal={moduleOrder.length}
+      currentCaseHref={`/dashboard/caso/${id}`}
+      tabBar={<CasoTabs caseId={id} activeTab={tab} />}
+    >
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* Header */}
@@ -183,9 +191,6 @@ export default async function CasoDetallePage({
             <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-faint text-lg">/{moduleOrder.length}</span></p>
           </div>
         </div>
-
-        {/* Tabs de navegación */}
-        <CasoTabs caseId={id} activeTab={tab} />
 
         {/* Contenido del tab activo */}
         {tab === 'diagnostico' && journey && (

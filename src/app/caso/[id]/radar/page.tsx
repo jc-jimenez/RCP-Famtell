@@ -34,7 +34,7 @@ export default async function RadarPage({ params }: { params: Promise<{ id: stri
   const hasDenueToken = !!(process.env.NEXT_PUBLIC_DENUE_TOKEN || process.env.DENUE_TOKEN)
 
   return (
-    <AppShell role="consultant" email={session.user.email!}>
+    <AppShell role="consultant" email={session.user.email!} caseCompanyName={caseData.company_name} tabBar={<CasoTabs caseId={id} activeTab="radar" />}>
       <div className="max-w-4xl mx-auto space-y-4">
         <div className="flex items-start justify-between">
           <div>
@@ -42,8 +42,6 @@ export default async function RadarPage({ params }: { params: Promise<{ id: stri
             {caseData.industry && <p className="text-sm text-muted">{caseData.industry}</p>}
           </div>
         </div>
-
-        <CasoTabs caseId={id} activeTab="radar" />
 
         {!hasDenueToken ? (
           <div className="card p-8 text-center space-y-3">
