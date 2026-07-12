@@ -22,17 +22,47 @@ export async function POST(request: Request) {
 
   const db = supabase as any
 
-  // Si ya existe sesión en progreso, retomarla (no cobra créditos)
-  const { data: existing } = await db
+  // modules.session_id es un puntero único por caso+módulo (sin user_id) —
+  // lo usa la vista del directivo (caso/[id]/modulo/[code]/page.tsx) para
+  // saber qué sesión retomar. Los colaboradores tienen su propia vista
+  // (mis-modulos/[caseId]/[code]/page.tsx) que busca su sesión directo por
+  // user_id y nunca lee este puntero. Si un colaborador lo sobreescribiera,
+  // la próxima vez que el directivo entre vería la conversación privada del
+  // colaborador en vez de la suya — por eso solo se sincroniza para roles
+  // que no sean 'collaborator'.
+  const { data: caseUser } = await db
+    .from('case_users')
+    .select('role')
+    .eq('case_id', caseId)
+    .eq('user_id', session.user.id)
+    .maybeSingle()
+  const isCollaborator = caseUser?.role === 'collaborator'
+
+  // Si ya existe sesión en progreso, retomarla (no cobra créditos).
+  // No se usa .maybeSingle(): si por alguna razón hay más de una sesión
+  // incompleta (datos históricos, doble clic, etc.) esa llamada fallaría en
+  // silencio y el código seguiría de largo a "crear sesión nueva",
+  // duplicando la sesión en vez de retomarla. Con .limit(1) + orden por
+  // actividad más reciente siempre se resuelve a una sola fila sin error.
+  const { data: existingRows, error: existingError } = await db
     .from('sessions')
     .select('*')
     .eq('case_id', caseId)
     .eq('module_code', moduleCode)
     .eq('user_id', session.user.id)
     .eq('completed', false)
-    .maybeSingle()
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (existingError) {
+    console.error('[api/sessions] Error buscando sesión existente:', existingError.message)
+  }
+
+  const existing = existingRows?.[0] ?? null
 
   if (existing) {
+    if (!isCollaborator) await syncModuleSessionId(db, caseId, moduleCode, existing.id)
     return NextResponse.json({ session: existing, resumed: true })
   }
 
@@ -80,5 +110,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message ?? 'Error al crear sesión' }, { status: 500 })
   }
 
+  if (!isCollaborator) await syncModuleSessionId(db, caseId, moduleCode, newSession.id)
+
   return NextResponse.json({ session: newSession, resumed: false })
+}
+
+async function syncModuleSessionId(db: any, caseId: string, moduleCode: ModuleCode, sessionId: string) {
+  const { error } = await db
+    .from('modules')
+    .update({ session_id: sessionId })
+    .eq('case_id', caseId)
+    .eq('module_code', moduleCode)
+
+  if (error) {
+    console.error('[api/sessions] Error sincronizando modules.session_id:', error.message)
+  }
 }

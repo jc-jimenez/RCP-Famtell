@@ -48,6 +48,12 @@ export default function ModuleStartClient({
     isCompleted ? 'completed' : existingSessionId && existingMessages.length > 0 ? 'chat' : 'start'
   )
   const [sessionId, setSessionId] = useState<string | null>(existingSessionId)
+  // Mensajes reales a usar en el chat. No basta con existingMessages (prop
+  // fijo del render inicial del servidor): si "Comenzar" retoma una sesión
+  // con historial que el servidor no conocía todavía, hay que usar los
+  // mensajes que devuelve /api/sessions, si no NovaChat monta vacío y
+  // dispara el saludo de arranque otra vez, como si nunca hubieras contestado nada.
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(existingMessages)
   const [starting, setStarting] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
   const [noCredits, setNoCredits] = useState(false)
@@ -73,6 +79,7 @@ export default function ModuleStartClient({
     const data = await res.json()
     if (data.session?.id) {
       setSessionId(data.session.id)
+      setChatMessages(data.session.messages ?? [])
       setView('chat')
     }
     setStarting(false)
@@ -154,9 +161,9 @@ export default function ModuleStartClient({
             sessionId={sessionId}
             moduleCode={moduleCode}
             moduleName={label}
-            initialMessages={existingMessages}
+            initialMessages={chatMessages}
             onModuleComplete={handleComplete}
-            autoStart={existingMessages.length === 0}
+            autoStart={chatMessages.length === 0}
           />
         </div>
       </div>

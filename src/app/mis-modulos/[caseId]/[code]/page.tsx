@@ -47,14 +47,19 @@ export default async function ColaboradorModuloPage({
     : derivedModules.length > 0 ? derivedModules : ALL_MODULE_CODES
   if (!assignedModules.includes(moduleCode)) redirect('/mis-modulos')
 
-  // Sesión existente
-  const { data: existingSession } = await db
+  // Sesión existente. No se usa .maybeSingle(): si hay más de una fila (p.ej.
+  // datos históricos de prueba) esa llamada falla en silencio y el
+  // colaborador nunca retoma su conversación — se toma la más reciente.
+  const { data: existingSessionRows } = await db
     .from('sessions')
     .select('id, messages, completed')
     .eq('case_id', caseId)
     .eq('module_code', moduleCode)
     .eq('user_id', session.user.id)
-    .maybeSingle()
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+  const existingSession = existingSessionRows?.[0] ?? null
 
   const catalogScope = await resolveCatalogScope(db, caseId)
   const templateQuery = db.from('module_templates').select('name').eq('code', moduleCode)

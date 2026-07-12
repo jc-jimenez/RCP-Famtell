@@ -205,7 +205,18 @@ export async function POST(request: Request) {
   let messagesForClaude: MessageParam[]
 
   if (isStartTrigger) {
-    messagesForClaude = [{ role: 'user', content: 'Inicia la sesión presentándote y comenzando con la primera pregunta del guion.' }]
+    // Si ya había conversación previa (el usuario retomó una sesión con
+    // respuestas guardadas), no se descarta: se manda el historial real y se
+    // le pide a Nova continuar, no volver a presentarse ni repetir preguntas
+    // ya contestadas. Antes esta rama siempre mandaba solo la instrucción de
+    // "empieza de cero", perdiendo el contexto ya guardado en BD y haciendo
+    // que Nova re-preguntara todo cuando alguien retomaba su entrevista.
+    messagesForClaude = history.length > 0
+      ? [
+          ...historyForClaude,
+          { role: 'user', content: 'Retomamos la sesión después de una pausa. Continúa justo donde se quedó la conversación: no te vuelvas a presentar ni repitas preguntas ya contestadas arriba, simplemente sigue con la siguiente pregunta pendiente del guion.' },
+        ]
+      : [{ role: 'user', content: 'Inicia la sesión presentándote y comenzando con la primera pregunta del guion.' }]
   } else if (attachment) {
     // El último mensaje del usuario se reemplaza con un mensaje multimodal
     const prevMessages = historyForClaude.slice(0, -1)
