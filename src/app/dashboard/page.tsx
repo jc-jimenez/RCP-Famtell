@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import AppShell from '@/components/shared/AppShell'
 import CreditsBadge from '@/components/shared/CreditsBadge'
-import CasesPanel from '@/components/dashboard/CasesPanel'
+import CaseListWithDelete from '@/components/dashboard/CaseListWithDelete'
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard'
 import { consultorOnboardingSteps } from '@/components/onboarding/consultorSteps'
 import Link from 'next/link'
@@ -68,62 +68,8 @@ export default async function DashboardPage() {
         />
 
         {/* Lista de casos */}
-        {allCases.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-subtle bg-surface-2 p-12 text-center">
-            <p className="text-ink font-medium mb-2">Aún no tienes casos</p>
-            <p className="text-faint text-sm mb-6">Crea tu primer caso de diagnóstico para comenzar</p>
-            <Link href="/dashboard/nuevo-caso" className="btn-primary inline-flex text-sm">
-              Crear primer caso
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {allCases.map((caso: any) => (
-              <Link
-                key={caso.id}
-                href={`/dashboard/caso/${caso.id}`}
-                className="card p-5 hover:shadow-card-hover transition-shadow group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-ink group-hover:text-accent transition-colors truncate">
-                      {caso.company_name}
-                    </h3>
-                    {caso.industry && (
-                      <p className="text-faint text-xs mt-0.5">{caso.industry}</p>
-                    )}
-                  </div>
-                  <StatusBadge status={caso.status} />
-                </div>
-                <div className="flex items-center gap-4 mt-4 text-xs text-faint">
-                  <span>{new Date(caso.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                  {caso.credits_used > 0 && (
-                    <span>{caso.credits_used} créditos usados</span>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <CaseListWithDelete initialCases={allCases} />
       </div>
     </AppShell>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    active:    'badge-success',
-    completed: 'badge-info',
-    archived:  'badge-neutral',
-  }
-  const labels: Record<string, string> = {
-    active:    'Activo',
-    completed: 'Completado',
-    archived:  'Archivado',
-  }
-  return (
-    <span className={`badge ${styles[status] ?? styles.archived}`}>
-      {labels[status] ?? status}
-    </span>
   )
 }

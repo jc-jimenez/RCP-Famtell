@@ -62,6 +62,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const emptyForm = {
     email: '',
@@ -95,6 +96,29 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
   function positionName(p: Participant): string {
     const pos = positions.find(x => x.id === p.job_position_id)
     return pos?.name ?? p.job_title ?? 'Sin puesto'
+  }
+
+  async function deleteParticipant(caseUserId: string) {
+    setDeletingId(caseUserId)
+    try {
+      let res = await fetch('/api/case-users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseUserId }),
+      })
+      if (res.status === 409) {
+        const data = await res.json()
+        if (!confirm(data.message ?? '¿Eliminar este participante?')) return
+        res = await fetch('/api/case-users', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseUserId, confirm: true }),
+        })
+      }
+      if (res.ok) setParticipants(prev => prev.filter(p => p.id !== caseUserId))
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   function selectPosition(positionId: string) {
@@ -200,6 +224,14 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                 <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
                   {p.activated_at ? 'Activo' : 'Pendiente'}
                 </span>
+                <button
+                  onClick={() => deleteParticipant(p.id)}
+                  disabled={deletingId === p.id}
+                  className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 flex-shrink-0"
+                  title="Eliminar participante"
+                >
+                  {deletingId === p.id ? '…' : '🗑'}
+                </button>
               </div>
             )
           })}

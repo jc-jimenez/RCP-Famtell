@@ -113,13 +113,15 @@ export async function PATCH(req: Request) {
   return NextResponse.json({ position: data })
 }
 
-// DELETE — borrar puesto del catálogo del caso
+// DELETE — borrar puesto del catálogo del caso. Si ya tiene participantes
+// asignados o respuestas de la encuesta de clima ligadas, se advierte antes
+// (confirm: true para proceder) — no se bloquea el borrado.
 export async function DELETE(req: Request) {
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { caseId, positionId } = await req.json()
+  const { caseId, positionId, confirm } = await req.json()
   if (!caseId || !positionId) return NextResponse.json({ error: 'caseId y positionId son requeridos' }, { status: 400 })
 
   const ok = await verifyAccess(supabase, session.user.email!, caseId)
@@ -128,6 +130,33 @@ export async function DELETE(req: Request) {
   const admin = getSupabaseAdmin()
   if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
   const db = admin as any
+
+  if (!confirm) {
+    const { count: occupants } = await db
+      .from('case_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('job_position_id', positionId)
+
+    const { data: surveys } = await db.from('case_climate_surveys').select('id').eq('job_position_id', positionId)
+    let climateResponses = 0
+    if (surveys?.length) {
+      const { count } = await db
+        .from('case_climate_responses')
+        .select('id', { count: 'exact', head: true })
+        .in('survey_id', surveys.map((s: any) => s.id))
+      climateResponses = count ?? 0
+    }
+
+    if ((occupants ?? 0) > 0 || climateResponses > 0) {
+      const parts: string[] = []
+      if (occupants) parts.push(`${occupants} participante${occupants !== 1 ? 's' : ''} asignado${occupants !== 1 ? 's' : ''} (quedarán sin puesto)`)
+      if (climateResponses) parts.push(`${climateResponses} respuesta${climateResponses !== 1 ? 's' : ''} de la encuesta de clima ligada${climateResponses !== 1 ? 's' : ''} a este puesto (se borran)`)
+      return NextResponse.json({
+        needsConfirmation: true,
+        message: `Este puesto tiene ${parts.join(' y ')}. ¿Confirmas que quieres eliminarlo?`,
+      }, { status: 409 })
+    }
+  }
 
   await db.from('case_job_positions').delete().eq('id', positionId).eq('case_id', caseId)
   return NextResponse.json({ ok: true })

@@ -128,13 +128,21 @@ export default function PuestosPanel({ caseId, companyName, initialPositions, bu
   }
 
   async function deletePosition(positionId: string) {
-    if (!confirm('¿Eliminar este puesto? Las preguntas mapeadas a él quedarán sin este puesto.')) return
-    await fetch('/api/consultant/case-job-positions', {
+    let res = await fetch('/api/consultant/case-job-positions', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ caseId, positionId }),
     })
-    setPositions(prev => prev.filter(p => p.id !== positionId))
+    if (res.status === 409) {
+      const data = await res.json()
+      if (!confirm(data.message ?? '¿Eliminar este puesto?')) return
+      res = await fetch('/api/consultant/case-job-positions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId, positionId, confirm: true }),
+      })
+    }
+    if (res.ok) setPositions(prev => prev.filter(p => p.id !== positionId))
   }
 
   return (

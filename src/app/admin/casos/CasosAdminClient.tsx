@@ -53,6 +53,7 @@ export default function CasosAdminClient({ initialCases, accounts }: Props) {
     intent: 'mixed',
     strategicNotes: '',
   })
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const accountMap: Record<string, Account> = {}
   for (const a of accounts) accountMap[a.id] = a
@@ -84,6 +85,29 @@ export default function CasosAdminClient({ initialCases, accounts }: Props) {
     setForm({ accountId: '', companyName: '', industry: '', description: '', intent: 'mixed', strategicNotes: '' })
   }
 
+  async function deleteCase(caseId: string) {
+    setDeletingId(caseId)
+    try {
+      let res = await fetch('/api/cases', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId }),
+      })
+      if (res.status === 409) {
+        const data = await res.json()
+        if (!confirm(data.message ?? '¿Eliminar este caso?')) return
+        res = await fetch('/api/cases', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseId, confirm: true }),
+        })
+      }
+      if (res.ok) setCases(prev => prev.filter(c => c.id !== caseId))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -107,11 +131,12 @@ export default function CasosAdminClient({ initialCases, accounts }: Props) {
               <th className="px-4 py-3 text-center">Intención</th>
               <th className="px-4 py-3 text-center">Estado</th>
               <th className="px-4 py-3 text-right">Fecha</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-subtle">
             {cases.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-faint">Sin casos aún</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-faint">Sin casos aún</td></tr>
             )}
             {cases.map(c => {
               const acc = accountMap[c.account_id]
@@ -137,6 +162,16 @@ export default function CasosAdminClient({ initialCases, accounts }: Props) {
                   </td>
                   <td className="px-4 py-3 text-right text-faint text-xs">
                     {new Date(c.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteCase(c.id) }}
+                      disabled={deletingId === c.id}
+                      className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      title="Eliminar caso"
+                    >
+                      {deletingId === c.id ? '…' : '🗑'}
+                    </button>
                   </td>
                 </tr>
               )
