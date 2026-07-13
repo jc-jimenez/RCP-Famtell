@@ -94,8 +94,13 @@ export default function BizdoctorHeroArt() {
         {RAYS.map((ray, i) => {
           const len = 620
           const rad = (ray.angle * Math.PI) / 180
-          const x2 = cx + len * Math.sin(rad)
-          const y2 = cy - len * Math.cos(rad)
+          // Redondeado a 3 decimales: Math.sin/cos puede diferir en el
+          // último dígito entre el motor JS del servidor y el del
+          // navegador, lo que producía un mismatch de hidratación en
+          // estos <line> y rompía los manejadores de clic de toda la
+          // página (incluido el botón de Microsoft más abajo).
+          const x2 = Math.round((cx + len * Math.sin(rad)) * 1000) / 1000
+          const y2 = Math.round((cy - len * Math.cos(rad)) * 1000) / 1000
           return (
             <line
               key={i}

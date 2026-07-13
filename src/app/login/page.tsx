@@ -12,31 +12,30 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [oauthLoading, setOauthLoading] = useState(false)
-  const [showMicrosoftSoon, setShowMicrosoftSoon] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'azure' | null>(null)
 
   // Lee el ?error=oauth que pone el callback si signInWithOAuth falla del
-  // lado de Google/Supabase — con useEffect en vez de useSearchParams para
-  // no forzar un boundary de Suspense en esta página cliente simple.
+  // lado del proveedor/Supabase — con useEffect en vez de useSearchParams
+  // para no forzar un boundary de Suspense en esta página cliente simple.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('error') === 'oauth') {
-      setError('No se pudo iniciar sesión con Google. Intenta de nuevo.')
+      setError('No se pudo iniciar sesión. Intenta de nuevo.')
     }
   }, [])
 
-  async function handleGoogleLogin() {
+  async function handleOAuthLogin(provider: 'google' | 'azure') {
     setError(null)
-    setOauthLoading(true)
+    setOauthLoading(provider)
     const supabase = createSupabaseBrowserClient()
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: `${window.location.origin}/api/auth/callback` },
     })
     if (oauthError) {
-      setError('No se pudo iniciar sesión con Google. Intenta de nuevo.')
-      setOauthLoading(false)
+      setError('No se pudo iniciar sesión. Intenta de nuevo.')
+      setOauthLoading(null)
     }
-    // Si no hay error, el navegador ya está siendo redirigido a Google —
+    // Si no hay error, el navegador ya está siendo redirigido al proveedor —
     // no hay nada más que hacer aquí.
   }
 
@@ -216,8 +215,8 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={handleGoogleLogin}
-            disabled={oauthLoading}
+            onClick={() => handleOAuthLogin('google')}
+            disabled={oauthLoading !== null}
             className="btn-secondary w-full mt-4 flex items-center justify-center gap-2.5 disabled:opacity-50"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
@@ -226,13 +225,14 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.83.95 4.03l3-2.33Z" />
               <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .95 4.97l3 2.33C4.66 5.17 6.65 3.58 9 3.58Z" />
             </svg>
-            {oauthLoading ? 'Conectando…' : 'Continuar con Google'}
+            {oauthLoading === 'google' ? 'Conectando…' : 'Continuar con Google'}
           </button>
 
           <button
             type="button"
-            onClick={() => setShowMicrosoftSoon(true)}
-            className="btn-secondary w-full mt-3 flex items-center justify-center gap-2.5"
+            onClick={() => handleOAuthLogin('azure')}
+            disabled={oauthLoading !== null}
+            className="btn-secondary w-full mt-3 flex items-center justify-center gap-2.5 disabled:opacity-50"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
               <rect x="1" y="1" width="6.5" height="6.5" fill="#F25022" />
@@ -240,13 +240,8 @@ export default function LoginPage() {
               <rect x="1" y="8.5" width="6.5" height="6.5" fill="#00A4EF" />
               <rect x="8.5" y="8.5" width="6.5" height="6.5" fill="#FFB900" />
             </svg>
-            Continuar con Microsoft
+            {oauthLoading === 'azure' ? 'Conectando…' : 'Continuar con Microsoft'}
           </button>
-          {showMicrosoftSoon && (
-            <p className="mt-2 text-xs text-center text-faint">
-              Microsoft estará disponible muy pronto.
-            </p>
-          )}
 
           <div className="mt-5 pt-5 border-t border-subtle space-y-3 text-center">
             <p className="text-sm text-muted">
