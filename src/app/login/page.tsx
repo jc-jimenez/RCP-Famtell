@@ -77,11 +77,78 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
+    <main className="min-h-screen bg-canvas lg:grid lg:grid-cols-2">
+
+      {/* Panel izquierdo — solo desktop, es donde vive "la vida" del rediseño:
+          fondo con resplandores de los 4 colores de marca (nada de fotos de
+          stock ni assets externos), titular, 4 diferenciadores del producto
+          y una franja de confianza abajo. */}
+      <div className="hidden lg:flex relative flex-col justify-between overflow-hidden p-12 bg-surface">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#4285F4] opacity-[0.14] blur-3xl" />
+          <div className="absolute -top-16 right-0 w-80 h-80 rounded-full bg-[#EA4335] opacity-[0.12] blur-3xl" />
+          <div className="absolute bottom-0 -left-10 w-80 h-80 rounded-full bg-[#FBBC05] opacity-[0.14] blur-3xl" />
+          <div className="absolute -bottom-24 right-0 w-96 h-96 rounded-full bg-[#34A853] opacity-[0.14] blur-3xl" />
+        </div>
+
+        <div className="relative">
+          <BizdoctorIcon size={52} className="mb-4" />
+          <h1 className="text-3xl font-bold text-ink"><BizdoctorLogo withWww /></h1>
+          <p className="mt-1.5 text-muted text-sm">Sistema de Transformación Empresarial con IA</p>
+        </div>
+
+        <div className="relative max-w-md">
+          <h2 className="text-4xl font-bold text-ink leading-tight text-balance">
+            Diagnostica. Transforma. <span className="text-role-directivo">Crece.</span>
+          </h2>
+          <p className="mt-4 text-muted leading-relaxed">
+            La plataforma inteligente que convierte entrevistas reales en decisiones y estrategia en resultados.
+          </p>
+
+          <ul className="mt-8 space-y-4">
+            {[
+              { icon: '🩺', badge: 'bg-role-consultor-soft text-role-consultor', title: 'Diagnóstico profundo', desc: 'Entrevistas con IA y análisis del negocio real' },
+              { icon: '🎯', badge: 'bg-role-admin-soft text-role-admin', title: 'Plan de transformación', desc: 'Prioridades y acciones a la medida del caso' },
+              { icon: '📈', badge: 'bg-role-colaborador-soft text-role-colaborador', title: 'Ejecución guiada', desc: 'Seguimiento y mejora continua, no solo un reporte' },
+              { icon: '🤝', badge: 'bg-role-directivo-soft text-role-directivo', title: 'Resultados reales', desc: 'Empresas más fuertes, rentables y escalables' },
+            ].map((item) => (
+              <li key={item.title} className="flex items-start gap-3.5">
+                <span className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${item.badge}`}>
+                  {item.icon}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-ink">{item.title}</p>
+                  <p className="text-xs text-muted mt-0.5">{item.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative flex gap-6 pt-6 border-t border-subtle">
+          <div className="flex items-start gap-2.5">
+            <span className="text-base">🔒</span>
+            <div>
+              <p className="text-xs font-semibold text-ink">Seguridad y confidencialidad</p>
+              <p className="text-xs text-faint mt-0.5">Tu información está protegida</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span className="text-base">🛡️</span>
+            <div>
+              <p className="text-xs font-semibold text-ink">Infraestructura en la nube</p>
+              <p className="text-xs text-faint mt-0.5">Con controles de acceso por rol</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Panel derecho — el formulario */}
+      <div className="flex items-center justify-center p-6 lg:p-12">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
+        {/* Logo — solo en mobile/tablet, en desktop ya está en el panel izquierdo */}
+        <div className="text-center mb-8 lg:hidden">
           <BizdoctorIcon size={56} className="mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-ink">
             <BizdoctorLogo withWww />
@@ -188,6 +255,7 @@ export default function LoginPage() {
         <p className="text-center text-xs text-faint mt-6">
           www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
         </p>
+      </div>
       </div>
     </main>
   )
