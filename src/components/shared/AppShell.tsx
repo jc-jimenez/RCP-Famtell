@@ -150,8 +150,11 @@ export default function AppShell({
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+      {/* Nav — altura natural (ya no flex-1): con flex-1 el nav se estiraba
+          para llenar todo el sidebar y empujaba "Este caso" hasta el fondo,
+          donde se perdía. Ahora el menú del caso queda pegado justo debajo
+          de Configuración, y un spacer aparte empuja el resto al fondo. */}
+      <nav className="px-3 py-2 overflow-y-auto">
         {sections.map((section, si) => (
           <div key={si} className={si > 0 ? 'mt-5' : ''}>
             {section.label && (
@@ -188,12 +191,17 @@ export default function AppShell({
       </nav>
 
       {/* Navegación del caso (módulos, KPIs, brief, etc.) — sección propia,
-          siempre visible, no un dropdown ni barra horizontal */}
+          siempre visible, no un dropdown ni barra horizontal. Pegada justo
+          debajo de Configuración (última sección del nav de arriba). */}
       {tabBar && (
         <div className="px-3 py-2 border-t border-subtle max-h-[45vh] overflow-y-auto">
           {tabBar}
         </div>
       )}
+
+      {/* Spacer: empuja tema/tarjeta de caso/footer al fondo del sidebar
+          sin que el nav de arriba tenga que estirarse para lograrlo. */}
+      <div className="flex-1" />
 
       {/* Toggle de tema */}
       <div className="px-4 py-3 border-t border-subtle">
