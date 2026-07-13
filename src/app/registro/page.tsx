@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
-type Step = 'datos' | 'whatsapp' | 'revisa-correo' | 'listo'
+type Step = 'datos' | 'codigo' | 'listo'
 
 const PRIVACY_TEXT = `GoNextSales S.A. de C.V. ("www.bizdoctor.site") recopila tu nombre, correo electrónico, teléfono y empresa para brindar el servicio de diagnóstico empresarial con IA, enviarte comunicaciones relacionadas con tu cuenta y —con tu consentimiento— información comercial y campañas de marketing del producto por correo electrónico y WhatsApp. Puedes cancelar estas comunicaciones en cualquier momento. Tus datos se almacenan en servidores seguros y no se comparten con terceros sin tu consentimiento, salvo obligación legal. Al registrarte aceptas estos términos.`
 
@@ -61,7 +61,7 @@ export default function RegistroPage() {
       return
     }
 
-    setStep('whatsapp')
+    setStep('codigo')
   }
 
   // ── Paso 2: verificar código + crear cuenta ──────────────────────────────────
@@ -83,14 +83,7 @@ export default function RegistroPage() {
       return
     }
 
-    // WhatsApp verificado pero email pendiente
-    if (json.pendingEmail) {
-      setLoading(false)
-      setStep('revisa-correo')
-      return
-    }
-
-    // Ambos verificados → iniciar sesión
+    // Cuenta creada → iniciar sesión
     const supabase = createSupabaseBrowserClient()
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
@@ -113,33 +106,10 @@ export default function RegistroPage() {
     })
     setLoading(false)
     setCode('')
-    setError('Código reenviado. Revisa tu WhatsApp.')
+    setError('Código reenviado. Revisa tu correo.')
   }
 
-  // ── Paso 3: revisa correo ───────────────────────────────────────────────────
-  if (step === 'revisa-correo') {
-    return (
-      <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
-        <div className="w-full max-w-md text-center">
-          <div className="text-5xl mb-6">📬</div>
-          <h1 className="text-2xl font-bold text-ink mb-3">Revisa tu correo</h1>
-          <p className="text-muted mb-2 leading-relaxed">
-            WhatsApp verificado. Enviamos un enlace de verificación a:
-          </p>
-          <p className="text-ink font-semibold mb-6">{email}</p>
-          <p className="text-sm text-muted mb-8">
-            Haz clic en el enlace del correo para activar tu cuenta con 100 créditos.
-            Revisa también tu carpeta de spam.
-          </p>
-          <a href="/login" className="text-accent text-sm hover:underline">
-            Ya verifiqué mi correo → Iniciar sesión
-          </a>
-        </div>
-      </main>
-    )
-  }
-
-  // ── Paso 4: listo ───────────────────────────────────────────────────────────
+  // ── Paso 3: listo ───────────────────────────────────────────────────────────
   if (step === 'listo') {
     return (
       <main className="min-h-screen bg-canvas flex items-center justify-center p-6">
@@ -174,9 +144,9 @@ export default function RegistroPage() {
 
         {/* Indicador de pasos */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <StepDot active={step === 'datos'} done={step === 'whatsapp' || step === 'listo'} label="1" />
+          <StepDot active={step === 'datos'} done={step === 'codigo' || step === 'listo'} label="1" />
           <div className="h-px w-8 bg-subtle" />
-          <StepDot active={step === 'whatsapp'} done={step === 'listo'} label="2" />
+          <StepDot active={step === 'codigo'} done={step === 'listo'} label="2" />
         </div>
 
         <div className="card p-8">
@@ -185,7 +155,7 @@ export default function RegistroPage() {
           {step === 'datos' && (
             <>
               <h2 className="text-xl font-semibold text-ink mb-1">Crear cuenta</h2>
-              <p className="text-sm text-muted mb-6">Recibirás un código de verificación por WhatsApp</p>
+              <p className="text-sm text-muted mb-6">Recibirás un código de verificación por correo electrónico</p>
 
               <form onSubmit={handleSendCode} className="space-y-4">
                 <Field label="Nombre completo">
@@ -316,15 +286,13 @@ export default function RegistroPage() {
             </>
           )}
 
-          {/* ── Paso 2: Verificar WhatsApp ── */}
-          {step === 'whatsapp' && (
+          {/* ── Paso 2: Verificar correo ── */}
+          {step === 'codigo' && (
             <>
-              <h2 className="text-xl font-semibold text-ink mb-1">Verifica tu WhatsApp</h2>
+              <h2 className="text-xl font-semibold text-ink mb-1">Verifica tu correo</h2>
               <p className="text-sm text-muted mb-6">
-                Enviamos un código de 6 dígitos al número{' '}
-                <span className="text-ink font-medium">
-                  {phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
-                </span>
+                Enviamos un código de 6 dígitos a{' '}
+                <span className="text-ink font-medium">{email}</span>
               </p>
 
               <form onSubmit={handleVerify} className="space-y-5">

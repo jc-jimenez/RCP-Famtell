@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se encontró un registro pendiente para este correo' }, { status: 404 })
   }
 
-  // Validar código WhatsApp
+  // Validar código de verificación (se manda por correo, ver send-code)
   if (pending.whatsapp_code !== code) {
     return NextResponse.json({ error: 'Código incorrecto' }, { status: 400 })
   }
@@ -35,22 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'El código ha expirado. Solicita uno nuevo.' }, { status: 400 })
   }
 
-  // Marcar WhatsApp como verificado
-  await (admin as any)
-    .from('pending_registrations')
-    .update({ whatsapp_verified: true })
-    .eq('email', email)
-
-  // Si el email aún no está verificado → pedir verificación de correo
-  if (!pending.email_verified) {
-    return NextResponse.json({
-      ok: false,
-      pendingEmail: true,
-      message: 'WhatsApp verificado. Revisa tu correo y haz clic en el enlace de verificación para activar tu cuenta.',
-    })
-  }
-
-  // Ambos verificados → activar cuenta (con el password guardado en send-code)
+  // Código correcto → activar cuenta directamente (con el password guardado en send-code)
   const result = await activateAccountIfReady(admin, { ...pending, whatsapp_verified: true })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })

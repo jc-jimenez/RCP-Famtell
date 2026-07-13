@@ -2,10 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { sendWhatsApp } from '@/lib/twilio'
 import { resend, FROM_EMAIL } from '@/lib/resend/client'
-import { getBaseUrl } from '@/lib/baseUrl'
-import crypto from 'crypto'
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -40,10 +37,14 @@ export async function POST(request: Request) {
     )
   }
 
-  const whatsappCode = generateCode()
-  const emailToken = crypto.randomBytes(32).toString('hex')
-  const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 min para WhatsApp
-  const emailExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h para email
+  // El campo whatsapp_code/whatsapp_expires_at se reutiliza como el código de
+  // verificación genérico — ya no se manda por WhatsApp (Twilio no es
+  // confiable para primer contacto con números nuevos, ver commit anterior),
+  // se manda por correo con Resend, que ya es el canal probado de este mismo
+  // flujo. El teléfono se sigue pidiendo y guardando tal cual — no se
+  // verifica por ahora, queda pendiente para cuando se resuelva WhatsApp.
+  const code = generateCode()
+  const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 min
 
   const admin = getSupabaseAdmin()
   if (!admin) {
@@ -58,12 +59,10 @@ export async function POST(request: Request) {
       nombre,
       empresa,
       password,
-      whatsapp_code: whatsappCode,
+      whatsapp_code: code,
       whatsapp_expires_at: expires.toISOString(),
       whatsapp_verified: false,
-      email_token: emailToken,
-      email_token_expires_at: emailExpires.toISOString(),
-      email_verified: false,
+      email_verified: true, // ya no hay un paso de verificación de correo aparte
     }, { onConflict: 'email' })
 
   if (error) {
@@ -71,23 +70,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se pudo guardar el registro' }, { status: 500 })
   }
 
-  // 1. Enviar código por WhatsApp
-  // México móvil: +521XXXXXXXXXX (no +52)
-  const toPhone = phoneClean.length === 10 ? `+521${phoneClean}` : `+${phoneClean}`
-  const waMsg = `Tu código de verificación de www.bizdoctor.site es: *${whatsappCode}*\n\nVálido por 10 minutos.`
-  const waSent = await sendWhatsApp(toPhone, waMsg)
-  if (!waSent) {
-    return NextResponse.json({ error: 'No se pudo enviar el código por WhatsApp' }, { status: 502 })
-  }
-
-  // 2. Enviar email de verificación
-  const baseUrl = getBaseUrl()
-  const verifyUrl = `${baseUrl}/api/registro/verify-email?token=${emailToken}`
-
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: 'Verifica tu correo — www.bizdoctor.site',
+    subject: `Tu código de verificación: ${code} — www.bizdoctor.site`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
         <h1 style="font-size: 24px; color: #0f172a; margin-bottom: 8px;">
@@ -97,19 +83,16 @@ export async function POST(request: Request) {
 
         <h2 style="font-size: 18px; color: #0f172a;">Hola ${nombre},</h2>
         <p style="color: #475569; line-height: 1.6;">
-          Para completar tu registro en www.bizdoctor.site necesitamos verificar tu correo electrónico.
-          Haz clic en el botón a continuación:
+          Este es tu código de verificación para completar tu registro en www.bizdoctor.site:
         </p>
 
-        <a href="${verifyUrl}"
-           style="display: inline-block; margin: 24px 0; padding: 12px 32px;
-                  background: #6366f1; color: white; border-radius: 8px;
-                  text-decoration: none; font-weight: 600; font-size: 15px;">
-          Verificar correo electrónico
-        </a>
+        <p style="margin: 28px 0; padding: 16px 24px; background: #f1f5f9; border-radius: 10px;
+                   text-align: center; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
+          ${code}
+        </p>
 
         <p style="color: #94a3b8; font-size: 13px;">
-          Este enlace es válido por 24 horas. Si no creaste una cuenta en www.bizdoctor.site, ignora este mensaje.
+          Este código es válido por 10 minutos. Si no creaste una cuenta en www.bizdoctor.site, ignora este mensaje.
         </p>
 
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />

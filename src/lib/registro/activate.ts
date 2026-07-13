@@ -1,5 +1,8 @@
-// Activación de cuenta de consultor: se ejecuta cuando AMBAS verificaciones
-// (WhatsApp + email) están completas, sin importar el orden.
+// Activación de cuenta de consultor: se ejecuta una vez que el código de
+// verificación (enviado por correo, ver send-code/route.ts) fue validado.
+// Los nombres de columna (whatsapp_code/whatsapp_verified) son un remanente
+// de cuando el código se mandaba por WhatsApp — se reutilizan tal cual para
+// no requerir una migración, pero hoy solo significan "código verificado".
 
 type ActivateResult =
   | { ok: true }
@@ -9,7 +12,7 @@ export async function activateAccountIfReady(
   admin: any,
   pending: any
 ): Promise<ActivateResult> {
-  // Solo activar si ambas verificaciones están completas
+  // Solo activar si el código ya fue verificado
   if (!pending.whatsapp_verified || !pending.email_verified) {
     return { ok: false, error: 'Verificación incompleta', status: 400 }
   }
