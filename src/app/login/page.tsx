@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [showMicrosoftSoon, setShowMicrosoftSoon] = useState(false)
 
   // Lee el ?error=oauth que pone el callback si signInWithOAuth falla del
   // lado de Google/Supabase — con useEffect en vez de useSearchParams para
@@ -78,7 +79,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-canvas lg:grid lg:grid-cols-2">
+    <main className="min-h-screen bg-canvas flex flex-col">
+    <div className="flex-1 lg:grid lg:grid-cols-2">
 
       {/* Panel izquierdo — solo desktop. Rayos de los 4 colores de marca
           convergiendo hacia un brillo, con el logomark grande flotando
@@ -88,40 +90,36 @@ export default function LoginPage() {
       <div className="hidden lg:flex relative flex-col justify-between overflow-hidden p-12 bg-surface">
         <BizdoctorHeroArt />
 
-        {/* Ícono grande flotando sobre los rayos — solo en pantallas anchas
-            (xl+) para no encimarse con el texto en anchos intermedios */}
-        <div className="hidden xl:block pointer-events-none absolute right-10 bottom-28 drop-shadow-2xl">
-          <BizdoctorIcon size={200} />
-        </div>
-
-        <div className="relative">
-          <BizdoctorIcon size={52} className="mb-4" />
-          <h1 className="text-3xl font-bold text-ink"><BizdoctorLogo withWww /></h1>
-          <p className="mt-1.5 text-muted text-sm">Sistema de Transformación Empresarial con IA</p>
+        <div className="relative flex items-center gap-3">
+          <BizdoctorIcon size={52} />
+          <div>
+            <h1 className="text-2xl font-bold text-ink leading-tight"><BizdoctorLogo withWww /></h1>
+            <p className="text-muted text-xs">Sistema de Transformación Empresarial con IA</p>
+          </div>
         </div>
 
         <div className="relative max-w-xs">
           <h2 className="text-4xl font-bold text-ink leading-tight text-balance">
-            Diagnostica. Transforma. <span className="text-role-directivo">Crece.</span>
+            Diagnostica. Analiza.<br />Transforma.<br />Crecemos <span className="text-role-colaborador">juntos.</span>
           </h2>
           <p className="mt-4 text-muted leading-relaxed">
-            La plataforma inteligente que convierte entrevistas reales en decisiones y estrategia en resultados.
+            La plataforma inteligente que convierte datos en decisiones y estrategia en resultados.
           </p>
 
           <ul className="mt-8 space-y-4">
             {[
-              { icon: '🩺', badge: 'bg-role-consultor-soft text-role-consultor', title: 'Diagnóstico profundo', desc: 'Entrevistas con IA y análisis del negocio real' },
-              { icon: '🎯', badge: 'bg-role-admin-soft text-role-admin', title: 'Plan de transformación', desc: 'Prioridades y acciones a la medida del caso' },
-              { icon: '📈', badge: 'bg-role-colaborador-soft text-role-colaborador', title: 'Ejecución guiada', desc: 'Seguimiento y mejora continua, no solo un reporte' },
-              { icon: '🤝', badge: 'bg-role-directivo-soft text-role-directivo', title: 'Resultados reales', desc: 'Empresas más fuertes, rentables y escalables' },
+              { icon: '🧠', badge: 'bg-role-consultor-soft text-role-consultor', title: 'Inteligencia Artificial', desc: 'que impulsa tu negocio' },
+              { icon: '📈', badge: 'bg-role-directivo-soft text-role-directivo', title: 'Diagnósticos precisos', desc: 'en minutos' },
+              { icon: '👥', badge: 'bg-role-colaborador-soft text-role-colaborador', title: 'Estrategia centrada', desc: 'en las personas' },
+              { icon: '🎯', badge: 'bg-role-admin-soft text-role-admin', title: 'Resultados medibles', desc: 'y sostenibles' },
             ].map((item) => (
-              <li key={item.title} className="flex items-start gap-3.5">
+              <li key={item.title} className="flex items-center gap-3.5">
                 <span className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-card ${item.badge}`}>
                   {item.icon}
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-ink">{item.title}</p>
-                  <p className="text-xs text-muted mt-0.5">{item.desc}</p>
+                  <p className="text-xs text-muted">{item.desc}</p>
                 </div>
               </li>
             ))}
@@ -231,6 +229,25 @@ export default function LoginPage() {
             {oauthLoading ? 'Conectando…' : 'Continuar con Google'}
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowMicrosoftSoon(true)}
+            className="btn-secondary w-full mt-3 flex items-center justify-center gap-2.5"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+              <rect x="1" y="1" width="6.5" height="6.5" fill="#F25022" />
+              <rect x="8.5" y="1" width="6.5" height="6.5" fill="#7FBA00" />
+              <rect x="1" y="8.5" width="6.5" height="6.5" fill="#00A4EF" />
+              <rect x="8.5" y="8.5" width="6.5" height="6.5" fill="#FFB900" />
+            </svg>
+            Continuar con Microsoft
+          </button>
+          {showMicrosoftSoon && (
+            <p className="mt-2 text-xs text-center text-faint">
+              Microsoft estará disponible muy pronto.
+            </p>
+          )}
+
           <div className="mt-5 pt-5 border-t border-subtle space-y-3 text-center">
             <p className="text-sm text-muted">
               ¿Eres consultor nuevo?{' '}
@@ -249,6 +266,23 @@ export default function LoginPage() {
           www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
         </p>
       </div>
+      </div>
+    </div>
+
+      {/* Franja de confianza, ancho completo, debajo de las dos columnas */}
+      <div className="border-t border-subtle bg-surface-2 py-4 px-6">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+          {[
+            { icon: '🛡️', text: 'Protegido con cifrado avanzado' },
+            { icon: '🔒', text: 'Cumplimiento de estándares de seguridad' },
+            { icon: '✅', text: 'Tu información siempre segura' },
+          ].map((item) => (
+            <div key={item.text} className="flex items-center gap-2">
+              <span className="text-sm">{item.icon}</span>
+              <span className="text-xs text-muted">{item.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   )
