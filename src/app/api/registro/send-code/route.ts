@@ -23,6 +23,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Número de teléfono inválido' }, { status: 400 })
   }
 
+  const adminCheck = getSupabaseAdmin()
+  if (!adminCheck) {
+    return NextResponse.json({ error: 'Error de configuración' }, { status: 500 })
+  }
+
+  // Rechazar si el correo ya tiene una cuenta activa (evita el "éxito" engañoso más adelante)
+  const { data: existingUsersData } = await (adminCheck as any).auth.admin.listUsers({ perPage: 1000 })
+  const alreadyRegistered = existingUsersData?.users?.some(
+    (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+  )
+  if (alreadyRegistered) {
+    return NextResponse.json(
+      { error: 'Este correo ya está registrado. Inicia sesión o usa "Olvidé mi contraseña".' },
+      { status: 409 }
+    )
+  }
+
   const whatsappCode = generateCode()
   const emailToken = crypto.randomBytes(32).toString('hex')
   const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 min para WhatsApp

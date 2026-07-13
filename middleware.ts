@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { detectUserRole, getRoleRedirect } from '@/lib/utils/role-detection'
 
 // Rutas públicas que no requieren auth
-const PUBLIC_PATHS = ['/login', '/registro', '/activar', '/recuperar', '/api/auth', '/api/invitations', '/api/registro', '/portal']
+const PUBLIC_PATHS = ['/login', '/registro', '/activar', '/recuperar', '/nueva-password', '/api/auth', '/api/invitations', '/api/registro', '/portal']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

@@ -1,9 +1,8 @@
 // Activación de cuenta de consultor: se ejecuta cuando AMBAS verificaciones
-// (WhatsApp + email) están completas, sin importar el orden. Idempotente:
-// si la cuenta ya existe, lo trata como éxito.
+// (WhatsApp + email) están completas, sin importar el orden.
 
 type ActivateResult =
-  | { ok: true; alreadyExisted?: boolean }
+  | { ok: true }
   | { ok: false; error: string; status: number }
 
 export async function activateAccountIfReady(
@@ -33,10 +32,14 @@ export async function activateAccountIfReady(
   })
 
   if (authErr || !authData?.user) {
-    // Si ya está registrado, la cuenta ya existe → éxito idempotente
+    // Si ya está registrado (p.ej. condición de carrera con otro registro en curso), no es éxito
     if (authErr?.message?.includes('already registered') || authErr?.message?.includes('already been registered')) {
       await admin.from('pending_registrations').delete().eq('email', pending.email)
-      return { ok: true, alreadyExisted: true }
+      return {
+        ok: false,
+        error: 'Este correo ya está registrado. Inicia sesión o usa "Olvidé mi contraseña".',
+        status: 409,
+      }
     }
     return { ok: false, error: authErr?.message ?? 'No se pudo crear el usuario', status: 500 }
   }

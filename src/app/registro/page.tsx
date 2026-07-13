@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 
@@ -91,9 +92,14 @@ export default function RegistroPage() {
 
     // Ambos verificados → iniciar sesión
     const supabase = createSupabaseBrowserClient()
-    await supabase.auth.signInWithPassword({ email, password })
-
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
+
+    if (signInError) {
+      setError('Tu cuenta se activó pero no pudimos iniciar sesión automáticamente. Ve a "Iniciar sesión" e ingresa con tu correo y contraseña.')
+      return
+    }
+
     setStep('listo')
   }
 
@@ -143,9 +149,9 @@ export default function RegistroPage() {
           <p className="text-muted mb-2">Tu cuenta ha sido activada con</p>
           <p className="text-3xl font-bold text-accent mb-6">100 créditos</p>
           <p className="text-sm text-muted mb-8">Ya puedes iniciar tu primer diagnóstico empresarial.</p>
-          <a href="/" className="btn-primary inline-block px-8">
+          <Link href="/" className="btn-primary inline-block px-8">
             Ir al dashboard →
-          </a>
+          </Link>
           <p className="text-xs text-faint mt-8">
             www.bizdoctor.site es una solución desarrollada por StartLab Global Business Competence School
           </p>
