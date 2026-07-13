@@ -28,11 +28,16 @@ export default function RegistroPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Correo ya registrado (409) — caso especial: el error por sí solo dejaba
+  // al usuario varado con el botón habilitado pero sin ningún lado a donde
+  // ir; mostramos un acceso directo a login en vez de solo el mensaje.
+  const [duplicateEmail, setDuplicateEmail] = useState(false)
 
   // ── Paso 1: enviar código WhatsApp ──────────────────────────────────────────
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setDuplicateEmail(false)
 
     if (password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres')
@@ -58,6 +63,7 @@ export default function RegistroPage() {
 
     if (!res.ok) {
       setError(json.error ?? 'Error al enviar el código')
+      setDuplicateEmail(res.status === 409)
       return
     }
 
@@ -274,9 +280,19 @@ export default function RegistroPage() {
                 </div>
 
                 {error && (
-                  <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                    {error}
-                  </p>
+                  <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                    <p>{error}</p>
+                    {duplicateEmail && (
+                      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-semibold">
+                        <a href="/login" className="text-red-800 underline hover:no-underline">
+                          Iniciar sesión →
+                        </a>
+                        <a href="/recuperar" className="text-red-800 underline hover:no-underline">
+                          ¿Olvidaste tu contraseña?
+                        </a>
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 <button type="submit" disabled={loading} className="btn-primary w-full">
