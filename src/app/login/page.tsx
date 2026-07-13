@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
 import BizdoctorIcon from '@/components/shared/BizdoctorIcon'
+import BizdoctorHeroArt from '@/components/shared/BizdoctorHeroArt'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -79,16 +80,18 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-canvas lg:grid lg:grid-cols-2">
 
-      {/* Panel izquierdo — solo desktop, es donde vive "la vida" del rediseño:
-          fondo con resplandores de los 4 colores de marca (nada de fotos de
-          stock ni assets externos), titular, 4 diferenciadores del producto
-          y una franja de confianza abajo. */}
+      {/* Panel izquierdo — solo desktop. Rayos de los 4 colores de marca
+          convergiendo hacia un brillo, con el logomark grande flotando
+          encima y chispas de color — reemplaza el mural de montaña/ciudad
+          de los mockups usando solo vector y la paleta real, sin fotos de
+          stock ni assets externos. */}
       <div className="hidden lg:flex relative flex-col justify-between overflow-hidden p-12 bg-surface">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#4285F4] opacity-[0.14] blur-3xl" />
-          <div className="absolute -top-16 right-0 w-80 h-80 rounded-full bg-[#EA4335] opacity-[0.12] blur-3xl" />
-          <div className="absolute bottom-0 -left-10 w-80 h-80 rounded-full bg-[#FBBC05] opacity-[0.14] blur-3xl" />
-          <div className="absolute -bottom-24 right-0 w-96 h-96 rounded-full bg-[#34A853] opacity-[0.14] blur-3xl" />
+        <BizdoctorHeroArt />
+
+        {/* Ícono grande flotando sobre los rayos — solo en pantallas anchas
+            (xl+) para no encimarse con el texto en anchos intermedios */}
+        <div className="hidden xl:block pointer-events-none absolute right-10 bottom-28 drop-shadow-2xl">
+          <BizdoctorIcon size={200} />
         </div>
 
         <div className="relative">
@@ -97,7 +100,7 @@ export default function LoginPage() {
           <p className="mt-1.5 text-muted text-sm">Sistema de Transformación Empresarial con IA</p>
         </div>
 
-        <div className="relative max-w-md">
+        <div className="relative max-w-xs">
           <h2 className="text-4xl font-bold text-ink leading-tight text-balance">
             Diagnostica. Transforma. <span className="text-role-directivo">Crece.</span>
           </h2>
@@ -113,7 +116,7 @@ export default function LoginPage() {
               { icon: '🤝', badge: 'bg-role-directivo-soft text-role-directivo', title: 'Resultados reales', desc: 'Empresas más fuertes, rentables y escalables' },
             ].map((item) => (
               <li key={item.title} className="flex items-start gap-3.5">
-                <span className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${item.badge}`}>
+                <span className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-card ${item.badge}`}>
                   {item.icon}
                 </span>
                 <div>
@@ -125,20 +128,10 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <div className="relative flex gap-6 pt-6 border-t border-subtle">
-          <div className="flex items-start gap-2.5">
-            <span className="text-base">🔒</span>
-            <div>
-              <p className="text-xs font-semibold text-ink">Seguridad y confidencialidad</p>
-              <p className="text-xs text-faint mt-0.5">Tu información está protegida</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <span className="text-base">🛡️</span>
-            <div>
-              <p className="text-xs font-semibold text-ink">Infraestructura en la nube</p>
-              <p className="text-xs text-faint mt-0.5">Con controles de acceso por rol</p>
-            </div>
+        <div className="relative">
+          <div className="inline-flex items-center gap-2.5 bg-surface rounded-full pl-2 pr-5 py-2 border border-subtle shadow-card">
+            <span className="w-7 h-7 rounded-full bg-role-directivo-soft text-role-directivo flex items-center justify-center text-sm flex-shrink-0">✓</span>
+            <span className="text-xs font-medium text-ink">Seguro. Confiable. Diseñado para crecer contigo.</span>
           </div>
         </div>
       </div>
