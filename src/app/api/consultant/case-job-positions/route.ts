@@ -113,6 +113,30 @@ export async function PATCH(req: Request) {
   return NextResponse.json({ position: data })
 }
 
+// job_position_ids en estas tablas es un array plano (uuid[]), no una FK —
+// Postgres no puede limpiarlo solo al borrar el puesto. Sin esto, el id
+// borrado queda huérfano dentro del array para siempre: computeModuleCompletion
+// lo sigue contando como "puesto requerido" pero nunca encuentra ocupante
+// (el puesto ya no existe para invitar a nadie), así que el módulo se queda
+// en ámbar/rojo de forma permanente aunque todos los puestos reales ya
+// hayan contestado. Se limpia después de borrar, no con un trigger, porque
+// la limpieza es específica a esta acción (no aplica a otros DELETE).
+async function pruneJobPositionReferences(db: any, caseId: string, positionId: string) {
+  const tables = ['case_question_overrides', 'case_custom_questions', 'case_table_instruments'] as const
+  for (const table of tables) {
+    const { data: rows } = await db
+      .from(table)
+      .select('id, job_position_ids')
+      .eq('case_id', caseId)
+      .contains('job_position_ids', [positionId])
+
+    for (const row of rows ?? []) {
+      const next = (row.job_position_ids ?? []).filter((id: string) => id !== positionId)
+      await db.from(table).update({ job_position_ids: next }).eq('id', row.id)
+    }
+  }
+}
+
 // DELETE — borrar puesto del catálogo del caso. Si ya tiene participantes
 // asignados o respuestas de la encuesta de clima ligadas, se advierte antes
 // (confirm: true para proceder) — no se bloquea el borrado.
@@ -159,5 +183,6 @@ export async function DELETE(req: Request) {
   }
 
   await db.from('case_job_positions').delete().eq('id', positionId).eq('case_id', caseId)
+  await pruneJobPositionReferences(db, caseId, positionId)
   return NextResponse.json({ ok: true })
 }

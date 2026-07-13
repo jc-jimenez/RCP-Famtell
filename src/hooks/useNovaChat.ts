@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef } from 'react'
 import type { ChatMessage, ModuleCode } from '@/types'
+import { stripAgendaTags } from '@/lib/anthropic/agenda-detector'
+import type { ModuleCompletion } from '@/lib/moduleCompletion'
 
 export interface FileAttachment {
   base64: string
@@ -9,11 +11,24 @@ export interface FileAttachment {
   fileName: string
 }
 
+export interface ModuleCompletionResult {
+  /** Estado del CASO completo (todos los puestos requeridos) — informativo, no bloquea navegación. */
+  moduleCompleted: boolean
+  completion: ModuleCompletion | null
+  /** Siguiente módulo PARA ESTE PARTICIPANTE — el desbloqueo es por participante, no por caso. */
+  nextModuleCode: string | null
+  nextModuleName: string | null
+}
+
 interface UseNovaChatOptions {
   sessionId: string
   moduleCode: ModuleCode
   initialMessages?: ChatMessage[]
   onComplete?: () => void
+  /** Se dispara cuando el usuario confirma en el chat que no falta nada más
+   * (Nova emitió el tag oculto de cierre) y el backend ya marcó el módulo
+   * como completado de verdad — mismo resultado que produce el botón manual. */
+  onModuleComplete?: (result: ModuleCompletionResult) => void
 }
 
 export function useNovaChat({
@@ -21,6 +36,7 @@ export function useNovaChat({
   moduleCode,
   initialMessages = [],
   onComplete,
+  onModuleComplete,
 }: UseNovaChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [streaming, setStreaming] = useState(false)
@@ -103,8 +119,22 @@ export function useNovaChat({
             }
 
             if (payload.done) {
+              setMessages(prev => {
+                const next = [...prev]
+                const last = next[next.length - 1]
+                if (last?.role === 'assistant') {
+                  const finalContent = typeof payload.finalText === 'string'
+                    ? payload.finalText
+                    : stripAgendaTags(last.content)
+                  next[next.length - 1] = { ...last, content: finalContent }
+                }
+                return next
+              })
               setStreaming(false)
               if (onComplete) onComplete()
+              if (payload.moduleCompletion && onModuleComplete) {
+                onModuleComplete(payload.moduleCompletion)
+              }
             }
           } catch {
             // línea incompleta — ignorar
@@ -121,7 +151,7 @@ export function useNovaChat({
       })
       setStreaming(false)
     }
-  }, [sessionId, moduleCode, streaming, onComplete])
+  }, [sessionId, moduleCode, streaming, onComplete, onModuleComplete])
 
   const abort = useCallback(() => {
     abortRef.current?.abort()

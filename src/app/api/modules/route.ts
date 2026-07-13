@@ -1,91 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { deductCredits } from '@/lib/credits'
-import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
-import { computeModuleCompletion } from '@/lib/moduleCompletion'
-import { generateAndStoreModuleBackup } from '@/lib/moduleBackup'
-import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { getActiveModuleTemplates, completeModuleSession } from '@/lib/moduleCompleteAction'
 import type { ModuleCode } from '@/types'
 
 export const runtime = 'nodejs'
-
-// Catálogo de módulos activos del caso, en orden — fuente de verdad en
-// module_templates (sort_order, credit_cost), no un array hardcoded.
-// Ver docs/PRD_RCPFAMTELL3PL.md sección 9.2.
-async function getActiveModuleTemplates(db: any, caseId: string): Promise<{ code: ModuleCode; credit_cost: number }[]> {
-  const scope = await resolveCatalogScope(db, caseId)
-  const query = db.from('module_templates').select('code, credit_cost').eq('is_active', true)
-  const { data } = await applyCatalogScope(query, scope, caseId).order('sort_order', { ascending: true })
-  return data ?? []
-}
-
-async function extractAndSaveContacts(db: any, caseId: string, sessionId: string) {
-  const { data: sess } = await db.from('sessions').select('messages').eq('id', sessionId).single()
-  if (!sess?.messages?.length) return
-
-  const transcript = (sess.messages as any[])
-    .map((m: any) => `[${m.role === 'user' ? 'Directivo' : 'Nova'}]: ${m.content}`)
-    .join('\n')
-
-  const response = await anthropic.messages.create({
-    model: NOVA_MODEL,
-    max_tokens: 2000,
-    system: `Eres un asistente que extrae contactos clave de transcripciones de entrevistas empresariales.
-
-Analiza la transcripción del módulo M3 (Base de Contactos) y extrae hasta 30 contactos mencionados.
-Para cada contacto incluye toda la información disponible en la conversación.
-
-Tipos: cliente_actual, cliente_potencial, proveedor, aliado, competidor, referido, otro
-
-Responde ÚNICAMENTE con JSON array:
-[{
-  "name": "Nombre completo o empresa",
-  "email": null,
-  "phone": null,
-  "company": "Empresa donde trabaja (si es persona)",
-  "job_title": "Cargo",
-  "contact_type": "cliente_actual",
-  "notes": "Contexto mencionado en la entrevista",
-  "priority": "alta|media|baja",
-  "pipeline_stage": "lead"
-}]`,
-    messages: [{ role: 'user', content: `Transcripción M3:\n\n${transcript}` }],
-  })
-
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const match = text.match(/\[[\s\S]*\]/)
-  if (!match) return
-
-  const contacts = JSON.parse(match[0]) as any[]
-  if (!contacts.length) return
-
-  // Evitar duplicados: sólo insertar si no hay contactos ya
-  const { count } = await db.from('contacts').select('id', { count: 'exact', head: true }).eq('case_id', caseId)
-  if ((count ?? 0) > 0) return
-
-  const TYPE_MAP: Record<string, string> = {
-    cliente_actual: 'client', cliente_potencial: 'prospect',
-    proveedor: 'supplier', aliado: 'partner',
-    competidor: 'other', referido: 'prospect', otro: 'other',
-  }
-  const PROB_MAP: Record<string, string> = { alta: 'high', media: 'medium', baja: 'low' }
-
-  const toInsert = contacts.map((c: any) => ({
-    case_id: caseId,
-    name: c.name ?? 'Sin nombre',
-    email: c.email ?? null,
-    phone: c.phone ?? null,
-    company: c.company ?? null,
-    role: c.job_title ?? null,
-    relationship_type: TYPE_MAP[c.contact_type] ?? 'other',
-    notes: c.notes ?? null,
-    close_probability: PROB_MAP[c.priority] ?? 'medium',
-    pipeline_stage: 'pending',
-  }))
-
-  await db.from('contacts').insert(toInsert)
-}
 
 // GET /api/modules?caseId=xxx — listar módulos del caso con estado
 export async function GET(request: Request) {
@@ -175,74 +94,11 @@ export async function POST(request: Request) {
 
   if (!hasAccess) return NextResponse.json({ error: 'Acceso denegado al caso' }, { status: 403 })
 
-  // Marcar la sesión de ESTE participante como completada. El módulo del
-  // caso completo solo se marca 'completed' cuando TODOS los puestos con
-  // preguntas mapeadas en este módulo hayan terminado — ver moduleCompletion.ts.
-  // Antes esto se marcaba con el primer participante que terminaba, dejando
-  // el resto de los puestos sin contestar sin que nadie se enterara.
-  await db.from('sessions').update({ completed: true }).eq('id', sessionId)
+  // Marcar la sesión de ESTE participante como completada y, si con ella el
+  // módulo queda en verde (todos los puestos requeridos ya contestaron),
+  // marcar el módulo del caso como completado y desbloquear el siguiente.
+  // Misma función que usa la confirmación por chat — ver moduleCompleteAction.ts.
+  const result = await completeModuleSession(db, admin, { caseId, moduleCode, sessionId })
 
-  // Orden y costo vienen del catálogo (module_templates), no de un array fijo
-  const templates = await getActiveModuleTemplates(db, caseId)
-  const currentIndex = templates.findIndex(t => t.code === moduleCode)
-  const creditsUsed = templates[currentIndex]?.credit_cost ?? 10
-
-  const completion = await computeModuleCompletion(db, caseId, moduleCode)
-  const moduleCompleted = completion.colorStatus === 'green'
-
-  if (moduleCompleted) {
-    await db.from('modules')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        session_id: sessionId,
-        credits_used: creditsUsed,
-      })
-      .eq('case_id', caseId)
-      .eq('module_code', moduleCode)
-
-    // Desbloquear el siguiente módulo
-    if (currentIndex >= 0 && currentIndex < templates.length - 1) {
-      const nextModule = templates[currentIndex + 1].code
-      await db.from('modules')
-        .update({ status: 'active', unlocked_at: new Date().toISOString() })
-        .eq('case_id', caseId)
-        .eq('module_code', nextModule)
-    }
-
-    // Respaldo en PDF de la transcripción del módulo (sección 16, Obs 9).
-    // Requiere service role para escribir en Storage — si no está
-    // configurado, se omite en vez de tronar la respuesta.
-    if (admin) {
-      generateAndStoreModuleBackup(admin, caseId, moduleCode).catch(err => {
-        console.error('[modules/complete] Error al generar el PDF de respaldo:', err)
-      })
-    }
-  }
-
-  // Los créditos se descuentan por la conversación de ESTE participante,
-  // independientemente de si el módulo ya quedó verde para todo el caso.
-  if (caseData.account_id) {
-    const credit = await deductCredits(db, caseData.account_id, creditsUsed)
-    if (!credit.success) {
-      console.error('[modules/complete] No se pudieron descontar créditos:', credit.error)
-    }
-
-    // Actualizar credits_used acumulado del caso
-    await db.from('cases')
-      .update({ credits_used: (caseData.credits_used ?? 0) + creditsUsed })
-      .eq('id', caseId)
-  }
-
-  // M3: extraer contactos de la transcripción y poblar el CRM
-  if (moduleCode === 'M3' && sessionId) {
-    extractAndSaveContacts(db, caseId, sessionId).catch(() => {})
-  }
-
-  return NextResponse.json({
-    ok: true,
-    moduleCompleted,
-    unlockedNext: moduleCompleted && currentIndex < templates.length - 1,
-    completion,
-  })
+  return NextResponse.json(result)
 }

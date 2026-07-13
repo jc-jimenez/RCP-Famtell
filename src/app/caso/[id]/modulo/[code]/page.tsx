@@ -8,6 +8,31 @@ import { countQuestionsForPosition } from '@/lib/moduleQuestions'
 import ModuleStartClient from './ModuleStartClient'
 import type { ModuleCode } from '@/types'
 
+// Ver [[feedback_module_unlock_per_participant]]: el desbloqueo es por
+// participante, así que este check usa las SESIONES de este usuario (no la
+// fila compartida `modules` del caso, que antes bloqueaba a alguien que ya
+// había terminado su propia entrevista solo porque otro compañero no había
+// empezado la suya).
+async function resolveMyModuleAccess(db: any, caseId: string, userId: string, moduleCode: string) {
+  const scope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('code').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, scope, caseId).order('sort_order', { ascending: true })
+  const moduleOrder: string[] = (templates ?? []).map((t: any) => t.code)
+
+  const { data: mySessions } = await db
+    .from('sessions')
+    .select('module_code, completed')
+    .eq('case_id', caseId)
+    .eq('user_id', userId)
+
+  const myCompleted = new Set((mySessions ?? []).filter((s: any) => s.completed).map((s: any) => s.module_code))
+  const myNextModule = moduleOrder.find(code => !myCompleted.has(code))
+  const isCompleted = myCompleted.has(moduleCode)
+  const isLocked = !isCompleted && moduleCode !== myNextModule
+
+  return { isLocked, isCompleted }
+}
+
 const MODULE_LABELS: Record<ModuleCode, string> = {
   M1: 'Radiografía Comercial',
   M2: 'Radiografía Operativa',
@@ -64,32 +89,27 @@ export default async function ModuloPage({
 
   const totalQuestions = await countQuestionsForPosition(db, caseId, moduleCode, caseUser.job_position_id)
 
-  // Verificar que el módulo esté activo o completado
-  const { data: moduleData } = await db
-    .from('modules')
-    .select('status, session_id')
+  // Asegura que existan las filas de `modules` del caso (se siguen usando
+  // para reportes case-wide: Brief, "X/7 módulos" del consultor) — pero ya
+  // NO deciden si YO puedo entrar a este módulo.
+  await ensureModulesInitialized(db, caseId)
+
+  const { isLocked, isCompleted } = await resolveMyModuleAccess(db, caseId, session.user.id, moduleCode)
+  if (isLocked) redirect(`/caso/${caseId}`)
+
+  // Cargar MI sesión existente de este módulo (no la de otro participante).
+  // No se usa .maybeSingle(): si hay más de una fila (datos históricos) se
+  // toma la más reciente en vez de fallar en silencio.
+  const { data: existingSessionRows } = await db
+    .from('sessions')
+    .select('id, messages')
     .eq('case_id', caseId)
     .eq('module_code', moduleCode)
-    .maybeSingle()
-
-  // Si no existe el módulo aún (caso nuevo), inicializar todos
-  if (!moduleData) {
-    await ensureModulesInitialized(db, caseId)
-  }
-
-  const status = moduleData?.status ?? 'active'
-  if (status === 'locked') redirect(`/caso/${caseId}`)
-
-  // Cargar sesión existente si hay
-  let existingSession = null
-  if (moduleData?.session_id) {
-    const { data: sess } = await db
-      .from('sessions')
-      .select('id, messages')
-      .eq('id', moduleData.session_id)
-      .single()
-    existingSession = sess
-  }
+    .eq('user_id', session.user.id)
+    .order('last_message_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+  const existingSession = existingSessionRows?.[0] ?? null
 
   const catalogScope = await resolveCatalogScope(db, caseId)
   const templateQuery = db.from('module_templates').select('name, description').eq('code', moduleCode)
@@ -98,7 +118,6 @@ export default async function ModuloPage({
   const label = template?.name ?? MODULE_LABELS[moduleCode] ?? moduleCode
   const description = template?.description ?? MODULE_DESCRIPTIONS[moduleCode] ?? ''
   const duration = MODULE_DURATION[moduleCode] ?? '20-30 minutos'
-  const isCompleted = status === 'completed'
 
   // Para M6: cargar sesiones de colaboradores
   let collaboratorVoices: any[] = []

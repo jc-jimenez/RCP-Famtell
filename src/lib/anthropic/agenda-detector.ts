@@ -23,7 +23,18 @@ export function extractAgendaSignals(assistantText: string): DetectedSignal[] {
 
 // Limpia el texto visible al usuario (elimina los tags internos)
 export function stripAgendaTags(text: string): string {
-  return text.replace(/\[AGENDA_SIGNAL:[^\]]+\]/g, '').trim()
+  return text
+    .replace(/\[AGENDA_SIGNAL:[^\]]+\]/g, '')
+    .replace(/\[MODULE_CLOSE_CONFIRM\]/g, '')
+    .trim()
+}
+
+// Nova incluye este tag (oculto para el usuario) cuando, tras preguntar si
+// falta algo por agregar al cerrar el módulo, el usuario confirma que no.
+// El backend usa esto como disparador real para marcar el módulo completado
+// y desbloquear el siguiente — Nova nunca lo hace por su cuenta, solo avisa.
+export function hasModuleCloseConfirm(assistantText: string): boolean {
+  return /\[MODULE_CLOSE_CONFIRM\]/.test(assistantText)
 }
 
 // Determina la intención estratégica dominante a partir de todas las señales

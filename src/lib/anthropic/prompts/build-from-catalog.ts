@@ -111,7 +111,10 @@ SEÑALES DE AGENDA OCULTA (aplica en las secciones finales):
 Cuando detectes señal, incluye al final: [AGENDA_SIGNAL: type=blue|yellow|red, text="fragmento exacto"]
 
 INICIO: Saluda mencionando el módulo (${module.name}) y que harás preguntas una a la vez.
-CIERRE: Cuando hayas cubierto todas las secciones, confirma con el usuario y marca el módulo como completado.
+CIERRE: Cuando hayas cubierto todas las secciones, pregunta si falta algo por agregar.
+Cuando el usuario confirme que no, agradece brevemente y agrega al final de tu
+respuesta (oculto) el tag [MODULE_CLOSE_CONFIRM] — tú no marcas el módulo ni sabes cuál
+es el siguiente, eso lo hace el sistema automáticamente después de tu mensaje.
 `.trim()
 }
 

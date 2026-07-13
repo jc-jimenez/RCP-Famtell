@@ -70,44 +70,51 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
   const moduleInfo: Record<string, { label: string; desc: string }> = {}
   ;(templates ?? []).forEach((t: any) => { moduleInfo[t.code] = { label: t.name, desc: t.description ?? '' } })
 
-  // Módulos del caso
+  // Módulos del caso — solo se usa para el conteo CASE-WIDE (Brief, accesos
+  // rápidos), no para decidir qué módulo puedo abrir yo. El desbloqueo de
+  // navegación es POR PARTICIPANTE (ver sesiones abajo): antes dependía de
+  // que TODOS los puestos del caso completaran el módulo, así que alguien
+  // que ya había terminado su propia entrevista se quedaba viendo "Bloqueado"
+  // en el Módulo 2 esperando a compañeros que ni siquiera habían empezado.
   const { data: modules } = await db
     .from('modules')
-    .select('module_code, status, completed_at, updated_at')
+    .select('module_code, status')
     .eq('case_id', id)
+  const caseCompletedCount = (modules ?? []).filter((m: any) => m.status === 'completed').length
 
-  const moduleMap: Record<string, { status: string; completed_at: string | null; updated_at: string | null }> = {}
-  ;(modules ?? []).forEach((m: any) => {
-    moduleMap[m.module_code] = { status: m.status, completed_at: m.completed_at, updated_at: m.updated_at }
-  })
-
-  // Última sesión por módulo (para mostrar "Última actividad" y el % de avance)
+  // Mis propias sesiones — de aquí sale qué módulos YA completé y cuál sigue.
   const { data: sessions } = await db
     .from('sessions')
-    .select('module_code, last_message_at, messages')
+    .select('module_code, last_message_at, messages, completed')
     .eq('case_id', id)
     .eq('user_id', session.user.id)
     .order('last_message_at', { ascending: false })
 
   const lastSessionMap: Record<string, string> = {}
   const answeredMap: Record<string, number> = {}
+  const myCompletedModules = new Set<string>()
+  const myCompletedAtMap: Record<string, string> = {}
   ;(sessions ?? []).forEach((s: any) => {
     if (!lastSessionMap[s.module_code]) {
       lastSessionMap[s.module_code] = s.last_message_at
       answeredMap[s.module_code] = countAnsweredMessages(s.messages)
     }
+    if (s.completed) {
+      myCompletedModules.add(s.module_code)
+      if (!myCompletedAtMap[s.module_code]) myCompletedAtMap[s.module_code] = s.last_message_at
+    }
   })
 
-  const completedCount = Object.values(moduleMap).filter(m => m.status === 'completed').length
+  const myCompletedCount = myCompletedModules.size
   const shellRole = role === 'consultant' ? 'consultant' : 'director'
 
-  // Próximo módulo activo
-  const nextModule = moduleOrder.find(code => {
-    const mod = moduleMap[code]
-    return !mod || mod.status !== 'completed'
-  })
+  // Próximo módulo activo — el primero que YO no haya completado, sin
+  // importar el avance de otros participantes del caso.
+  const nextModule = moduleOrder.find(code => !myCompletedModules.has(code))
 
-  // Avance real por puesto (rojo/ámbar/verde) — solo se necesita para el módulo activo
+  // Avance real por puesto (rojo/ámbar/verde) — información del caso
+  // completo, no bloquea mi navegación, solo da contexto de cuántos
+  // compañeros más faltan por contestar este módulo.
   const completionMap: Record<string, { colorStatus: 'red' | 'amber' | 'green'; pending: { jobPositionName: string; hasOccupant: boolean }[] }> = {}
   if (nextModule) {
     const all = await computeAllModulesCompletion(db, id)
@@ -132,7 +139,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
       role={shellRole}
       email={session.user.email!}
       caseCompanyName={caseData.company_name}
-      modulesCompleted={completedCount}
+      modulesCompleted={myCompletedCount}
       modulesTotal={moduleOrder.length}
       tabBar={isDirector ? <DirectorTabs caseId={id} /> : undefined}
     >
@@ -153,7 +160,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-2xl font-bold text-ink">{completedCount}<span className="text-base font-normal text-muted">/{moduleOrder.length}</span></p>
+            <p className="text-2xl font-bold text-ink">{myCompletedCount}<span className="text-base font-normal text-muted">/{moduleOrder.length}</span></p>
             <p className="text-xs text-muted">módulos</p>
           </div>
         </div>
@@ -165,9 +172,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
         <div className="card p-4">
           <div className="flex items-center gap-1.5 mb-3">
             {moduleOrder.map((code, i) => {
-              const mod = moduleMap[code]
-              const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
-              const done = status === 'completed'
+              const done = myCompletedModules.has(code)
               const active = !done && (code === nextModule)
               const colorStatus = active ? completionMap[code]?.colorStatus : undefined
               return (
@@ -190,15 +195,15 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
           <div className="w-full bg-surface-2 rounded-full h-1.5">
             <div
               className="bg-emerald-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${moduleOrder.length > 0 ? (completedCount / moduleOrder.length) * 100 : 0}%` }}
+              style={{ width: `${moduleOrder.length > 0 ? (myCompletedCount / moduleOrder.length) * 100 : 0}%` }}
             />
           </div>
           <p className="text-xs text-muted mt-2">
-            {completedCount === 0
+            {myCompletedCount === 0
               ? 'Comienza con el Módulo 1 para activar tu diagnóstico'
-              : completedCount === moduleOrder.length
-              ? '¡Diagnóstico completo! Revisa tu Brief en la pestaña Brief'
-              : `${moduleOrder.length - completedCount} módulos restantes`}
+              : myCompletedCount === moduleOrder.length
+              ? '¡Terminaste tu parte! Revisa tu Brief en la pestaña Brief'
+              : `${moduleOrder.length - myCompletedCount} módulos restantes`}
           </p>
         </div>
 
@@ -208,17 +213,15 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {moduleOrder.map((code, i) => {
               const info = moduleInfo[code]
-              const mod = moduleMap[code]
-              const status = mod?.status ?? (i === 0 ? 'active' : 'locked')
-              const isCompleted = status === 'completed'
+              const isCompleted = myCompletedModules.has(code)
               const isCurrent = code === nextModule
               const isLocked = !isCompleted && !isCurrent
               const lastActivity = lastSessionMap[code]
               const hasSession = !!lastActivity
               const percent = isCompleted ? 100 : isCurrent ? currentModulePercent : 0
 
-              const subtext = isCompleted && mod?.completed_at
-                ? `Completado ${formatDate(mod.completed_at)}`
+              const subtext = isCompleted && myCompletedAtMap[code]
+                ? `Completado ${formatDate(myCompletedAtMap[code])}`
                 : isCurrent && hasSession
                   ? `Última sesión ${formatDate(lastActivity)}`
                   : undefined
@@ -248,7 +251,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Accesos rápidos (solo directivo con módulos en progreso) */}
-        {isDirector && completedCount > 0 && (
+        {isDirector && myCompletedCount > 0 && (
           <div className="grid grid-cols-3 gap-3">
             <Link href={`/caso/${id}/kpis` as any} className="card p-4 hover:shadow-sm transition-shadow text-center">
               <p className="text-lg mb-1">📊</p>
@@ -263,7 +266,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
             <Link href={`/caso/${id}/brief` as any} className="card p-4 hover:shadow-sm transition-shadow text-center">
               <p className="text-lg mb-1">📋</p>
               <p className="text-xs font-medium text-ink">Brief</p>
-              <p className="text-xs text-muted mt-0.5">{completedCount === moduleOrder.length ? 'Ver diagnóstico' : 'Disponible al completar'}</p>
+              <p className="text-xs text-muted mt-0.5">{caseCompletedCount === moduleOrder.length ? 'Ver diagnóstico' : 'Disponible al completar'}</p>
             </Link>
           </div>
         )}

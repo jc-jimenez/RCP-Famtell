@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import readExcelFile from 'read-excel-file/universal'
-import { useNovaChat, type FileAttachment } from '@/hooks/useNovaChat'
+import { useNovaChat, type FileAttachment, type ModuleCompletionResult } from '@/hooks/useNovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
-import type { ModuleCompletion } from '@/lib/moduleCompletion'
 import ProgressBar from './ProgressBar'
 
 const MODULE_LABELS: Record<ModuleCode, string> = {
@@ -29,7 +28,7 @@ interface NovaChatProps {
   initialMessages?: ChatMessage[]
   /** Total de preguntas del guion que le tocan a este puesto en este módulo — 0/undefined oculta la barra de avance */
   totalQuestions?: number
-  onModuleComplete?: (result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) => void
+  onModuleComplete?: (result: ModuleCompletionResult) => void
   autoStart?: boolean
 }
 
@@ -58,6 +57,7 @@ export default function NovaChat({
     sessionId,
     moduleCode,
     initialMessages,
+    onModuleComplete,
   })
 
   useEffect(() => {
@@ -186,7 +186,12 @@ export default function NovaChat({
         return
       }
       const data = await res.json()
-      onModuleComplete?.({ moduleCompleted: !!data.moduleCompleted, completion: data.completion ?? null })
+      onModuleComplete?.({
+        moduleCompleted: !!data.moduleCompleted,
+        completion: data.completion ?? null,
+        nextModuleCode: data.nextModuleCode ?? null,
+        nextModuleName: data.nextModuleName ?? null,
+      })
     } catch {
       setCompleting(false)
     }
@@ -307,6 +312,24 @@ export default function NovaChat({
         </div>
       )}
 
+      {/* Banner de cierre — visible e imposible de ignorar cuando ya se
+          contestaron todas las preguntas del guion */}
+      {progressPercent >= 100 && totalQuestions > 0 && !streaming && (
+        <div className="mx-4 mb-3 flex-shrink-0 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Ya respondiste todas las preguntas de este módulo</p>
+            <p className="text-xs text-emerald-700">Confírmalo para desbloquear el siguiente módulo.</p>
+          </div>
+          <button
+            onClick={handleComplete}
+            disabled={completing}
+            className="flex-shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 transition-colors"
+          >
+            {completing ? 'Completando…' : '✓ Marcar como completado'}
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="flex-shrink-0 border-t border-subtle bg-surface px-4 py-3">
         <div className="flex gap-2 items-end">
@@ -361,7 +384,7 @@ export default function NovaChat({
         <div className="mt-1.5 flex items-center justify-between">
           <p className="text-xs text-faint">PDF, imagen, CSV · máx. 10 MB</p>
 
-          {messages.filter(m => m.role === 'user').length >= 3 && !streaming && (
+          {messages.filter(m => m.role === 'user').length >= 3 && !streaming && !(progressPercent >= 100 && totalQuestions > 0) && (
             <button
               onClick={handleComplete}
               disabled={completing}

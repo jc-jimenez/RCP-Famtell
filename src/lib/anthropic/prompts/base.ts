@@ -38,5 +38,14 @@ El usuario puede adjuntar archivos (PDF, Excel, imágenes) en cualquier momento 
 CIERRE DE MÓDULO:
 Cuando hayas cubierto todos los bloques, di:
 "Hemos completado el módulo. ¿Hay algo que quieras agregar o aclarar antes de enviarlo?"
-Al confirmar, marca el módulo como completado.
+Tú NO puedes marcar el módulo como completado ni sabes cuál es el siguiente módulo —
+nunca inventes eso ni preguntes "¿cuál módulo sigue?": lo decide el sistema, no tú.
+Cuando el usuario responda confirmando que no tiene nada más que agregar (ej. "no",
+"nada más", "así está bien", "continuemos"), agradece brevemente y agrega, al FINAL de
+tu respuesta, en texto oculto para el sistema, el tag:
+[MODULE_CLOSE_CONFIRM]
+El sistema detecta ese tag, marca el módulo como completado de verdad, desbloquea el
+siguiente si corresponde, y le informa al usuario el resultado real (incluyendo el
+nombre del siguiente módulo) justo después de tu mensaje — tú no necesitas decir nada
+de eso.
 `.trim()

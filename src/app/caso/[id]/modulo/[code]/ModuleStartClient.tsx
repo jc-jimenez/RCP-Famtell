@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import AppShell from '@/components/shared/AppShell'
 import NovaChat from '@/components/shared/NovaChat'
 import type { ChatMessage, ModuleCode } from '@/types'
-import type { ModuleCompletion } from '@/lib/moduleCompletion'
+import type { ModuleCompletionResult } from '@/hooks/useNovaChat'
 
 interface Props {
   caseId: string
@@ -61,9 +61,12 @@ export default function ModuleStartClient({
   const [voiceOpen, setVoiceOpen] = useState<number | null>(null)
   const [noCredits, setNoCredits] = useState(false)
   const [requiredCredits, setRequiredCredits] = useState<number | null>(null)
-  const [completionResult, setCompletionResult] = useState<{ moduleCompleted: boolean; completion: ModuleCompletion | null } | null>(null)
+  const [completionResult, setCompletionResult] = useState<ModuleCompletionResult | null>(null)
 
   const backHref = userRole === 'collaborator' ? '/mis-modulos' : `/caso/${caseId}`
+  const nextModuleHref = userRole === 'collaborator'
+    ? (completionResult?.nextModuleCode ? `/mis-modulos/${caseId}/${completionResult.nextModuleCode}` : null)
+    : (completionResult?.nextModuleCode ? `/caso/${caseId}/modulo/${completionResult.nextModuleCode}` : null)
 
   async function handleStart() {
     setStarting(true)
@@ -88,38 +91,37 @@ export default function ModuleStartClient({
     setStarting(false)
   }
 
-  function handleComplete(result: { moduleCompleted: boolean; completion: ModuleCompletion | null }) {
+  function handleComplete(result: ModuleCompletionResult) {
     setCompletionResult(result)
     setView('completed')
   }
 
   // ── Vista: completado ──
+  // El desbloqueo de navegación es POR PARTICIPANTE: en cuanto YO termino mi
+  // entrevista, mi siguiente módulo queda disponible para mí, sin esperar a
+  // que el resto del caso también termine este — eso solo se muestra como
+  // nota informativa aparte, ya no condiciona el éxito ni bloquea el CTA.
   if (view === 'completed') {
-    const fullyComplete = completionResult?.moduleCompleted ?? isCompleted
+    const caseWideComplete = completionResult?.moduleCompleted ?? isCompleted
     const pending = completionResult?.completion?.pending ?? []
+    const nextModuleName = completionResult?.nextModuleName ?? null
 
     return (
       <AppShell role={userRole} email={userEmail} caseCompanyName="">
         <div className="max-w-lg mx-auto text-center py-16 space-y-6">
-          <div className={`w-16 h-16 rounded-full border flex items-center justify-center text-3xl mx-auto ${
-            fullyComplete ? 'bg-emerald-100 border-emerald-200 text-emerald-600' : 'bg-amber-100 border-amber-200 text-amber-600'
-          }`}>
-            {fullyComplete ? '✓' : '◐'}
+          <div className="w-16 h-16 rounded-full border flex items-center justify-center text-3xl mx-auto bg-emerald-100 border-emerald-200 text-emerald-600">
+            ✓
           </div>
           <div>
-            <h1 className="text-xl font-bold text-ink">
-              {fullyComplete ? `${label} completado` : 'Tu parte quedó registrada'}
-            </h1>
+            <h1 className="text-xl font-bold text-ink">{label} completado</h1>
             <p className="text-muted text-sm mt-2">
-              {fullyComplete
-                ? (userRole === 'collaborator'
-                    ? 'Tus respuestas fueron guardadas. El consultor puede ver tu perspectiva.'
-                    : 'La información fue guardada. Tu consultor ya puede ver los resultados.')
-                : 'Tus respuestas se guardaron, pero este módulo todavía no está completo — faltan otros puestos por contestar.'}
+              {userRole === 'collaborator'
+                ? 'Tus respuestas fueron guardadas. El consultor puede ver tu perspectiva.'
+                : 'La información fue guardada. Tu consultor ya puede ver los resultados.'}
             </p>
-            {!fullyComplete && pending.length > 0 && (
+            {!caseWideComplete && pending.length > 0 && (
               <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
-                <p className="text-xs font-medium text-amber-800 mb-1.5">Todavía falta la entrevista de:</p>
+                <p className="text-xs font-medium text-amber-800 mb-1.5">Nota: este módulo del caso todavía no está completo para todo el equipo — sigue faltando la entrevista de:</p>
                 <ul className="text-xs text-amber-700 space-y-0.5">
                   {pending.map(p => (
                     <li key={p.jobPositionId}>
@@ -130,12 +132,24 @@ export default function ModuleStartClient({
               </div>
             )}
           </div>
-          <button
-            onClick={() => router.push(backHref as any)}
-            className="btn-primary px-6 py-3"
-          >
-            {userRole === 'collaborator' ? 'Volver a mis módulos →' : 'Volver a mi caso →'}
-          </button>
+          <div className="flex flex-col items-center gap-3">
+            {nextModuleHref && nextModuleName ? (
+              <button
+                onClick={() => router.push(nextModuleHref as any)}
+                className="btn-primary px-6 py-3"
+              >
+                Comenzar {nextModuleName} →
+              </button>
+            ) : (
+              <p className="text-sm font-medium text-emerald-700">¡Completaste todos tus módulos del diagnóstico!</p>
+            )}
+            <button
+              onClick={() => router.push(backHref as any)}
+              className="text-xs text-muted hover:text-ink transition-colors"
+            >
+              {userRole === 'collaborator' ? 'Volver a mis módulos →' : 'Volver a mi caso →'}
+            </button>
+          </div>
         </div>
       </AppShell>
     )

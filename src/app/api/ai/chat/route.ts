@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabaseServer'
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { getModulePrompt } from '@/lib/anthropic/prompts'
 import { buildModulePromptFromCatalog, type CaseBusinessContext } from '@/lib/anthropic/prompts/build-from-catalog'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
-import { extractAgendaSignals, stripAgendaTags } from '@/lib/anthropic/agenda-detector'
+import { extractAgendaSignals, stripAgendaTags, hasModuleCloseConfirm } from '@/lib/anthropic/agenda-detector'
+import { completeModuleSession } from '@/lib/moduleCompleteAction'
 import type { ModuleCode, ChatMessage } from '@/types'
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 
@@ -284,7 +286,7 @@ export async function POST(request: Request) {
         }
       }
 
-      const cleanText = stripAgendaTags(fullText)
+      let cleanText = stripAgendaTags(fullText)
       const signals = extractAgendaSignals(fullText)
 
       if (signals.length > 0) {
@@ -295,6 +297,44 @@ export async function POST(request: Request) {
             signal_type: sig.type,
             signal_text: sig.text,
           })
+        }
+      }
+
+      // Nova pidió cerrar el módulo y el usuario confirmó (tag oculto
+      // [MODULE_CLOSE_CONFIRM]) — esta es la ÚNICA acción real que marca el
+      // módulo completado y desbloquea el siguiente; todo lo que Nova haya
+      // dicho sobre "el siguiente módulo" es solo conversación, no un hecho.
+      // Se usa admin (service role) porque estas escrituras tocan tablas del
+      // caso/cuenta del consultor que la sesión RLS del director/colaborador
+      // no puede modificar directamente — mismo criterio que /api/modules.
+      let moduleCompletion: Awaited<ReturnType<typeof completeModuleSession>> | null = null
+      if (hasModuleCloseConfirm(fullText)) {
+        try {
+          const admin = getSupabaseAdmin()
+          const completionDb = (admin ?? db) as any
+          moduleCompletion = await completeModuleSession(completionDb, admin, {
+            caseId: sessionData.case_id,
+            moduleCode,
+            sessionId,
+          })
+        } catch (err) {
+          console.error('[ai/chat] Error al completar módulo vía confirmación de chat:', err)
+        }
+      }
+
+      if (moduleCompletion) {
+        // El desbloqueo de navegación es POR PARTICIPANTE: en cuanto tú
+        // terminas tu propia entrevista, tu siguiente módulo queda
+        // disponible para ti, sin esperar a que el resto del caso termine
+        // este — eso solo se informa como nota aparte, no bloquea nada.
+        if (moduleCompletion.nextModuleName) {
+          cleanText += `\n\n---\n✅ **Tu parte quedó registrada.** Ya puedes continuar con el siguiente módulo: **${moduleCompletion.nextModuleName}** — está disponible desde "Mis módulos".`
+        } else {
+          cleanText += `\n\n---\n✅ **¡Completaste todos tus módulos del diagnóstico!** Tu consultor ya puede revisar tus resultados.`
+        }
+        if (!moduleCompletion.moduleCompleted && moduleCompletion.completion.pending.length > 0) {
+          const pendingNames = moduleCompletion.completion.pending.map(p => p.jobPositionName).join(', ')
+          cleanText += `\n\n_Nota: este módulo del caso todavía no está completo para todo el equipo — sigue faltando la entrevista de: ${pendingNames}._`
         }
       }
 
@@ -314,7 +354,22 @@ export async function POST(request: Request) {
         last_message_at: new Date().toISOString(),
       }).eq('id', sessionId)
 
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, agendaSignals: signals.length })}\n\n`))
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        done: true,
+        agendaSignals: signals.length,
+        // Texto final autoritativo (tags removidos + estado de cierre real
+        // anexado, si aplica) — el cliente lo usa para reemplazar lo que fue
+        // acumulando token a token, que sí incluía los tags crudos.
+        finalText: cleanText,
+        moduleCompletion: moduleCompletion
+          ? {
+              moduleCompleted: moduleCompletion.moduleCompleted,
+              completion: moduleCompletion.completion,
+              nextModuleCode: moduleCompletion.nextModuleCode,
+              nextModuleName: moduleCompletion.nextModuleName,
+            }
+          : null,
+      })}\n\n`))
       controller.close()
     },
   })
