@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
+import BizdoctorIcon from '@/components/shared/BizdoctorIcon'
 
 type Step = 'datos' | 'codigo' | 'listo'
 
@@ -142,10 +143,11 @@ export default function RegistroPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
+          <BizdoctorIcon size={56} className="mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-ink">
             <BizdoctorLogo withWww />
           </h1>
-          <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
+          <p className="mt-2 text-muted text-sm">Sistema de Transformación Empresarial con IA</p>
         </div>
 
         {/* Indicador de pasos */}

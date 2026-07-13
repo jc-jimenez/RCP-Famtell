@@ -77,9 +77,9 @@ export async function POST(request: Request) {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
         <h1 style="font-size: 24px; color: #0f172a; margin-bottom: 8px;">
-          www.bizdoctor<span style="color: #6366f1;">.site</span>
+          www.bizdoctor<span style="color: #4285F4;">.site</span>
         </h1>
-        <p style="color: #64748b; margin-bottom: 24px;">Diagnóstico empresarial con inteligencia artificial</p>
+        <p style="color: #64748b; margin-bottom: 24px;">Sistema de Transformación Empresarial con IA</p>
 
         <h2 style="font-size: 18px; color: #0f172a;">Hola ${nombre},</h2>
         <p style="color: #475569; line-height: 1.6;">

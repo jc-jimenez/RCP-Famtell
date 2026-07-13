@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       html: `
         <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0f172a; color: #e2e8f0; border-radius: 16px;">
           <h1 style="color: #38bdf8; font-size: 24px; margin-bottom: 4px;">www.bizdoctor.site</h1>
-          <p style="color: #64748b; font-size: 14px; margin-top: 0;">Diagnóstico empresarial con inteligencia artificial</p>
+          <p style="color: #64748b; font-size: 14px; margin-top: 0;">Sistema de Transformación Empresarial con IA</p>
 
           <hr style="border-color: #1e293b; margin: 24px 0;" />
 

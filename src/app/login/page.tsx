@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import BizdoctorLogo from '@/components/shared/BizdoctorLogo'
+import BizdoctorIcon from '@/components/shared/BizdoctorIcon'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -55,14 +56,17 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
+          <BizdoctorIcon size={56} className="mx-auto mb-3" />
           <h1 className="text-3xl font-bold text-ink">
             <BizdoctorLogo withWww />
           </h1>
-          <p className="mt-2 text-muted text-sm">Diagnóstico empresarial con inteligencia artificial</p>
+          <p className="mt-2 text-muted text-sm">Sistema de Transformación Empresarial con IA</p>
         </div>
 
         <div className="card p-8">
-          <h2 className="text-xl font-semibold text-ink mb-6">Iniciar sesión</h2>
+          <BizdoctorIcon size={48} className="mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-ink text-center mb-1">Iniciar sesión</h2>
+          <p className="text-sm text-muted text-center mb-6">Accede a tu cuenta para continuar</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

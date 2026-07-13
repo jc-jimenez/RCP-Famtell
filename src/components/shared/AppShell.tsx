@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { UserRole } from '@/types'
 import NotificationsBell from './NotificationsBell'
 import BizdoctorLogo from './BizdoctorLogo'
+import BizdoctorIcon from './BizdoctorIcon'
 import ThemeToggle from './ThemeToggle'
 import CircularProgress from './CircularProgress'
 
@@ -139,8 +140,8 @@ export default function AppShell({
     <>
       {/* Logo / marca */}
       <div className="px-5 py-5 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent to-brand flex items-center justify-center text-white text-sm flex-shrink-0">
-          ✨
+        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+          <BizdoctorIcon size={30} />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-bold tracking-tight text-ink leading-tight truncate">

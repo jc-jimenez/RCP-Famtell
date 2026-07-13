@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 // Todos los tokens se definen como "R G B" (triplete decimal) en CSS vars y se
 // envuelven en rgb(var(...) / <alpha-value>) para que las modificadoras de
@@ -58,6 +59,9 @@ const config: Config = {
         'badge-danger-text': withOpacity('--color-badge-danger-text'),
         'badge-neutral-bg': withOpacity('--color-badge-neutral-bg'),
         'badge-neutral-text': withOpacity('--color-badge-neutral-text'),
+      },
+      fontFamily: {
+        sans: ['var(--font-poppins)', ...defaultTheme.fontFamily.sans],
       },
       boxShadow: {
         card: '0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06)',

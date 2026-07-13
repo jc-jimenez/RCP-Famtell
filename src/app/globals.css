@@ -10,47 +10,56 @@
  * a los hex que había antes, cero cambio visual por defecto). .dark = paleta
  * oscura premium (aplicada por ThemeToggle.tsx sobre <html>).
  */
+/*
+ * Paleta del manual de imagen BizDoctor.site (jul 2026): Azul #4285F4,
+ * Rojo #EA4335, Amarillo #FBBC05, Verde #34A853, Azul Oscuro #1A73E8,
+ * Gris #5F6368, Gris Claro #F5F7FA. Los 4 roles y los 3 tipos de señal de
+ * Agenda Oculta se asignan cada uno a UNO de los 4 colores de marca — no se
+ * inventan tonos fuera de la paleta. El modo oscuro reusa las variantes
+ * oficiales de Google para tema oscuro de estos mismos colores (más claras,
+ * pensadas para contraste sobre fondo oscuro), no una reinterpretación libre.
+ */
 :root {
-  --color-canvas: 246 245 242;
+  --color-canvas: 245 247 250;
   --color-surface: 255 255 255;
-  --color-surface-2: 250 250 248;
-  --color-subtle: 232 231 227;
+  --color-surface-2: 241 243 245;
+  --color-subtle: 224 227 231;
 
-  --color-ink: 27 36 48;
-  --color-muted: 107 114 128;
-  --color-faint: 156 163 175;
+  --color-ink: 32 33 36;
+  --color-muted: 95 99 104;
+  --color-faint: 154 160 166;
 
-  --color-brand: 30 58 95;
-  --color-brand-hover: 22 48 78;
-  --color-accent: 37 99 235;
-  --color-accent-soft: 239 244 255;
+  --color-brand: 66 133 244;
+  --color-brand-hover: 26 115 232;
+  --color-accent: 66 133 244;
+  --color-accent-soft: 232 240 254;
 
-  --color-role-admin: 180 83 9;
-  --color-role-consultor: 37 99 235;
-  --color-role-directivo: 24 95 165;
-  --color-role-colaborador: 15 110 86;
-  --color-role-admin-soft: 255 251 235;
-  --color-role-consultor-soft: 239 244 255;
-  --color-role-directivo-soft: 239 244 255;
-  --color-role-colaborador-soft: 236 253 245;
+  --color-role-admin: 234 67 53;
+  --color-role-consultor: 66 133 244;
+  --color-role-directivo: 52 168 83;
+  --color-role-colaborador: 251 188 5;
+  --color-role-admin-soft: 253 231 229;
+  --color-role-consultor-soft: 232 240 254;
+  --color-role-directivo-soft: 227 245 233;
+  --color-role-colaborador-soft: 254 245 216;
 
-  --color-module-completed: 22 163 74;
-  --color-module-active: 37 99 235;
-  --color-module-pending: 148 163 184;
-  --color-module-locked: 203 213 225;
+  --color-module-completed: 52 168 83;
+  --color-module-active: 66 133 244;
+  --color-module-pending: 154 160 166;
+  --color-module-locked: 218 220 224;
 
-  --color-agenda-blue: 59 130 246;
-  --color-agenda-yellow: 245 158 11;
-  --color-agenda-red: 239 68 68;
+  --color-agenda-blue: 66 133 244;
+  --color-agenda-yellow: 251 188 5;
+  --color-agenda-red: 234 67 53;
 
-  --color-badge-success-bg: 236 253 245;
-  --color-badge-success-text: 4 120 87;
-  --color-badge-warning-bg: 255 251 235;
-  --color-badge-warning-text: 180 83 9;
-  --color-badge-danger-bg: 254 242 242;
-  --color-badge-danger-text: 185 28 28;
-  --color-badge-neutral-bg: 241 245 249;
-  --color-badge-neutral-text: 71 85 105;
+  --color-badge-success-bg: 227 245 233;
+  --color-badge-success-text: 27 130 67;
+  --color-badge-warning-bg: 255 246 219;
+  --color-badge-warning-text: 158 108 0;
+  --color-badge-danger-bg: 253 231 229;
+  --color-badge-danger-text: 179 38 30;
+  --color-badge-neutral-bg: 241 243 245;
+  --color-badge-neutral-text: 95 99 104;
 }
 
 .dark {
@@ -63,35 +72,35 @@
   --color-muted: 148 163 184;
   --color-faint: 100 116 139;
 
-  --color-brand: 79 110 247;
-  --color-brand-hover: 61 89 214;
-  --color-accent: 124 147 255;
+  --color-brand: 138 180 248;
+  --color-brand-hover: 174 203 250;
+  --color-accent: 138 180 248;
   --color-accent-soft: 22 33 58;
 
-  --color-role-admin: 251 191 36;
-  --color-role-consultor: 96 165 250;
-  --color-role-directivo: 56 189 248;
-  --color-role-colaborador: 52 211 153;
+  --color-role-admin: 242 139 130;
+  --color-role-consultor: 138 180 248;
+  --color-role-directivo: 129 201 149;
+  --color-role-colaborador: 253 214 99;
   --color-role-admin-soft: 36 26 11;
   --color-role-consultor-soft: 22 33 58;
-  --color-role-directivo-soft: 18 33 46;
-  --color-role-colaborador-soft: 15 38 32;
+  --color-role-directivo-soft: 15 38 32;
+  --color-role-colaborador-soft: 43 33 9;
 
-  --color-module-completed: 34 197 94;
-  --color-module-active: 124 147 255;
+  --color-module-completed: 129 201 149;
+  --color-module-active: 138 180 248;
   --color-module-pending: 100 116 139;
   --color-module-locked: 42 54 80;
 
-  --color-agenda-blue: 96 165 250;
-  --color-agenda-yellow: 251 191 36;
-  --color-agenda-red: 248 113 113;
+  --color-agenda-blue: 138 180 248;
+  --color-agenda-yellow: 253 214 99;
+  --color-agenda-red: 242 139 130;
 
   --color-badge-success-bg: 16 40 31;
-  --color-badge-success-text: 52 211 153;
+  --color-badge-success-text: 129 201 149;
   --color-badge-warning-bg: 43 33 9;
-  --color-badge-warning-text: 251 191 36;
+  --color-badge-warning-text: 253 214 99;
   --color-badge-danger-bg: 43 20 20;
-  --color-badge-danger-text: 248 113 113;
+  --color-badge-danger-text: 242 139 130;
   --color-badge-neutral-bg: 27 36 54;
   --color-badge-neutral-text: 148 163 184;
 }
@@ -101,7 +110,7 @@ html {
 }
 
 body {
-  @apply bg-canvas text-ink antialiased;
+  @apply bg-canvas text-ink antialiased font-sans;
 }
 
 * {
