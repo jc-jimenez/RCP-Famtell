@@ -1,5 +1,4 @@
 import { getSupabaseAdmin } from './supabaseAdmin'
-import { countAnsweredMessages } from './moduleQuestions'
 
 export type JourneyStageStatus = 'completed' | 'active' | 'pending'
 
@@ -71,7 +70,7 @@ export async function computeCustomerJourney(caseId: string): Promise<CustomerJo
     db.from('case_job_positions').select('id').eq('case_id', caseId),
     db.from('case_users').select('id').eq('case_id', caseId),
     db.from('modules').select('module_code, status').eq('case_id', caseId),
-    db.from('sessions').select('messages').eq('case_id', caseId),
+    db.from('sessions').select('answered_questions').eq('case_id', caseId),
     db.from('agenda_signals').select('id').eq('case_id', caseId),
     db.from('check_ins').select('id').eq('case_id', caseId),
     db.from('brief_documents').select('module_findings, executive_summary, ier_snapshot, priorities, plan_90d, status').eq('case_id', caseId).maybeSingle(),
@@ -80,7 +79,7 @@ export async function computeCustomerJourney(caseId: string): Promise<CustomerJo
   const totalModules = (modules ?? []).length
   const completedModules = (modules ?? []).filter((m: any) => m.status === 'completed').length
   const activeModules = (modules ?? []).filter((m: any) => m.status !== 'locked').length
-  const questionsAnswered = (sessions ?? []).reduce((sum: number, s: any) => sum + countAnsweredMessages(s.messages), 0)
+  const questionsAnswered = (sessions ?? []).reduce((sum: number, s: any) => sum + (s.answered_questions ?? 0), 0)
   const findingsDetected = (signals ?? []).length
   const priorityActions = Array.isArray(brief?.priorities) ? brief.priorities.length : 0
   const planActions = Array.isArray(brief?.plan_90d) ? brief.plan_90d.length : 0

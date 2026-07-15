@@ -9,7 +9,7 @@ import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorS
 import { hasCapability } from '@/lib/permissions'
 import { getModulesForPosition } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
-import { countQuestionsForPosition, countAnsweredMessages } from '@/lib/moduleQuestions'
+import { countQuestionsForPosition } from '@/lib/moduleQuestions'
 import ModuleJourneyCard, { JOURNEY_ACCENTS } from '@/components/shared/ModuleJourneyCard'
 
 const MODULE_EMOJI: Record<string, string> = {
@@ -68,13 +68,13 @@ export default async function MisModulosPage() {
 
   const { data: sessions } = await db
     .from('sessions')
-    .select('module_code, completed, last_message_at, messages')
+    .select('module_code, completed, last_message_at, answered_questions')
     .eq('case_id', caseUser.case_id)
     .eq('user_id', session.user.id)
 
   const sessionMap: Record<string, { completed: boolean; last_message_at: string | null; answered: number }> = {}
   ;(sessions ?? []).forEach((s: any) => {
-    sessionMap[s.module_code] = { completed: s.completed, last_message_at: s.last_message_at, answered: countAnsweredMessages(s.messages) }
+    sessionMap[s.module_code] = { completed: s.completed, last_message_at: s.last_message_at, answered: s.answered_questions ?? 0 }
   })
 
   // % de avance de mi entrevista por instrumento en progreso — antes solo

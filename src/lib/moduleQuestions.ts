@@ -65,12 +65,3 @@ export async function countQuestionsForPosition(
 
   return total
 }
-
-/**
- * Aproxima cuántas preguntas ya se contestaron en una sesión: cuenta
- * mensajes de rol 'user' — el mismo criterio que ya usa el botón "Marcar
- * módulo como completado" en NovaChat.tsx (mensajes de usuario >= 3).
- */
-export function countAnsweredMessages(messages: { role: string }[] | null | undefined): number {
-  return (messages ?? []).filter(m => m.role === 'user').length
-}

@@ -28,6 +28,8 @@ interface NovaChatProps {
   initialMessages?: ChatMessage[]
   /** Total de preguntas del guion que le tocan a este puesto en este módulo — 0/undefined oculta la barra de avance */
   totalQuestions?: number
+  /** Avance real ya guardado en la sesión (conteo de [QUESTION_ADVANCE] en BD) al recargar la página */
+  initialAnsweredQuestions?: number
   onModuleComplete?: (result: ModuleCompletionResult) => void
   autoStart?: boolean
 }
@@ -39,6 +41,7 @@ export default function NovaChat({
   moduleName,
   initialMessages = [],
   totalQuestions = 0,
+  initialAnsweredQuestions = 0,
   onModuleComplete,
   autoStart = true,
 }: NovaChatProps) {
@@ -53,10 +56,11 @@ export default function NovaChat({
   const fileRef = useRef<HTMLInputElement>(null)
   const didAutoStart = useRef(false)
 
-  const { messages, streaming, error, sendMessage } = useNovaChat({
+  const { messages, streaming, error, answeredQuestions, sendMessage } = useNovaChat({
     sessionId,
     moduleCode,
     initialMessages,
+    initialAnsweredQuestions,
     onModuleComplete,
   })
 
@@ -199,12 +203,12 @@ export default function NovaChat({
 
   const visibleMessages = messages.filter(m => m.content !== '' || m.role === 'assistant')
 
-  // Avance aproximado: cada mensaje de usuario ~ una pregunta contestada
-  // (mismo criterio que ya usa el botón "Marcar módulo como completado" más
-  // abajo). Antes no había ningún indicador — el usuario no sabía cuánto le
-  // faltaba dentro de la entrevista.
-  const answeredCount = messages.filter(m => m.role === 'user').length
-  const progressPercent = totalQuestions > 0 ? Math.min(100, Math.round((answeredCount / totalQuestions) * 100)) : 0
+  // Avance real: cuenta preguntas del guion que Nova confirmó haber cerrado
+  // (tag oculto [QUESTION_ADVANCE], persistido en sessions.answered_questions),
+  // no mensajes de chat — antes cada pregunta de profundización o archivo
+  // adjunto sumaba como si fuera una pregunta nueva del guion.
+  const answeredCount = Math.min(answeredQuestions, totalQuestions || answeredQuestions)
+  const progressPercent = totalQuestions > 0 ? Math.min(100, Math.round((answeredQuestions / totalQuestions) * 100)) : 0
 
   return (
     <div

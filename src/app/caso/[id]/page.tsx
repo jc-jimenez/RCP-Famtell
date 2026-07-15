@@ -10,7 +10,7 @@ import { directorOnboardingSteps } from '@/components/onboarding/directorSteps'
 import { colaboradorOnboardingSteps } from '@/components/onboarding/colaboradorSteps'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
-import { countQuestionsForPosition, countAnsweredMessages } from '@/lib/moduleQuestions'
+import { countQuestionsForPosition } from '@/lib/moduleQuestions'
 import ModuleJourneyCard, { JOURNEY_ACCENTS } from '@/components/shared/ModuleJourneyCard'
 import CustomerJourneyMap from '@/components/shared/CustomerJourneyMap'
 import { computeCustomerJourney } from '@/lib/customerJourney'
@@ -85,7 +85,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
   // Mis propias sesiones — de aquí sale qué módulos YA completé y cuál sigue.
   const { data: sessions } = await db
     .from('sessions')
-    .select('module_code, last_message_at, messages, completed')
+    .select('module_code, last_message_at, answered_questions, completed')
     .eq('case_id', id)
     .eq('user_id', session.user.id)
     .order('last_message_at', { ascending: false })
@@ -97,7 +97,7 @@ export default async function MiCasoPage({ params }: { params: Promise<{ id: str
   ;(sessions ?? []).forEach((s: any) => {
     if (!lastSessionMap[s.module_code]) {
       lastSessionMap[s.module_code] = s.last_message_at
-      answeredMap[s.module_code] = countAnsweredMessages(s.messages)
+      answeredMap[s.module_code] = s.answered_questions ?? 0
     }
     if (s.completed) {
       myCompletedModules.add(s.module_code)

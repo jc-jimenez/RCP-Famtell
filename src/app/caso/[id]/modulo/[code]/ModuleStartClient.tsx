@@ -18,6 +18,8 @@ interface Props {
   existingMessages: ChatMessage[]
   /** Total de preguntas del guion que le tocan a este puesto en este módulo — para la barra de avance dentro del chat */
   totalQuestions?: number
+  /** Avance real ya guardado en la sesión existente (conteo de [QUESTION_ADVANCE] en BD) */
+  initialAnsweredQuestions?: number
   userEmail: string
   userRole?: 'director' | 'collaborator'
   collaboratorVoices?: CollaboratorVoice[]
@@ -42,6 +44,7 @@ export default function ModuleStartClient({
   existingSessionId,
   existingMessages,
   totalQuestions = 0,
+  initialAnsweredQuestions = 0,
   userEmail,
   userRole = 'director',
   collaboratorVoices = [],
@@ -180,6 +183,7 @@ export default function ModuleStartClient({
             moduleName={label}
             initialMessages={chatMessages}
             totalQuestions={totalQuestions}
+            initialAnsweredQuestions={initialAnsweredQuestions}
             onModuleComplete={handleComplete}
             autoStart={chatMessages.length === 0}
           />

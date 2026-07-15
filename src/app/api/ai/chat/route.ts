@@ -5,7 +5,7 @@ import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { getModulePrompt } from '@/lib/anthropic/prompts'
 import { buildModulePromptFromCatalog, type CaseBusinessContext } from '@/lib/anthropic/prompts/build-from-catalog'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
-import { extractAgendaSignals, stripAgendaTags, hasModuleCloseConfirm } from '@/lib/anthropic/agenda-detector'
+import { extractAgendaSignals, stripAgendaTags, hasModuleCloseConfirm, countQuestionAdvances } from '@/lib/anthropic/agenda-detector'
 import { completeModuleSession } from '@/lib/moduleCompleteAction'
 import type { ModuleCode, ChatMessage } from '@/types'
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   // Cargar sesión
   const { data: sessionData, error: sessionError } = await db
     .from('sessions')
-    .select('id, case_id, messages, module_code')
+    .select('id, case_id, messages, module_code, answered_questions')
     .eq('id', sessionId)
     .eq('user_id', session.user.id)
     .single()
@@ -289,6 +289,13 @@ export async function POST(request: Request) {
       let cleanText = stripAgendaTags(fullText)
       const signals = extractAgendaSignals(fullText)
 
+      // Avance real del guion — cuenta las señales [QUESTION_ADVANCE] que
+      // Nova emitió en ESTE mensaje (normalmente 0 o 1) y las suma al total
+      // ya guardado en la sesión: solo avanza al pasar a la siguiente
+      // pregunta del guion, nunca en preguntas de profundización ni por
+      // subir un archivo.
+      const newAnsweredQuestions = (sessionData.answered_questions ?? 0) + countQuestionAdvances(fullText)
+
       if (signals.length > 0) {
         for (const sig of signals) {
           await db.from('agenda_signals').insert({
@@ -352,11 +359,13 @@ export async function POST(request: Request) {
       await db.from('sessions').update({
         messages: finalHistory,
         last_message_at: new Date().toISOString(),
+        answered_questions: newAnsweredQuestions,
       }).eq('id', sessionId)
 
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({
         done: true,
         agendaSignals: signals.length,
+        answeredQuestions: newAnsweredQuestions,
         // Texto final autoritativo (tags removidos + estado de cierre real
         // anexado, si aplica) — el cliente lo usa para reemplazar lo que fue
         // acumulando token a token, que sí incluía los tags crudos.

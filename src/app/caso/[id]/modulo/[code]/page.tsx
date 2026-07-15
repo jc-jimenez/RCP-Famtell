@@ -102,7 +102,7 @@ export default async function ModuloPage({
   // toma la más reciente en vez de fallar en silencio.
   const { data: existingSessionRows } = await db
     .from('sessions')
-    .select('id, messages')
+    .select('id, messages, answered_questions')
     .eq('case_id', caseId)
     .eq('module_code', moduleCode)
     .eq('user_id', session.user.id)
@@ -162,6 +162,7 @@ export default async function ModuloPage({
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
       totalQuestions={totalQuestions}
+      initialAnsweredQuestions={existingSession?.answered_questions ?? 0}
       userEmail={session.user.email!}
       userRole={caseUser.role === 'collaborator' ? 'collaborator' : 'director'}
       collaboratorVoices={collaboratorVoices}

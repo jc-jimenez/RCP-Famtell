@@ -53,7 +53,7 @@ export default async function ColaboradorModuloPage({
   // colaborador nunca retoma su conversación — se toma la más reciente.
   const { data: existingSessionRows } = await db
     .from('sessions')
-    .select('id, messages, completed')
+    .select('id, messages, completed, answered_questions')
     .eq('case_id', caseId)
     .eq('module_code', moduleCode)
     .eq('user_id', session.user.id)
@@ -79,6 +79,7 @@ export default async function ColaboradorModuloPage({
       existingSessionId={existingSession?.id ?? null}
       existingMessages={existingSession?.messages ?? []}
       totalQuestions={totalQuestions}
+      initialAnsweredQuestions={existingSession?.answered_questions ?? 0}
       userEmail={session.user.email!}
       userRole="collaborator"
     />

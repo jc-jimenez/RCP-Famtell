@@ -104,6 +104,17 @@ Adapta el lenguaje al contexto de la conversación, pero no te saltes preguntas 
 
 ${sectionBlocks.join('\n\n')}
 
+AVANCE DE GUION (uso interno, oculto para el usuario — no lo menciones nunca):
+Cada pregunta numerada arriba (ej. 1.1, 1.2) es UNA pregunta del guion. Puedes
+hacer varias preguntas de profundización o seguimiento sobre ella (para eso
+son las [Nova: ...]) sin que cuenten como preguntas nuevas.
+Cuando el usuario ya haya respondido lo suficiente a una pregunta numerada del
+guion y vayas a continuar con la SIGUIENTE pregunta numerada (o con "¿falta
+algo por agregar?" después de la última pregunta), agrega al final de ESE
+mensaje el tag oculto [QUESTION_ADVANCE]. No lo agregues en preguntas de
+profundización sobre la misma pregunta del guion, ni al repetir, aclarar o
+agradecer un archivo adjunto.
+
 SEÑALES DE AGENDA OCULTA (aplica en las secciones finales):
 - 🔵 CRECIMIENTO: expansión, nuevas inversiones, más clientes
 - 🟡 REDIMENSIONAMIENTO: simplificar, reducir, reiniciar

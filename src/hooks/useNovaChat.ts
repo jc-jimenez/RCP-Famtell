@@ -24,6 +24,8 @@ interface UseNovaChatOptions {
   sessionId: string
   moduleCode: ModuleCode
   initialMessages?: ChatMessage[]
+  /** Avance real ya guardado en la sesión (conteo de [QUESTION_ADVANCE] en BD), no un conteo de mensajes */
+  initialAnsweredQuestions?: number
   onComplete?: () => void
   /** Se dispara cuando el usuario confirma en el chat que no falta nada más
    * (Nova emitió el tag oculto de cierre) y el backend ya marcó el módulo
@@ -35,12 +37,14 @@ export function useNovaChat({
   sessionId,
   moduleCode,
   initialMessages = [],
+  initialAnsweredQuestions = 0,
   onComplete,
   onModuleComplete,
 }: UseNovaChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [answeredQuestions, setAnsweredQuestions] = useState(initialAnsweredQuestions)
   const abortRef = useRef<AbortController | null>(null)
 
   const sendMessage = useCallback(async (text: string, attachment?: FileAttachment) => {
@@ -131,6 +135,9 @@ export function useNovaChat({
                 return next
               })
               setStreaming(false)
+              if (typeof payload.answeredQuestions === 'number') {
+                setAnsweredQuestions(payload.answeredQuestions)
+              }
               if (onComplete) onComplete()
               if (payload.moduleCompletion && onModuleComplete) {
                 onModuleComplete(payload.moduleCompletion)
@@ -158,5 +165,5 @@ export function useNovaChat({
     setStreaming(false)
   }, [])
 
-  return { messages, streaming, error, sendMessage, abort }
+  return { messages, streaming, error, answeredQuestions, sendMessage, abort }
 }
