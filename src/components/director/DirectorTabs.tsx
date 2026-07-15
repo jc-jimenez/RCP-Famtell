@@ -17,13 +17,14 @@ interface Props {
 export default function DirectorTabs({ caseId }: Props) {
   const pathname = usePathname()
 
+  // Capacidad, Escenarios y Competencia se sacan del menú del directivo por
+  // decisión de producto (2026-07-15): salen de BizDoctor, su lógica se
+  // reubica en GNOS-DIAG (GoNextSales-OS). Rutas y componentes siguen
+  // intactos — ver docs/gonextsales-os-handoff/GNOS-DIAG_PROY_BSC_PRD.md.
   const TABS: Tab[] = [
     { id: 'modulos',    label: 'Mis Módulos', href: `/caso/${caseId}`,             icon: '🧭' },
     { id: 'kpis',       label: 'KPIs',        href: `/caso/${caseId}/kpis`,        icon: '📊' },
     { id: 'checkin',    label: 'Check-in',    href: `/caso/${caseId}/checkin`,     icon: '✅' },
-    { id: 'capacidad',  label: 'Capacidad',   href: `/caso/${caseId}/capacidad`,   icon: '🏗' },
-    { id: 'escenarios', label: 'Escenarios',  href: `/caso/${caseId}/escenarios`,  icon: '🔀' },
-    { id: 'competencia',label: 'Competencia', href: `/caso/${caseId}/competencia`, icon: '🎯' },
     { id: 'tablas',     label: 'Tablas',      href: `/caso/${caseId}/tablas`,      icon: '📋' },
     { id: 'indice',     label: 'Índice IER',  href: `/caso/${caseId}/indice`,      icon: '📈' },
     { id: 'brief',      label: 'Brief M7',    href: `/caso/${caseId}/brief`,       icon: '📄' },

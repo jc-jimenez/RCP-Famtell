@@ -8,10 +8,14 @@ interface Tab {
   external?: boolean
 }
 
-// Radar (/caso/[id]/radar) se saca del menú a propósito: quedó fuera de
-// alcance y nunca se configuró DENUE_TOKEN, así que solo mostraba una
-// pantalla pidiendo setup técnico. La ruta y el código siguen intactos por
-// si se retoma más adelante.
+// Radar (/caso/[id]/radar) y BriefGeneratorClient se borraron de raíz
+// (2026-07-15, código muerto/huérfano confirmado). Propuestas, Tarifas,
+// Capacidad, Escenarios y Competencia se sacan del menú por decisión de
+// producto (no del código): salen de BizDoctor y su lógica se reubica en
+// GNOS-DIAG, un módulo de GoNextSales-OS (ver
+// docs/gonextsales-os-handoff/GNOS-DIAG_PROY_BSC_PRD.md). Las rutas y
+// componentes siguen intactos en el repo porque ese documento los cita como
+// lógica de referencia — no borrar sin antes actualizar esas referencias.
 const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
@@ -20,12 +24,7 @@ const TABS: Tab[] = [
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
   { id: 'crm',         label: 'CRM',          external: true },
-  { id: 'propuestas',  label: 'Propuestas',   external: true },
-  { id: 'tarifas',     label: 'Tarifas',      external: true },
-  { id: 'capacidad',   label: 'Capacidad',    external: true },
-  { id: 'escenarios',   label: 'Escenarios',    external: true },
   { id: 'comunicacion', label: 'Comunicación',  external: true },
-  { id: 'competencia',  label: 'Competencia',   external: true },
   { id: 'tablas',      label: 'Tablas',       external: true },
   { id: 'clima',       label: 'Clima',        external: true },
   { id: 'kpis',        label: 'KPIs',         external: true },
@@ -39,8 +38,8 @@ const TABS: Tab[] = [
 interface Group { label: string; tabIds: string[] }
 const GROUPS: Group[] = [
   { label: 'Preparación', tabIds: ['puestos', 'participantes', 'plan'] },
-  { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'clima', 'competencia'] },
-  { label: 'Comercial', tabIds: ['crm', 'propuestas', 'tarifas', 'capacidad', 'escenarios', 'comunicacion'] },
+  { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'clima'] },
+  { label: 'Comercial', tabIds: ['crm', 'comunicacion'] },
   { label: 'Resultados', tabIds: ['tablas', 'kpis', 'checkin', 'brief'] },
   { label: 'Cliente', tabIds: ['portal'] },
 ]
