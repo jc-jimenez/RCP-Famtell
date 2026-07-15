@@ -126,6 +126,17 @@ export default function AppShell({
   const showCaseCard = !!caseCompanyName && (role === 'director' || role === 'consultant')
   const casePercent = modulesTotal > 0 ? Math.round((modulesCompleted / modulesTotal) * 100) : 0
 
+  // Si ya estamos parados en /caso/[id]/..., "Continuar" debe ir directo ahí
+  // en vez de pasar por /mi-caso: ese redirect vuelve a resolver sesión y
+  // caso desde cero en un Server Component, y un refresh de token ahí no se
+  // puede persistir (no puede escribir cookies) — combinado con el prefetch
+  // de Link, a veces reproducía una respuesta vieja y mandaba a /login aunque
+  // la sesión del navegador seguía activa.
+  const pathCaseId = pathname.match(/^\/caso\/([^/]+)/)?.[1]
+  const resolvedCurrentCaseHref = currentCaseHref !== '/mi-caso'
+    ? currentCaseHref
+    : pathCaseId ? `/caso/${pathCaseId}` : currentCaseHref
+
   async function handleLogout() {
     setLoggingOut(true)
     const supabase = createSupabaseBrowserClient()
@@ -219,7 +230,7 @@ export default function AppShell({
               <span className="text-xs font-bold text-ink">{casePercent}%</span>
             </CircularProgress>
             <Link
-              href={currentCaseHref as any}
+              href={resolvedCurrentCaseHref as any}
               className="btn-primary text-xs px-3 py-2 flex-1 text-center"
             >
               Continuar →
