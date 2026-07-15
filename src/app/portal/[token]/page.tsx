@@ -10,6 +10,21 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+const PLAN_SECTIONS = [
+  { key: 'plan_90d', label: 'Plan 90 días' },
+  { key: 'plan_6m',  label: 'Plan 6 meses' },
+  { key: 'plan_1a',  label: 'Plan 1 año' },
+  { key: 'plan_3a',  label: 'Plan 3 años' },
+] as const
+
+function approvedOnly(items: any[] | null | undefined): any[] {
+  return (items ?? []).filter((item: any) => item.approved)
+}
+
+function planItemLabel(item: any): string {
+  return item.accion || item.iniciativa || item.objetivo || item.vision || ''
+}
+
 export default async function PortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
 
@@ -167,21 +182,44 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           </div>
         )}
 
-        {/* Prioridades estratégicas */}
-        {brief?.priorities && (
-          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 space-y-4">
+        {/* Prioridades estratégicas aprobadas */}
+        {approvedOnly(brief?.priorities).length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 space-y-3">
             <h2 className="text-sm font-semibold text-[#1e293b]">Prioridades estratégicas</h2>
-            <p className="text-sm text-[#475569] leading-relaxed whitespace-pre-wrap">{brief.priorities}</p>
+            <ul className="space-y-2">
+              {approvedOnly(brief.priorities).map((p: any, i: number) => (
+                <li key={p.id ?? i} className="text-sm text-[#475569] leading-relaxed flex gap-2">
+                  <span className="text-[#94a3b8] flex-shrink-0">·</span>{p.statement}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        {/* Plan 90 días */}
-        {brief?.plan_90d && (
-          <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 space-y-4">
-            <h2 className="text-sm font-semibold text-[#1e293b]">Plan primeros 90 días</h2>
-            <p className="text-sm text-[#475569] leading-relaxed whitespace-pre-wrap">{brief.plan_90d}</p>
-          </div>
-        )}
+        {/* Ruta de transformación: Plan 90 días → 6 meses → 1 año → 3 años.
+            A diferencia de Prioridades, el Plan se aprueba como paso completo
+            (botón "Aprobar planes y habilitar publicación"), no ítem por ítem
+            — sus items nunca traen approved:true individual, así que aquí no
+            se filtra por approved, solo por brief.status = 'published' (ya
+            filtrado en la función SQL). */}
+        {PLAN_SECTIONS.map(({ key, label }) => {
+          const items: any[] = brief?.[key] ?? []
+          if (items.length === 0) return null
+          return (
+            <div key={key} className="bg-white rounded-2xl border border-[#e2e8f0] p-6 space-y-3">
+              <h2 className="text-sm font-semibold text-[#1e293b]">{label}</h2>
+              <ul className="space-y-2">
+                {items.map((item: any, i: number) => (
+                  <li key={i} className="text-sm text-[#475569] leading-relaxed">
+                    <span className="font-medium text-[#1e293b]">{planItemLabel(item)}</span>
+                    {item.resultado_esperado && <span className="block text-xs text-[#64748b] mt-0.5">{item.resultado_esperado}</span>}
+                    {item.hito_clave && <span className="block text-xs text-[#4f46e5] mt-0.5">★ {item.hito_clave}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
 
         {/* Footer */}
         <div className="text-center pt-4 pb-8 space-y-1">
