@@ -16,3 +16,6 @@ my-app/
 
 .vercel
 .env*
+
+# Notas/credenciales personales sueltas en la raíz — nunca deben commitearse
+SECRET MICOSOFT.txt
