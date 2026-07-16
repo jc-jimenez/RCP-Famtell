@@ -1,0 +1,144 @@
+import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
+
+export interface ParticipantModuleCell {
+  moduleCode: string
+  answeredQuestions: number
+  totalQuestions: number
+  completed: boolean
+  lastActivity: string | null
+}
+
+export interface ParticipantProgress {
+  caseUserId: string
+  userId: string | null
+  fullName: string | null
+  jobTitle: string | null
+  jobPositionId: string | null
+  jobPositionName: string | null
+  role: string
+  invited: boolean
+  cells: Record<string, ParticipantModuleCell>
+}
+
+/**
+ * Matriz Participante × Módulo para el "Avance" de modo soporte del
+ * super-admin. Calcula el total de preguntas por (puesto, módulo) UNA sola
+ * vez con los datos de todo el catálogo del caso, en vez de llamar
+ * countQuestionsForPosition() por cada combinación (esa hace ~4 queries por
+ * llamada — con 7 puestos × 7 módulos serían ~200 queries redundantes,
+ * la mayoría repitiendo el mismo resolveCatalogScope/overrides/custom).
+ */
+export async function computeParticipantModuleMatrix(db: any, caseId: string): Promise<{
+  moduleOrder: { code: string; name: string }[]
+  participants: ParticipantProgress[]
+  positionsCount: number
+  mappedQuestionsCount: number
+}> {
+  const catalogScope = await resolveCatalogScope(db, caseId)
+  const templatesQuery = db.from('module_templates').select('id, code, name, sort_order').eq('is_active', true)
+  const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, caseId).order('sort_order', { ascending: true })
+  const moduleOrder = (templates ?? []).map((t: any) => ({ code: t.code, name: t.name }))
+  const moduleTemplateIds = (templates ?? []).map((t: any) => t.id)
+  const moduleIdToCode: Record<string, string> = {}
+  ;(templates ?? []).forEach((t: any) => { moduleIdToCode[t.id] = t.code })
+
+  const { data: sectionsRaw } = moduleTemplateIds.length > 0
+    ? await db.from('sections').select('id, module_template_id, questions ( id, is_active )').in('module_template_id', moduleTemplateIds)
+    : { data: [] as any[] }
+
+  const sectionIds: string[] = (sectionsRaw ?? []).map((s: any) => s.id)
+  const sectionIdToModuleCode: Record<string, string> = {}
+  ;(sectionsRaw ?? []).forEach((s: any) => { sectionIdToModuleCode[s.id] = moduleIdToCode[s.module_template_id] })
+
+  const { data: overridesRaw } = await db
+    .from('case_question_overrides')
+    .select('question_id, is_active, job_position_ids')
+    .eq('case_id', caseId)
+  const overridesMap: Record<string, { is_active: boolean; job_position_ids: string[] }> = {}
+  ;(overridesRaw ?? []).forEach((o: any) => { overridesMap[o.question_id] = { is_active: o.is_active, job_position_ids: o.job_position_ids ?? [] } })
+
+  const { data: customRaw } = sectionIds.length > 0
+    ? await db.from('case_custom_questions').select('id, section_id, is_active, job_position_ids').eq('case_id', caseId).in('section_id', sectionIds)
+    : { data: [] as any[] }
+
+  // totalByPositionModule[jobPositionId][moduleCode] = # de preguntas activas
+  const totalByPositionModule: Record<string, Record<string, number>> = {}
+  const mappedQuestionIds = new Set<string>()
+  function addCount(jobPositionId: string, moduleCode: string | undefined, questionId: string) {
+    if (!moduleCode) return
+    if (!totalByPositionModule[jobPositionId]) totalByPositionModule[jobPositionId] = {}
+    totalByPositionModule[jobPositionId][moduleCode] = (totalByPositionModule[jobPositionId][moduleCode] ?? 0) + 1
+    mappedQuestionIds.add(questionId)
+  }
+
+  for (const sec of sectionsRaw ?? []) {
+    const moduleCode = sectionIdToModuleCode[sec.id]
+    for (const q of sec.questions ?? []) {
+      const ov = overridesMap[q.id]
+      const isActive = ov !== undefined ? ov.is_active : q.is_active
+      if (!isActive) continue
+      ;(ov?.job_position_ids ?? []).forEach((pid: string) => addCount(pid, moduleCode, q.id))
+    }
+  }
+  for (const q of customRaw ?? []) {
+    if (!q.is_active) continue
+    const moduleCode = sectionIdToModuleCode[q.section_id]
+    ;(q.job_position_ids ?? []).forEach((pid: string) => addCount(pid, moduleCode, q.id))
+  }
+
+  const { data: caseUsers } = await db
+    .from('case_users')
+    .select('id, user_id, job_position_id, job_title, full_name, role, invitation_email')
+    .eq('case_id', caseId)
+    .in('role', ['director', 'collaborator'])
+
+  const { data: positions } = await db
+    .from('case_job_positions')
+    .select('id, name')
+    .eq('case_id', caseId)
+  const positionNameById: Record<string, string> = {}
+  ;(positions ?? []).forEach((p: any) => { positionNameById[p.id] = p.name })
+
+  const userIds: string[] = (caseUsers ?? []).map((u: any) => u.user_id).filter(Boolean)
+  const { data: sessions } = userIds.length > 0
+    ? await db.from('sessions').select('user_id, module_code, answered_questions, completed, last_message_at').eq('case_id', caseId).in('user_id', userIds)
+    : { data: [] as any[] }
+
+  const sessionMap: Record<string, Record<string, { answered: number; completed: boolean; lastActivity: string | null }>> = {}
+  ;(sessions ?? []).forEach((s: any) => {
+    if (!sessionMap[s.user_id]) sessionMap[s.user_id] = {}
+    sessionMap[s.user_id][s.module_code] = {
+      answered: s.answered_questions ?? 0,
+      completed: !!s.completed,
+      lastActivity: s.last_message_at,
+    }
+  })
+
+  const participants: ParticipantProgress[] = (caseUsers ?? []).map((u: any) => {
+    const cells: Record<string, ParticipantModuleCell> = {}
+    moduleOrder.forEach(({ code }: { code: string }) => {
+      const total = u.job_position_id ? (totalByPositionModule[u.job_position_id]?.[code] ?? 0) : 0
+      const sess = u.user_id ? sessionMap[u.user_id]?.[code] : undefined
+      cells[code] = {
+        moduleCode: code,
+        totalQuestions: total,
+        answeredQuestions: sess?.answered ?? 0,
+        completed: sess?.completed ?? false,
+        lastActivity: sess?.lastActivity ?? null,
+      }
+    })
+    return {
+      caseUserId: u.id,
+      userId: u.user_id,
+      fullName: u.full_name,
+      jobTitle: u.job_title,
+      jobPositionId: u.job_position_id,
+      jobPositionName: u.job_position_id ? positionNameById[u.job_position_id] ?? null : null,
+      role: u.role,
+      invited: !!u.user_id,
+      cells,
+    }
+  })
+
+  return { moduleOrder, participants, positionsCount: (positions ?? []).length, mappedQuestionsCount: mappedQuestionIds.size }
+}
