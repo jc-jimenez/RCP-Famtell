@@ -112,6 +112,39 @@ export async function POST(request: Request) {
     return `=== ${s.module_code} ===\n${text}`
   }).join('\n\n')
 
+  // Tablas del caso (case_table_instruments/rows, migración 028) — mapas de
+  // clientes, inventarios, benchmarks de tarifas, talento, etc. que el
+  // consultor/participantes llenan fuera de la entrevista conversacional
+  // porque no funcionan como pregunta-respuesta. Hasta ahora este trabajo
+  // nunca llegaba al Brief — se capturaba y se perdía. Se inyecta como datos
+  // duros (más confiables que apreciaciones cualitativas) en los prompts que
+  // sintetizan evidencia directa (jtbd, module_findings); priorities/planes
+  // ya heredan esto indirectamente porque parten de esos dos.
+  const { data: tableInstruments } = await db2
+    .from('case_table_instruments')
+    .select('id, module_code, name, description, columns')
+    .eq('case_id', caseId)
+    .order('sort_order', { ascending: true })
+
+  const instrumentIds = (tableInstruments ?? []).map((i: any) => i.id)
+  const { data: tableRows } = instrumentIds.length > 0
+    ? await db2.from('case_table_rows').select('instrument_id, row_data').in('instrument_id', instrumentIds)
+    : { data: [] as any[] }
+
+  const tableDataByModule: Record<string, string[]> = {}
+  ;(tableInstruments ?? []).forEach((instrument: any) => {
+    const columns: { key: string; label: string }[] = instrument.columns ?? []
+    const rows = (tableRows ?? []).filter((r: any) => r.instrument_id === instrument.id)
+    if (rows.length === 0) return
+    const header = columns.map(c => c.label).join(' | ')
+    const body = rows.map((r: any) => columns.map(c => r.row_data?.[c.key] ?? '').join(' | ')).join('\n')
+    const block = `${instrument.name}${instrument.description ? ` (${instrument.description})` : ''}:\n${header}\n${body}`
+    ;(tableDataByModule[instrument.module_code] ??= []).push(block)
+  })
+  const tableDataBlocks = Object.entries(tableDataByModule)
+    .map(([code, blocks]) => `=== Tablas de ${code} ===\n${blocks.join('\n\n')}`)
+    .join('\n\n')
+
   // Brechas descriptivo-vs-actividad: solo puestos con descriptivo capturado
   // Y al menos una entrevista real completada por su ocupante (sección 7,
   // regla 3 del PRD). No se generan para puestos sin descriptivo o sin
@@ -175,14 +208,14 @@ ${moduleListDescription || 'No hay módulos configurados.'}
 
 TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
-
+${tableDataBlocks ? `\nDATOS DE TABLAS CAPTURADAS (mapas de clientes, inventarios, tarifas, talento — datos duros, más confiables que apreciaciones cualitativas cuando estén disponibles, úsalos como evidencia de peso en "evidence"):\n${tableDataBlocks}\n` : ''}
 IER detectado: ${ierSummary}
 
 Estos diagnósticos son problemas INTERNOS de la empresa (no de sus clientes), vistos desde la perspectiva del consultor: cuellos de botella operativos, brechas financieras, debilidades comerciales, riesgos organizacionales, falta de procesos, dependencia de personas clave, etc.
 
 Genera entre 4 y 7 diagnósticos clave. Para cada uno incluye:
 - statement: descripción clara del problema en 1-2 líneas, redactada en tercera persona sobre la empresa (ej. "La empresa no tiene visibilidad del costo real por cliente, lo que impide tomar decisiones de pricing rentables")
-- evidence: cita o paráfrasis directa de la entrevista que evidencia el problema
+- evidence: cita o paráfrasis directa de la entrevista que evidencia el problema. Si hay un dato de las TABLAS CAPTURADAS que refuerza o cuantifica el mismo problema, inclúyelo también en este campo (ej. cifras concretas de la tabla) — no lo dejes fuera solo porque no es una cita textual de entrevista.
 - area: una de [Comercial, Operativo, Financiero, Organizacional, Tecnología, Estrategia, Capital Humano]
 - pain_level: "alto" (bloquea el crecimiento hoy) / "medio" (importante pero manejable) / "bajo" (mejora deseable)
 - urgency: "urgente" (hay que atacarlo en las primeras 4 semanas) / "importante" (semanas 5-12) / "deseable" (horizonte 6+ meses)
@@ -340,7 +373,7 @@ ${moduleListDescription || 'No hay módulos configurados.'}
 
 TRANSCRIPCIONES DISPONIBLES:
 ${transcripts || 'Genera hallazgos hipotéticos basados en el sector.'}
-
+${tableDataBlocks ? `\nDATOS DE TABLAS CAPTURADAS por módulo (úsalos como evidencia dura del hallazgo de ese módulo cuando existan):\n${tableDataBlocks}\n` : ''}
 IER: ${ierSummary}
 
 Responde ÚNICAMENTE con un JSON plano donde cada llave es el código EXACTO de uno de los módulos listados arriba y el valor es su hallazgo:
@@ -465,8 +498,18 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
 [{ "año": "Año 1", "vision": "...", "objetivos": ["obj1", "obj2"], "hito_transformador": "...", "ier_alineacion": "cómo este año avanza hacia el IER detectado" }]`,
   }
 
-  const basePrompt = prompts[section]
+  let basePrompt = prompts[section]
   if (!basePrompt) return NextResponse.json({ error: 'Sección inválida' }, { status: 400 })
+
+  // Comillas dobles rectas sin escapar dentro de un valor de texto (ej. citar
+  // una frase dentro de otra frase citada) rompen el JSON.parse de abajo y
+  // tiran toda la sección con 500, sin ninguna forma de recuperación —
+  // encontrado en vivo citando datos de tablas ("...respuesta siempre es
+  // algo como "mejor esperemos"..."). Todas las secciones excepto
+  // executive_summary (que es prosa plana, no JSON) piden JSON.
+  if (section !== 'executive_summary') {
+    basePrompt += `\n\nMUY IMPORTANTE — formato JSON válido: dentro de cualquier valor de texto, si necesitas citar una frase dentro de otra cita, usa comillas simples ('...'), NUNCA comillas dobles rectas ("...") — esas rompen el JSON. Ejemplo correcto: "evidence": "El directivo dijo: 'la respuesta siempre es \\'mejor esperemos\\'.'"`
+  }
 
   // Descontar créditos (2 por sección generada)
   const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.BRIEF_SECTION)
