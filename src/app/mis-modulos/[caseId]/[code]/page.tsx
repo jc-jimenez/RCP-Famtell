@@ -48,6 +48,22 @@ export default async function ColaboradorModuloPage({
     : derivedModules.length > 0 ? derivedModules : ALL_MODULE_CODES
   if (!assignedModules.includes(moduleCode)) redirect('/mis-modulos')
 
+  // Desbloqueo secuencial estricto, igual que el directivo — antes esta
+  // página no validaba el orden en absoluto, así que aunque la lista en
+  // mis-modulos/page.tsx mostrara el candado, entrar por URL directa igual
+  // dejaba contestar cualquier módulo asignado sin haber terminado el
+  // anterior. El "siguiente módulo" se calcula sobre assignedModules (SUS
+  // instrumentos), no sobre el catálogo completo M1-M7.
+  const { data: mySessions } = await db
+    .from('sessions')
+    .select('module_code, completed')
+    .eq('case_id', caseId)
+    .eq('user_id', session.user.id)
+  const myCompletedModules = new Set((mySessions ?? []).filter((s: any) => s.completed).map((s: any) => s.module_code))
+  const nextInstrument = assignedModules.find((c: string) => !myCompletedModules.has(c))
+  const isModuleLocked = !myCompletedModules.has(moduleCode) && moduleCode !== nextInstrument
+  if (isModuleLocked) redirect('/mis-modulos')
+
   // Sesión existente. No se usa .maybeSingle(): si hay más de una fila (p.ej.
   // datos históricos de prueba) esa llamada falla en silencio y el
   // colaborador nunca retoma su conversación — se toma la más reciente.

@@ -77,6 +77,19 @@ export default async function MisModulosPage() {
     sessionMap[s.module_code] = { completed: s.completed, last_message_at: s.last_message_at, answered: s.answered_questions ?? 0 }
   })
 
+  // Desbloqueo secuencial estricto, igual que el directivo (caso/[id]/page.tsx)
+  // — antes cualquier colaborador podía entrar a CUALQUIER módulo asignado
+  // desde el día uno (isLocked hardcoded en false), lo que en la práctica
+  // llevaba a que curiosearan varios módulos a la vez sin terminar ninguno.
+  // Importante: el "siguiente módulo" se calcula sobre SUS instrumentos
+  // asignados (assignedInstruments), no sobre el catálogo completo M1-M7 —
+  // un colaborador sin M4 mapeado a su puesto no debe quedar atorado
+  // esperando completar un módulo que nunca le tocó.
+  const myCompletedModules = new Set(
+    Object.entries(sessionMap).filter(([, s]) => s.completed).map(([code]) => code)
+  )
+  const nextInstrument = assignedInstruments.find(code => !myCompletedModules.has(code))
+
   // % de avance de mi entrevista por instrumento en progreso — antes solo
   // había un estado categórico (completado/en progreso/pendiente), sin
   // ningún número real de cuánto falta.
@@ -119,6 +132,7 @@ export default async function MisModulosPage() {
               const completed = sess?.completed ?? false
               const hasProgress = !!sess?.last_message_at && !completed
               const percent = completed ? 100 : hasProgress ? (percentMap[code] ?? 0) : 0
+              const isLocked = !completed && code !== nextInstrument
 
               return (
                 <ModuleJourneyCard
@@ -128,9 +142,9 @@ export default async function MisModulosPage() {
                   emoji={MODULE_EMOJI[code] ?? '📄'}
                   percent={percent}
                   isCompleted={completed}
-                  isLocked={false}
-                  subtext={completed ? 'Completado' : hasProgress ? 'En progreso' : 'Pendiente de respuesta'}
-                  href={`/mis-modulos/${caseUser.case_id}/${code}`}
+                  isLocked={isLocked}
+                  subtext={isLocked ? 'Bloqueado' : completed ? 'Completado' : hasProgress ? 'En progreso' : 'Pendiente de respuesta'}
+                  href={isLocked ? undefined : `/mis-modulos/${caseUser.case_id}/${code}`}
                   ctaLabel={completed ? 'Ver sesión' : hasProgress ? 'Continuar →' : 'Iniciar →'}
                   accent={JOURNEY_ACCENTS[i % JOURNEY_ACCENTS.length]}
                 />
