@@ -6,6 +6,10 @@
 
 **Revisión 2 (2026-07-15, mismo día):** el dueño del producto pidió explícitamente anclar cada módulo a marcos de mejores prácticas de industria en vez de descripciones genéricas — SPIN Selling y Teoría de Restricciones para GNOS-DIAG, PMBOK/PMI para GNOS-PROY, Balanced Scorecard de Kaplan & Norton para GNOS-BSC (con espacio para recomendar otra cosa si aplicaba — no aplicó, ver sección GNOS-BSC). Esta revisión reemplaza la v1 del documento, no la complementa.
 
+**Revisión 3 (2026-07-15, mismo día):** se agrega un cuarto módulo, **GNOS-CRM**, a partir de CRM y Comunicación de BizDoctor — mismo criterio que los otros 3: ninguno alimenta el Brief/entregable final, son herramientas de venta/relación del consultor. A diferencia de Escenarios/Tarifas/Propuestas (cero integración real con BizDoctor), CRM sí tiene una integración viva (auto-import de contactos desde M3) — ver tradeoff al final de esa sección antes de decidir cuándo desconectarlo.
+
+**Auditoría de Tablas/KPIs/Check-in (2026-07-15):** a petición del dueño del producto, se validó si Tablas realmente alimenta el Brief — no lo hacía (gap real, corregido el mismo día en `api/brief/generate/route.ts`, ver commit correspondiente) — y se auditó persistencia/completitud de KPIs y Check-in (ambos completos: CRUD real, RLS correcta, upsert semántico, sin gaps). Detalle en [[scope-cut-round2-gnos-modules]].
+
 ---
 
 ## GNOS-DIAG — Diagnóstico Comercial como Motor de Ventas Consultivas
@@ -126,9 +130,48 @@ Para cada una de las 4 perspectivas fijas:
 
 ---
 
-## Cómo quedan conectados los 3 módulos (el ciclo completo)
+## GNOS-CRM — Pipeline de ventas + Comunicaciones
 
-GNOS-DIAG capta y convierte (marketing → diagnóstico SPIN/TOC → propuesta cerrada) → al cerrar, genera un `project` en GNOS-PROY con EDT/cronograma real para ejecutar lo prometido → GNOS-BSC mide si esa ejecución mueve las métricas del cliente en sus 4 perspectivas, y sus `initiative` pueden apuntar de vuelta a tareas concretas de GNOS-PROY. No son 3 productos aislados — es un ciclo único: venta consultiva basada en diagnóstico → ejecución gestionada → medición estratégica, que además retroalimenta al `rate_card`/catálogo de GNOS-DIAG con qué iniciativas realmente movieron la aguja en clientes anteriores.
+### Objetivo
+Sistema de registro (system of record) del pipeline comercial completo — el mismo que GNOS-DIAG referencia como "el CRM va dando seguimiento a propuestas, escenarios, etc." — más el motor de comunicación (email/WhatsApp) con esos contactos. En BizDoctor hoy son 2 pantallas separadas (`crm` y `comunicacion`) que casi no se hablan entre sí; en GoNextSales-OS deben fusionarse en un solo módulo.
+
+### Lógica de referencia ya construida en BizDoctor
+- **CRM** (`src/app/caso/[id]/crm/CRMClient.tsx`): pipeline kanban real con 6 etapas (`pending` → `contacted` → `proposal_sent` → `negotiating` → `closed_won`/`closed_lost`), vista kanban y lista. Cada contacto: `name`, `company`, `role`, `email`, `phone`, `relationship_type` (client/prospect/supplier/partner/other), `notes`, `pipeline_stage`, `potential_value_monthly`, `close_probability` (alta/media/baja), `next_action`, `next_action_date`.
+- **Comunicación** (`src/app/caso/[id]/comunicacion/ComunicacionClient.tsx`): catálogo editable de plantillas (`communication_templates`) por cuenta de consultor, categorizadas, canal email o WhatsApp, con asunto + cuerpo. Hoy es una biblioteca de consulta/copiado manual — no envía nada ni queda ligada a un contacto específico.
+
+### Requisito explícito del dueño del producto: 2 puntos de activación para Comunicaciones
+
+> Entiendo que recomiendas quitarlos de ahí. Solo dame una amplitud de alcance para que GNOS-CRM incluya el módulo de comunicaciones, y que sea activado fuera de los cuadros kanban y dentro de la ficha del cliente en el cuadro kanban. Fuera del cuadro kanban es necesario para enviar comunicaciones a grupos, categorías, individuales, etc.
+
+Esto son 2 flujos distintos que GNOS-CRM debe soportar, no una sola pantalla:
+
+1. **Dentro de la ficha del contacto (kanban):** al abrir un contacto individual, un botón "Enviar comunicación" que usa el catálogo de plantillas, precompletado con los datos de ESE contacto (nombre, empresa, etapa), y que registra el envío en su historial — comunicación 1:1, en contexto, sin salir de la tarjeta.
+2. **Fuera del kanban (vista independiente, tipo "Campañas" o "Envíos"):** selector de audiencia por **grupo** (tag libre, no existe hoy en el schema — hay que agregarlo), **categoría** (`relationship_type` ya existe: cliente/prospecto/proveedor/aliado) o **individual** (búsqueda/multi-select de contactos puntuales) + plantilla + canal → envío masivo/segmentado. Esta vista NO existe hoy en BizDoctor ni siquiera en forma primitiva — es lo más nuevo de todo GNOS-CRM, el resto es reconectar piezas que ya existen.
+
+### Gap de datos a cerrar (no existe en BizDoctor hoy)
+- `tags`/`groups` en el contacto: BizDoctor solo tiene `relationship_type` (5 valores fijos) como única dimensión de agrupación. Para "grupos" libres (ej. "Asistentes Masterclass Julio", "Clientes Almacén Fiscal") se necesita un campo de etiquetas libre o una tabla de grupos con membresía muchos-a-muchos — no reusar `relationship_type` para esto, son dos ejes distintos (tipo de relación vs. agrupación ad-hoc de campaña).
+- `communication_log`: hoy Comunicación no registra que algo se envió, solo permite copiar el texto. GNOS-CRM necesita una tabla de envíos reales (contact_id o audiencia, template_id, canal, enviado_por, enviado_en, estado de entrega si el canal lo soporta) — sin esto, el botón "Enviar" dentro de la ficha del contacto (punto 1 de arriba) no tiene dónde persistir su historial.
+
+### Tradeoff a decidir antes de mover código: integración viva con BizDoctor
+A diferencia de Escenarios/Tarifas/Propuestas (cero integración real, se pueden extraer sin dejar nada roto), el CRM de BizDoctor **sí tiene una integración funcionando**: contactos extraídos automáticamente de las entrevistas de M3 aparecen en `/caso/[id]/crm` vía un botón "Importar M3". Si CRM se saca por completo de BizDoctor, ese auto-import se rompe salvo que:
+- (a) GNOS-CRM quede conectado de vuelta a BizDoctor vía API (integración cross-plataforma, mayor esfuerzo), o
+- (b) se acepte que BizDoctor pierde esa conveniencia y los contactos de M3 se exportan/copian manualmente al nuevo CRM, o
+- (c) el módulo de contactos se queda duplicado en ambos lados temporalmente hasta que (a) se construya.
+
+No hay una respuesta obvia — depende de qué tan pronto GoNextSales-OS esté listo para recibir tráfico real vs. cuánto valor sigue dando el auto-import dentro de BizDoctor mientras tanto. Decisión pendiente del dueño del producto, no tomada aquí.
+
+### Modelo de datos sugerido
+- `contact` (mismo shape que `CRMClient.tsx` hoy, más `tags text[]` nuevo).
+- `pipeline_stage` (las 6 ya validadas en BizDoctor, reutilizables tal cual).
+- `communication_template` (mismo shape que `communication_templates` de BizDoctor — categoría, canal, asunto, cuerpo).
+- `communication_log` (nuevo, ver gap arriba) — con `audience_type`: `'contact' | 'group' | 'category'` para diferenciar un envío 1:1 (desde la ficha) de uno masivo (desde la vista de campañas), y `audience_ref` (id de contacto, de grupo, o el valor de `relationship_type`).
+- `contact_group` (nuevo, si se opta por tabla de grupos en vez de `tags[]` — más flexible para reportes de "cuántos hay en este grupo", pero más esfuerzo de construcción; `tags[]` es el MVP más barato).
+
+---
+
+## Cómo quedan conectados los 4 módulos (el ciclo completo)
+
+GNOS-CRM es el registro base (contactos, pipeline, comunicaciones) sobre el que corren los otros 3: GNOS-DIAG capta y convierte (marketing → diagnóstico SPIN/TOC → propuesta cerrada, todo registrado como movimiento de etapa en GNOS-CRM) → al cerrar, genera un `project` en GNOS-PROY con EDT/cronograma real para ejecutar lo prometido → GNOS-BSC mide si esa ejecución mueve las métricas del cliente en sus 4 perspectivas, y sus `initiative` pueden apuntar de vuelta a tareas concretas de GNOS-PROY. No son 4 productos aislados — es un ciclo único: captación y relación (CRM) → venta consultiva basada en diagnóstico (DIAG) → ejecución gestionada (PROY) → medición estratégica (BSC), que además retroalimenta al `rate_card`/catálogo de GNOS-DIAG con qué iniciativas realmente movieron la aguja en clientes anteriores.
 
 ## Preguntas abiertas para quien retome esto en GoNextSales-OS
 
@@ -136,3 +179,4 @@ GNOS-DIAG capta y convierte (marketing → diagnóstico SPIN/TOC → propuesta c
 2. **GNOS-PROY:** ¿el EDT lo arma el consultor manualmente por engagement, o existen plantillas de EDT reutilizables por tipo de servicio (ej. "implementación de WMS" siempre tiene la misma estructura base de entregables)? Plantillas aceleran, pero BizDoctor ya decidió antes no sobre-construir catálogos configurables sin necesidad real — validar que la necesidad exista antes de construir plantillas.
 3. **GNOS-BSC:** ¿las métricas y objetivos del BSC son del CLIENTE (como en BizDoctor hoy) o también hay un BSC interno de GoNextSales para medirse a sí misma como consultora? El texto original no lo aclara.
 4. **Relación de datos:** ¿un mismo prospecto puede tener más de un ciclo GNOS-DIAG → GNOS-PROY → GNOS-BSC en el tiempo (cliente recurrente con engagements sucesivos), o el modelo asume un ciclo único de venta-ejecución-medición por cliente? Afecta si `project`/`strategic_objective` deben versionarse o ser 1:1 con el cliente.
+5. **GNOS-CRM:** ¿se resuelve el tradeoff de integración con BizDoctor (opciones a/b/c de esa sección) antes o después de construir el resto del módulo? Construir la vista de envíos masivos sin definir esto primero arriesga tener que rehacerla si luego se decide mantener el auto-import de M3 en vivo.
