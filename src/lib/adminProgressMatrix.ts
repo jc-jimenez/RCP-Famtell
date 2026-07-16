@@ -29,19 +29,17 @@ export interface ParticipantEngagement {
 export type ModulePace = 'atrasado' | 'proceso' | 'tiempo' | 'avanzado' | 'na'
 
 // Semáforo de ritmo por módulo: no es solo % completado, es % completado
-// CONTRA el ritmo esperado dado el plazo estándar de una semana desde la
-// invitación (mismo plazo que ya usa el consultor en la práctica). "atrasado"
-// se reserva para quien ya pasó la semana sin terminar — no para quien
+// CONTRA el ritmo esperado dado el plazo del caso (cases.diagnostic_deadline_days,
+// configurable por caso — antes era una constante fija de 7 días). "atrasado"
+// se reserva para quien ya pasó el plazo sin terminar — no para quien
 // simplemente va lento pero sigue dentro de plazo (eso es "proceso").
-const DEADLINE_DAYS = 7
-
-export function computeModulePace(cell: ParticipantModuleCell, daysSinceInvite: number | null): ModulePace {
+export function computeModulePace(cell: ParticipantModuleCell, daysSinceInvite: number | null, deadlineDays: number): ModulePace {
   if (cell.totalQuestions === 0) return 'na'
   if (daysSinceInvite === null) return 'na'
-  if (cell.completed) return daysSinceInvite < DEADLINE_DAYS ? 'avanzado' : 'tiempo'
-  if (daysSinceInvite > DEADLINE_DAYS) return 'atrasado'
+  if (cell.completed) return daysSinceInvite < deadlineDays ? 'avanzado' : 'tiempo'
+  if (daysSinceInvite > deadlineDays) return 'atrasado'
   const actualPct = cell.answeredQuestions / cell.totalQuestions
-  const expectedPct = Math.min(1, Math.max(0, daysSinceInvite) / DEADLINE_DAYS)
+  const expectedPct = Math.min(1, Math.max(0, daysSinceInvite) / deadlineDays)
   return actualPct >= expectedPct ? 'tiempo' : 'proceso'
 }
 
@@ -83,7 +81,11 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
   participants: ParticipantProgress[]
   positionsCount: number
   mappedQuestionsCount: number
+  deadlineDays: number
 }> {
+  const { data: caseRow } = await db.from('cases').select('diagnostic_deadline_days').eq('id', caseId).maybeSingle()
+  const deadlineDays: number = caseRow?.diagnostic_deadline_days ?? 7
+
   const catalogScope = await resolveCatalogScope(db, caseId)
   const templatesQuery = db.from('module_templates').select('id, code, name, sort_order').eq('is_active', true)
   const { data: templates } = await applyCatalogScope(templatesQuery, catalogScope, caseId).order('sort_order', { ascending: true })
@@ -241,5 +243,5 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
     }
   })
 
-  return { moduleOrder, participants, positionsCount: (positions ?? []).length, mappedQuestionsCount: mappedQuestionIds.size }
+  return { moduleOrder, participants, positionsCount: (positions ?? []).length, mappedQuestionsCount: mappedQuestionIds.size, deadlineDays }
 }

@@ -5,8 +5,10 @@ import type { ParticipantProgress, ModulePace } from '@/lib/adminProgressMatrix'
 import { computeModulePace } from '@/lib/adminProgressMatrix'
 
 interface Props {
+  caseId: string
   moduleOrder: { code: string; name: string }[]
   participants: ParticipantProgress[]
+  initialDeadlineDays: number
 }
 
 type ResistanceLevel = 'baja' | 'media' | 'alta'
@@ -54,10 +56,27 @@ function cellStatus(answered: number, total: number, completed: boolean) {
   return { bg: 'bg-surface-2', text: 'text-faint', label: '0%' }
 }
 
-export default function AvanceMatrixClient({ moduleOrder, participants: initialParticipants }: Props) {
+export default function AvanceMatrixClient({ caseId, moduleOrder, participants: initialParticipants, initialDeadlineDays }: Props) {
   const [participants, setParticipants] = useState(initialParticipants)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [savingResistanceId, setSavingResistanceId] = useState<string | null>(null)
+  const [deadlineDays, setDeadlineDays] = useState(initialDeadlineDays)
+  const [deadlineDraft, setDeadlineDraft] = useState(String(initialDeadlineDays))
+  const [savingDeadline, setSavingDeadline] = useState(false)
+
+  async function saveDeadline() {
+    const days = Number(deadlineDraft)
+    if (!Number.isFinite(days) || days < 1) { setDeadlineDraft(String(deadlineDays)); return }
+    setSavingDeadline(true)
+    const res = await fetch('/api/admin/casos', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caseId, diagnosticDeadlineDays: days }),
+    })
+    if (res.ok) setDeadlineDays(days)
+    else setDeadlineDraft(String(deadlineDays))
+    setSavingDeadline(false)
+  }
 
   async function setResistance(caseUserId: string, level: ResistanceLevel | null, note?: string) {
     setSavingResistanceId(caseUserId)
@@ -80,9 +99,24 @@ export default function AvanceMatrixClient({ moduleOrder, participants: initialP
 
   return (
     <div className="card p-5 space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold text-ink">Avance por participante y módulo</h2>
-        <p className="text-xs text-muted mt-0.5">Haz clic en un participante para ver el detalle por módulo (% y última actividad) y su perfil de compromiso.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Avance por participante y módulo</h2>
+          <p className="text-xs text-muted mt-0.5">Haz clic en un participante para ver el detalle por módulo (% y última actividad) y su perfil de compromiso.</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <label className="text-xs text-muted">Plazo del caso</label>
+          <input
+            type="number"
+            min={1}
+            value={deadlineDraft}
+            onChange={e => setDeadlineDraft(e.target.value)}
+            onBlur={() => { if (deadlineDraft !== String(deadlineDays)) saveDeadline() }}
+            disabled={savingDeadline}
+            className="input-field text-xs w-14 py-1 px-2 text-center"
+          />
+          <span className="text-xs text-muted">días</span>
+        </div>
       </div>
 
       <div className="flex gap-4 text-xs text-muted flex-wrap">
@@ -148,7 +182,7 @@ export default function AvanceMatrixClient({ moduleOrder, participants: initialP
                       {moduleOrder.map(m => {
                         const cell = p.cells[m.code]
                         const s = cellStatus(cell.answeredQuestions, cell.totalQuestions, cell.completed)
-                        const pace = computeModulePace(cell, eng.daysSinceInvite)
+                        const pace = computeModulePace(cell, eng.daysSinceInvite, deadlineDays)
                         return (
                           <div key={m.code} className={`rounded-lg p-2.5 ${s.bg}`}>
                             <div className="flex items-center justify-between gap-1">

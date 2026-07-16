@@ -35,7 +35,7 @@ export default async function AdminCasoAvancePage({
     .maybeSingle()
   if (!caseData) redirect('/admin/casos')
 
-  const { moduleOrder, participants, positionsCount, mappedQuestionsCount } = await computeParticipantModuleMatrix(db, caseId)
+  const { moduleOrder, participants, positionsCount, mappedQuestionsCount, deadlineDays } = await computeParticipantModuleMatrix(db, caseId)
 
   const activatedCount = participants.filter(p => p.invited).length
 
@@ -132,7 +132,7 @@ export default async function AdminCasoAvancePage({
           ))}
         </div>
 
-        <AvanceMatrixClient moduleOrder={moduleOrder} participants={participants} />
+        <AvanceMatrixClient caseId={caseId} moduleOrder={moduleOrder} participants={participants} initialDeadlineDays={deadlineDays} />
       </div>
     </AppShell>
   )

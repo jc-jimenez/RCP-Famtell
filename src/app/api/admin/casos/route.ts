@@ -48,3 +48,32 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ case: data })
 }
+
+// PATCH — hoy solo diagnosticDeadlineDays: plazo (en días desde la
+// invitación de cada participante) que usa el semáforo de ritmo de la
+// matriz de Avance. Antes era una constante fija de 7 días en código.
+export async function PATCH(req: Request) {
+  const session = await assertSuperAdmin()
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = getSupabaseAdmin()
+  if (!admin) return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+  const db = admin as any
+
+  const { caseId, diagnosticDeadlineDays } = await req.json()
+  if (!caseId) return NextResponse.json({ error: 'caseId requerido' }, { status: 400 })
+  const days = Number(diagnosticDeadlineDays)
+  if (!Number.isFinite(days) || days < 1) {
+    return NextResponse.json({ error: 'diagnosticDeadlineDays debe ser un número mayor a 0' }, { status: 400 })
+  }
+
+  const { data, error } = await db
+    .from('cases')
+    .update({ diagnostic_deadline_days: days })
+    .eq('id', caseId)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ case: data })
+}
