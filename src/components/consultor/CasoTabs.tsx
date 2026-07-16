@@ -10,12 +10,15 @@ interface Tab {
 
 // Radar (/caso/[id]/radar) y BriefGeneratorClient se borraron de raíz
 // (2026-07-15, código muerto/huérfano confirmado). Propuestas, Tarifas,
-// Capacidad, Escenarios y Competencia se sacan del menú por decisión de
-// producto (no del código): salen de BizDoctor y su lógica se reubica en
-// GNOS-DIAG, un módulo de GoNextSales-OS (ver
+// Capacidad, Escenarios, Competencia, CRM y Comunicación se sacan del menú
+// por decisión de producto (no del código): salen de BizDoctor y su lógica
+// se reubica en GNOS-DIAG/GNOS-CRM, módulos de GoNextSales-OS (ver
 // docs/gonextsales-os-handoff/GNOS-DIAG_PROY_BSC_PRD.md). Las rutas y
 // componentes siguen intactos en el repo porque ese documento los cita como
 // lógica de referencia — no borrar sin antes actualizar esas referencias.
+// CRM tiene una integración viva (auto-import de contactos desde M3) que
+// queda rota hasta que GNOS-CRM la reconecte — decisión aceptada explícita
+// del dueño del producto, no un descuido.
 const TABS: Tab[] = [
   { id: 'diagnostico',  label: 'Diagnóstico' },
   { id: 'participantes',label: 'Participantes' },
@@ -23,8 +26,6 @@ const TABS: Tab[] = [
   { id: 'puestos',      label: 'Puestos',     external: true },
   { id: 'agenda',       label: 'Agenda Oculta' },
   { id: 'indice',       label: 'Índice IER',   external: true },
-  { id: 'crm',         label: 'CRM',          external: true },
-  { id: 'comunicacion', label: 'Comunicación',  external: true },
   { id: 'tablas',      label: 'Tablas',       external: true },
   { id: 'clima',       label: 'Clima',        external: true },
   { id: 'kpis',        label: 'KPIs',         external: true },
@@ -39,7 +40,6 @@ interface Group { label: string; tabIds: string[] }
 const GROUPS: Group[] = [
   { label: 'Preparación', tabIds: ['puestos', 'participantes', 'plan'] },
   { label: 'Agenda y análisis', tabIds: ['agenda', 'indice', 'clima'] },
-  { label: 'Comercial', tabIds: ['crm', 'comunicacion'] },
   { label: 'Resultados', tabIds: ['tablas', 'kpis', 'checkin', 'brief'] },
   { label: 'Cliente', tabIds: ['portal'] },
 ]
