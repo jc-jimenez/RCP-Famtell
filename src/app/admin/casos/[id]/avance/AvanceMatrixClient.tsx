@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { ParticipantProgress } from '@/lib/adminProgressMatrix'
+import type { ParticipantProgress, ModulePace } from '@/lib/adminProgressMatrix'
+import { computeModulePace } from '@/lib/adminProgressMatrix'
 
 interface Props {
   moduleOrder: { code: string; name: string }[]
@@ -14,6 +15,25 @@ const RESISTANCE_COLOR: Record<ResistanceLevel, string> = {
   baja: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   media: 'bg-amber-50 text-amber-700 border-amber-200',
   alta: 'bg-rose-50 text-rose-700 border-rose-200',
+}
+
+// Semáforo de RITMO (¿va a tiempo para el plazo de una semana?), distinto
+// del color de fondo de la tarjeta (que refleja % completado). Un módulo
+// puede estar "en progreso" (fondo ámbar) y a la vez "a tiempo" (punto
+// verde) si el ritmo real va igual o mejor que el esperado.
+const PACE_DOT: Record<ModulePace, string> = {
+  atrasado: 'bg-rose-500',
+  proceso: 'bg-amber-500',
+  tiempo: 'bg-emerald-500',
+  avanzado: 'bg-blue-500',
+  na: 'bg-surface-2 border border-subtle',
+}
+const PACE_LABEL: Record<ModulePace, string> = {
+  atrasado: 'Retrasado',
+  proceso: 'En proceso',
+  tiempo: 'En tiempo',
+  avanzado: 'Avanzado',
+  na: 'No aplica',
 }
 
 function formatDate(iso: string | null): string {
@@ -116,16 +136,35 @@ export default function AvanceMatrixClient({ moduleOrder, participants: initialP
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 border-t border-subtle/60 space-y-4">
 
+                    <div className="flex gap-3 text-[10px] text-muted flex-wrap">
+                      {(['avanzado', 'tiempo', 'proceso', 'atrasado'] as ModulePace[]).map(pace => (
+                        <span key={pace} className="flex items-center gap-1">
+                          <span className={`w-2 h-2 rounded-full inline-block ${PACE_DOT[pace]}`} />{PACE_LABEL[pace]}
+                        </span>
+                      ))}
+                    </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                       {moduleOrder.map(m => {
                         const cell = p.cells[m.code]
                         const s = cellStatus(cell.answeredQuestions, cell.totalQuestions, cell.completed)
+                        const pace = computeModulePace(cell, eng.daysSinceInvite)
                         return (
                           <div key={m.code} className={`rounded-lg p-2.5 ${s.bg}`}>
-                            <p className="text-xs font-semibold text-ink truncate" title={m.name}>{m.code}</p>
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-semibold text-ink">{m.code}</p>
+                              <span
+                                className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${PACE_DOT[pace]}`}
+                                title={PACE_LABEL[pace]}
+                              />
+                            </div>
+                            <p className="text-[10px] text-muted truncate" title={m.name}>{m.name}</p>
                             <p className={`text-sm font-bold ${s.text}`}>{s.label}</p>
                             {cell.totalQuestions > 0 && (
-                              <p className="text-[10px] text-faint mt-0.5">{formatDate(cell.lastActivity)}</p>
+                              <>
+                                <p className="text-[10px] text-faint">{cell.answeredQuestions}/{cell.totalQuestions} preguntas</p>
+                                <p className="text-[10px] text-faint">{formatDate(cell.lastActivity)}</p>
+                              </>
                             )}
                           </div>
                         )

@@ -20,6 +20,29 @@ export interface ParticipantEngagement {
   // agenda, no por desinterés, pero las respuestas cortas sí son una señal).
   avgWordsPerAnswer: number | null
   totalMessages: number
+  // Invitación → hoy, sigue creciendo (a diferencia de reactionDays, que se
+  // congela en la primera respuesta) — es el insumo del semáforo de ritmo
+  // por módulo. null si no hay fecha de invitación reconstruible.
+  daysSinceInvite: number | null
+}
+
+export type ModulePace = 'atrasado' | 'proceso' | 'tiempo' | 'avanzado' | 'na'
+
+// Semáforo de ritmo por módulo: no es solo % completado, es % completado
+// CONTRA el ritmo esperado dado el plazo estándar de una semana desde la
+// invitación (mismo plazo que ya usa el consultor en la práctica). "atrasado"
+// se reserva para quien ya pasó la semana sin terminar — no para quien
+// simplemente va lento pero sigue dentro de plazo (eso es "proceso").
+const DEADLINE_DAYS = 7
+
+export function computeModulePace(cell: ParticipantModuleCell, daysSinceInvite: number | null): ModulePace {
+  if (cell.totalQuestions === 0) return 'na'
+  if (daysSinceInvite === null) return 'na'
+  if (cell.completed) return daysSinceInvite < DEADLINE_DAYS ? 'avanzado' : 'tiempo'
+  if (daysSinceInvite > DEADLINE_DAYS) return 'atrasado'
+  const actualPct = cell.answeredQuestions / cell.totalQuestions
+  const expectedPct = Math.min(1, Math.max(0, daysSinceInvite) / DEADLINE_DAYS)
+  return actualPct >= expectedPct ? 'tiempo' : 'proceso'
 }
 
 export interface ParticipantProgress {
@@ -145,9 +168,6 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
 
   function computeEngagement(u: any): ParticipantEngagement {
     const userSessions = u.user_id ? (sessionsByUser[u.user_id] ?? []) : []
-    if (userSessions.length === 0) {
-      return { reactionDays: null, activeDays: 0, avgWordsPerAnswer: null, totalMessages: 0 }
-    }
 
     // Día 0: invitación reconstruida (expires_at es siempre now()+48h al
     // crearse, así que expires_at-48h da la fecha real de invitación para
@@ -156,6 +176,12 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
     const invitedAt: Date | null = u.invitation_expires_at
       ? new Date(new Date(u.invitation_expires_at).getTime() - 48 * 60 * 60 * 1000)
       : u.activated_at ? new Date(u.activated_at) : null
+
+    const daysSinceInvite = invitedAt ? Math.max(0, daysBetween(invitedAt, new Date())) : null
+
+    if (userSessions.length === 0) {
+      return { reactionDays: null, activeDays: 0, avgWordsPerAnswer: null, totalMessages: 0, daysSinceInvite }
+    }
 
     const firstSessionStart = userSessions
       .map((s: any) => new Date(s.created_at))
@@ -181,6 +207,7 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
       activeDays: activeDates.size,
       avgWordsPerAnswer: totalMessages > 0 ? Math.round(totalWords / totalMessages) : null,
       totalMessages,
+      daysSinceInvite,
     }
   }
 
