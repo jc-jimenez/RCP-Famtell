@@ -80,6 +80,9 @@ export default async function AdminCasoAvancePage({
           <Link href={`/admin/casos/${caseId}/avance` as any} className="text-sm px-4 py-2 rounded-xl bg-accent-soft text-accent font-medium transition-colors">
             Avance
           </Link>
+          <Link href={`/admin/casos/${caseId}/respaldos` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">
+            Respaldos
+          </Link>
         </nav>
 
         {/* Ribbon de etapas — resumen de todo el proceso, de Preparación a
