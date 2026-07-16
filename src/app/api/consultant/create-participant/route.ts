@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   const {
     caseId, email, password, role, jobPositionId, jobTitle, businessRoleId,
-    permissions, fullName, whatsappPhone, landlinePhone, seniority,
+    permissions, fullName, whatsappPhone, landlinePhone, seniority, isTestAccount,
   } = await req.json()
 
   if (!caseId || !email || !password || !role) {
@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       landline_phone: landlinePhone?.trim() || null,
       seniority: seniority?.trim() || null,
       activated_at: new Date().toISOString(),
+      is_test_account: !!isTestAccount,
     })
     .select()
     .single()

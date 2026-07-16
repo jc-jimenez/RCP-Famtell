@@ -105,6 +105,77 @@ export async function POST(request: Request) {
   return NextResponse.json({ caseUser: data });
 }
 
+// PATCH — togglear campos editables después de creado el participante.
+// isTestAccount: se descubrió en vivo que el error de marcar una cuenta de
+// prueba se detecta semanas después de crearla, no al momento del alta —
+// tiene que poderse corregir sin recrear el participante. onboardingResistanceLevel/
+// Note: distintivo subjetivo del consultor sobre resistencia percibida en
+// el onboarding, para comparar después contra el comportamiento real.
+const RESISTANCE_LEVELS = ['baja', 'media', 'alta'];
+
+export async function PATCH(request: Request) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.user.email) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const { caseUserId, isTestAccount, onboardingResistanceLevel, onboardingResistanceNote } = await request.json();
+  if (!caseUserId) {
+    return NextResponse.json({ error: 'caseUserId es requerido' }, { status: 400 });
+  }
+  if (onboardingResistanceLevel !== undefined && onboardingResistanceLevel !== null && !RESISTANCE_LEVELS.includes(onboardingResistanceLevel)) {
+    return NextResponse.json({ error: 'onboardingResistanceLevel inválido' }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (typeof isTestAccount === 'boolean') updates.is_test_account = isTestAccount;
+  if (onboardingResistanceLevel !== undefined) updates.onboarding_resistance_level = onboardingResistanceLevel;
+  if (onboardingResistanceNote !== undefined) updates.onboarding_resistance_note = onboardingResistanceNote?.trim() || null;
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
+  }
+
+  const db = supabase as any;
+  const admin = getSupabaseAdmin();
+  // Lookup con service-role: por RLS, un super-admin en modo soporte no es
+  // dueño de la fila (case_users solo permite al consultor dueño o al propio
+  // usuario), así que leerla con el cliente de sesión siempre da null para
+  // él — mismo bug ya documentado antes en otras rutas de admin. La
+  // verificación de autorización sigue pasando explícitamente aquí abajo.
+  const readDb = (admin ?? db) as any;
+
+  const { data: caseUser } = await readDb
+    .from('case_users')
+    .select('id, case_id')
+    .eq('id', caseUserId)
+    .maybeSingle();
+
+  if (!caseUser) {
+    return NextResponse.json({ error: 'Participante no encontrado' }, { status: 404 });
+  }
+
+  if (!isSuperAdminEmail(session.user.email)) {
+    const { data: account } = await db.from('accounts').select('id').eq('email', session.user.email).maybeSingle();
+    if (!account) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 });
+    const { data: caseRow } = await db.from('cases').select('id').eq('id', caseUser.case_id).eq('account_id', account.id).maybeSingle();
+    if (!caseRow) return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 });
+  }
+
+  const writeDb = (admin ?? db) as any;
+
+  const { data, error } = await writeDb
+    .from('case_users')
+    .update(updates)
+    .eq('id', caseUserId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ caseUser: data });
+}
+
 // DELETE — borrar un participante. Solo el consultor dueño del caso o el
 // super-admin. Si el participante ya contestó alguna entrevista, se requiere
 // confirmación explícita (confirm: true) — advertencia, no bloqueo: el caso

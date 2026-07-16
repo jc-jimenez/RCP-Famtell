@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
   const {
     caseId, email, role, jobTitle, jobPositionId, businessRoleId, permissions, whatsappPhone,
-    fullName, landlinePhone, seniority,
+    fullName, landlinePhone, seniority, isTestAccount,
   } = await request.json()
 
   if (!caseId || !email || !role) {
@@ -94,6 +94,7 @@ export async function POST(request: Request) {
       full_name: fullName?.trim() || null,
       landline_phone: landlinePhone?.trim() || null,
       seniority: seniority?.trim() || null,
+      is_test_account: !!isTestAccount,
     })
     .select()
     .single()

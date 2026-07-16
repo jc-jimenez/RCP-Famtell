@@ -105,7 +105,7 @@ export async function computeModuleCompletion(db: any, caseId: string, moduleCod
 
   const { data: caseUsers } = await db
     .from('case_users')
-    .select('user_id, job_position_id')
+    .select('user_id, job_position_id, is_test_account')
     .eq('case_id', caseId)
     .in('job_position_id', requiredPositionIds)
 
@@ -121,8 +121,12 @@ export async function computeModuleCompletion(db: any, caseId: string, moduleCod
   const pending: PendingPosition[] = []
   let completedTotal = 0
 
+  // Cuentas de prueba/demo se excluyen — no representan al ocupante real del
+  // puesto, así que no deben poder "cubrir" el requisito ni desbloquear el
+  // Brief (encontrado en vivo: "Demo Director Comercial" ya había completado
+  // Gerente Comercial mientras el ocupante real no había contestado nada).
   requiredPositionIds.forEach(posId => {
-    const occupants = (caseUsers ?? []).filter((u: any) => u.job_position_id === posId && u.user_id)
+    const occupants = (caseUsers ?? []).filter((u: any) => u.job_position_id === posId && u.user_id && !u.is_test_account)
     const hasOccupant = occupants.length > 0
     const isComplete = occupants.some((o: any) => completedUserIds.has(o.user_id))
     if (isComplete) {

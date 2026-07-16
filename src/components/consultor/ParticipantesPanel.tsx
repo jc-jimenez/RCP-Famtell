@@ -36,6 +36,7 @@ interface Participant {
   full_name: string | null
   permissions_json: { modules?: string[] } | null
   activated_at: string | null
+  is_test_account: boolean
 }
 
 interface Props {
@@ -74,8 +75,10 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
     landlinePhone: '',
     seniority: '',
     password: '',
+    isTestAccount: false,
   }
   const [form, setForm] = useState(emptyForm)
+  const [togglingTestId, setTogglingTestId] = useState<string | null>(null)
 
   const isDirector = form.platformRole === 'director'
   const selectedPosition = positions.find(p => p.id === form.positionId)
@@ -121,6 +124,19 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
     }
   }
 
+  async function toggleTestAccount(p: Participant) {
+    setTogglingTestId(p.id)
+    const res = await fetch('/api/case-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caseUserId: p.id, isTestAccount: !p.is_test_account }),
+    })
+    if (res.ok) {
+      setParticipants(prev => prev.map(x => x.id === p.id ? { ...x, is_test_account: !x.is_test_account } : x))
+    }
+    setTogglingTestId(null)
+  }
+
   function selectPosition(positionId: string) {
     const pos = positions.find(x => x.id === positionId)
     setForm(f => ({ ...f, positionId, businessRoleId: pos?.business_role_id ?? f.businessRoleId }))
@@ -146,6 +162,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
       fullName: form.fullName.trim() || null,
       landlinePhone: form.landlinePhone.trim() || null,
       seniority: form.seniority.trim() || null,
+      isTestAccount: form.isTestAccount,
     }
     if (mode === 'direct') body.password = form.password
 
@@ -169,6 +186,7 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
       full_name: cu.full_name,
       permissions_json: cu.permissions_json,
       activated_at: cu.activated_at ?? null,
+      is_test_account: cu.is_test_account ?? false,
     }])
     setLastInviteUrl(data.activationUrl ?? null)
     setShowModal(false)
@@ -214,6 +232,9 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                     {p.business_role_id && roleNameById[p.business_role_id] && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent flex-shrink-0">{roleNameById[p.business_role_id]}</span>
                     )}
+                    {p.is_test_account && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-2 border border-dashed border-subtle text-faint flex-shrink-0">prueba</span>
+                    )}
                   </div>
                   <p className="text-xs text-faint">
                     {label}
@@ -224,6 +245,14 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                 <span className={`badge ${p.activated_at ? 'badge-success' : 'badge-warning'}`}>
                   {p.activated_at ? 'Activo' : 'Pendiente'}
                 </span>
+                <button
+                  onClick={() => toggleTestAccount(p)}
+                  disabled={togglingTestId === p.id}
+                  className="text-xs px-2 py-1 rounded-lg border border-subtle text-muted hover:bg-surface-2 transition-colors disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
+                  title={p.is_test_account ? 'Quitar marca de prueba' : 'Marcar como cuenta de prueba'}
+                >
+                  {togglingTestId === p.id ? '…' : p.is_test_account ? 'Quitar prueba' : 'Marcar prueba'}
+                </button>
                 <button
                   onClick={() => deleteParticipant(p.id)}
                   disabled={deletingId === p.id}
@@ -450,6 +479,19 @@ export default function ParticipantesPanel({ caseId, initialParticipants, initia
                     )}
                   </div>
                 )}
+
+                <label className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-dashed border-subtle cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isTestAccount}
+                    onChange={e => setForm(f => ({ ...f, isTestAccount: e.target.checked }))}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="text-sm text-ink">Cuenta de prueba</p>
+                    <p className="text-xs text-faint">No cuenta para el avance real del diagnóstico ni para desbloquear el Brief — úsalo para demos, QA o cuentas de ensayo.</p>
+                  </div>
+                </label>
               </>
             )}
 

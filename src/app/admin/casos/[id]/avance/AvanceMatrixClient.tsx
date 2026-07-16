@@ -8,6 +8,14 @@ interface Props {
   participants: ParticipantProgress[]
 }
 
+type ResistanceLevel = 'baja' | 'media' | 'alta'
+const RESISTANCE_LEVELS: ResistanceLevel[] = ['baja', 'media', 'alta']
+const RESISTANCE_COLOR: Record<ResistanceLevel, string> = {
+  baja: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  media: 'bg-amber-50 text-amber-700 border-amber-200',
+  alta: 'bg-rose-50 text-rose-700 border-rose-200',
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return 'Sin actividad'
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
@@ -26,17 +34,38 @@ function cellStatus(answered: number, total: number, completed: boolean) {
   return { bg: 'bg-surface-2', text: 'text-faint', label: '0%' }
 }
 
-export default function AvanceMatrixClient({ moduleOrder, participants }: Props) {
+export default function AvanceMatrixClient({ moduleOrder, participants: initialParticipants }: Props) {
+  const [participants, setParticipants] = useState(initialParticipants)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [savingResistanceId, setSavingResistanceId] = useState<string | null>(null)
+
+  async function setResistance(caseUserId: string, level: ResistanceLevel | null, note?: string) {
+    setSavingResistanceId(caseUserId)
+    const res = await fetch('/api/case-users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caseUserId,
+        onboardingResistanceLevel: level,
+        ...(note !== undefined ? { onboardingResistanceNote: note } : {}),
+      }),
+    })
+    if (res.ok) {
+      setParticipants(prev => prev.map(p => p.caseUserId === caseUserId
+        ? { ...p, onboardingResistanceLevel: level, onboardingResistanceNote: note !== undefined ? (note || null) : p.onboardingResistanceNote }
+        : p))
+    }
+    setSavingResistanceId(null)
+  }
 
   return (
     <div className="card p-5 space-y-3">
       <div>
         <h2 className="text-sm font-semibold text-ink">Avance por participante y módulo</h2>
-        <p className="text-xs text-muted mt-0.5">Haz clic en un participante para ver el detalle por módulo (% y última actividad).</p>
+        <p className="text-xs text-muted mt-0.5">Haz clic en un participante para ver el detalle por módulo (% y última actividad) y su perfil de compromiso.</p>
       </div>
 
-      <div className="flex gap-4 text-xs text-muted">
+      <div className="flex gap-4 text-xs text-muted flex-wrap">
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" />Completo</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />En progreso</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-surface-2 border border-subtle inline-block" />Sin iniciar / no aplica</span>
@@ -51,6 +80,7 @@ export default function AvanceMatrixClient({ moduleOrder, participants }: Props)
             const applicableModules = moduleOrder.filter(m => p.cells[m.code]?.totalQuestions > 0)
             const completedCount = applicableModules.filter(m => p.cells[m.code]?.completed).length
             const isExpanded = expandedId === p.caseUserId
+            const { engagement: eng } = p
 
             return (
               <div key={p.caseUserId} className={`rounded-xl border transition-colors ${isExpanded ? 'border-accent/30 bg-accent-soft/20' : 'border-subtle'}`}>
@@ -61,6 +91,14 @@ export default function AvanceMatrixClient({ moduleOrder, participants }: Props)
                   <div className="min-w-0 flex items-center gap-2">
                     {!p.invited && (
                       <span className="text-xs px-1.5 py-0.5 rounded border border-dashed border-subtle text-faint flex-shrink-0">sin invitar</span>
+                    )}
+                    {p.isTestAccount && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-surface-2 border border-subtle text-faint flex-shrink-0">prueba</span>
+                    )}
+                    {p.onboardingResistanceLevel && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded border flex-shrink-0 ${RESISTANCE_COLOR[p.onboardingResistanceLevel]}`}>
+                        resistencia {p.onboardingResistanceLevel}
+                      </span>
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink truncate">{p.fullName || p.jobTitle || 'Sin nombre'}</p>
@@ -76,7 +114,8 @@ export default function AvanceMatrixClient({ moduleOrder, participants }: Props)
                 </button>
 
                 {isExpanded && (
-                  <div className="px-3 pb-3 pt-1 border-t border-subtle/60">
+                  <div className="px-3 pb-3 pt-1 border-t border-subtle/60 space-y-4">
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                       {moduleOrder.map(m => {
                         const cell = p.cells[m.code]
@@ -91,6 +130,66 @@ export default function AvanceMatrixClient({ moduleOrder, participants }: Props)
                           </div>
                         )
                       })}
+                    </div>
+
+                    {/* Perfil de compromiso — reacción, ritmo y profundidad, no
+                        solo tiempo transcurrido (ver [[scope-cut-round2-gnos-modules]]
+                        para por qué días solos no distinguen "al vapor" de
+                        "se tomó su tiempo"). */}
+                    <div>
+                      <p className="text-xs font-semibold text-ink mb-1.5">Perfil de compromiso</p>
+                      {eng.totalMessages === 0 ? (
+                        <p className="text-xs text-muted">Todavía no ha escrito ninguna respuesta.</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-surface-2 rounded-lg p-2.5">
+                            <p className="text-[10px] text-faint">Reacción</p>
+                            <p className="text-sm font-bold text-ink">{eng.reactionDays === null ? '—' : `${eng.reactionDays}d`}</p>
+                            <p className="text-[10px] text-faint">invitación → 1ra respuesta</p>
+                          </div>
+                          <div className="bg-surface-2 rounded-lg p-2.5">
+                            <p className="text-[10px] text-faint">Ritmo</p>
+                            <p className="text-sm font-bold text-ink">{eng.activeDays} día{eng.activeDays !== 1 ? 's' : ''}</p>
+                            <p className="text-[10px] text-faint">con actividad</p>
+                          </div>
+                          <div className="bg-surface-2 rounded-lg p-2.5">
+                            <p className="text-[10px] text-faint">Profundidad</p>
+                            <p className="text-sm font-bold text-ink">{eng.avgWordsPerAnswer ?? '—'} pal.</p>
+                            <p className="text-[10px] text-faint">promedio por respuesta</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Distintivo subjetivo del onboarding — para comparar
+                        después contra el perfil de compromiso real de arriba. */}
+                    <div>
+                      <p className="text-xs font-semibold text-ink mb-1.5">Resistencia percibida en onboarding</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {RESISTANCE_LEVELS.map(level => (
+                          <button
+                            key={level}
+                            onClick={() => setResistance(p.caseUserId, p.onboardingResistanceLevel === level ? null : level)}
+                            disabled={savingResistanceId === p.caseUserId}
+                            className={`text-xs px-2.5 py-1 rounded-lg border capitalize transition-colors disabled:opacity-50 ${
+                              p.onboardingResistanceLevel === level ? RESISTANCE_COLOR[level] : 'border-subtle text-muted hover:bg-surface-2'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        placeholder="Nota corta (opcional) — ej. quería solo la entrevista comercial"
+                        defaultValue={p.onboardingResistanceNote ?? ''}
+                        onBlur={e => {
+                          if (e.target.value !== (p.onboardingResistanceNote ?? '')) {
+                            setResistance(p.caseUserId, p.onboardingResistanceLevel, e.target.value)
+                          }
+                        }}
+                        rows={2}
+                        className="input-field text-xs w-full mt-2 resize-none"
+                      />
                     </div>
                   </div>
                 )}

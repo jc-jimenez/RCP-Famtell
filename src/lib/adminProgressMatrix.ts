@@ -8,6 +8,20 @@ export interface ParticipantModuleCell {
   lastActivity: string | null
 }
 
+export interface ParticipantEngagement {
+  // Invitación → primer mensaje real — "qué tanto le urgió empezar".
+  reactionDays: number | null
+  // # de fechas de calendario distintas con actividad — un solo día
+  // concentrado se ve muy distinto a varias conexiones repartidas.
+  activeDays: number
+  // Promedio de palabras por mensaje de usuario — proxy de profundidad de
+  // respuesta, más confiable que la velocidad sola para distinguir "al
+  // vapor" de "se tomó el tiempo" (alguien puede tardar días en empezar por
+  // agenda, no por desinterés, pero las respuestas cortas sí son una señal).
+  avgWordsPerAnswer: number | null
+  totalMessages: number
+}
+
 export interface ParticipantProgress {
   caseUserId: string
   userId: string | null
@@ -17,7 +31,20 @@ export interface ParticipantProgress {
   jobPositionName: string | null
   role: string
   invited: boolean
+  isTestAccount: boolean
+  onboardingResistanceLevel: 'baja' | 'media' | 'alta' | null
+  onboardingResistanceNote: string | null
+  engagement: ParticipantEngagement
   cells: Record<string, ParticipantModuleCell>
+}
+
+function wordCount(text: unknown): number {
+  if (typeof text !== 'string') return 0
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+function daysBetween(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000))
 }
 
 /**
@@ -88,7 +115,7 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
 
   const { data: caseUsers } = await db
     .from('case_users')
-    .select('id, user_id, job_position_id, job_title, full_name, role, invitation_email')
+    .select('id, user_id, job_position_id, job_title, full_name, role, invitation_email, is_test_account, invitation_expires_at, activated_at, onboarding_resistance_level, onboarding_resistance_note')
     .eq('case_id', caseId)
     .in('role', ['director', 'collaborator'])
 
@@ -101,10 +128,11 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
 
   const userIds: string[] = (caseUsers ?? []).map((u: any) => u.user_id).filter(Boolean)
   const { data: sessions } = userIds.length > 0
-    ? await db.from('sessions').select('user_id, module_code, answered_questions, completed, last_message_at').eq('case_id', caseId).in('user_id', userIds)
+    ? await db.from('sessions').select('user_id, module_code, answered_questions, completed, last_message_at, created_at, messages').eq('case_id', caseId).in('user_id', userIds)
     : { data: [] as any[] }
 
   const sessionMap: Record<string, Record<string, { answered: number; completed: boolean; lastActivity: string | null }>> = {}
+  const sessionsByUser: Record<string, any[]> = {}
   ;(sessions ?? []).forEach((s: any) => {
     if (!sessionMap[s.user_id]) sessionMap[s.user_id] = {}
     sessionMap[s.user_id][s.module_code] = {
@@ -112,7 +140,49 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
       completed: !!s.completed,
       lastActivity: s.last_message_at,
     }
+    ;(sessionsByUser[s.user_id] ??= []).push(s)
   })
+
+  function computeEngagement(u: any): ParticipantEngagement {
+    const userSessions = u.user_id ? (sessionsByUser[u.user_id] ?? []) : []
+    if (userSessions.length === 0) {
+      return { reactionDays: null, activeDays: 0, avgWordsPerAnswer: null, totalMessages: 0 }
+    }
+
+    // Día 0: invitación reconstruida (expires_at es siempre now()+48h al
+    // crearse, así que expires_at-48h da la fecha real de invitación para
+    // todo el histórico) o, si el alta fue directa con contraseña (sin
+    // invitación por correo), la activación misma.
+    const invitedAt: Date | null = u.invitation_expires_at
+      ? new Date(new Date(u.invitation_expires_at).getTime() - 48 * 60 * 60 * 1000)
+      : u.activated_at ? new Date(u.activated_at) : null
+
+    const firstSessionStart = userSessions
+      .map((s: any) => new Date(s.created_at))
+      .reduce((min: Date, d: Date) => d < min ? d : min)
+
+    const reactionDays = invitedAt ? Math.max(0, daysBetween(invitedAt, firstSessionStart)) : null
+
+    const activeDates = new Set<string>()
+    let totalWords = 0
+    let totalMessages = 0
+    userSessions.forEach((s: any) => {
+      activeDates.add(new Date(s.created_at).toISOString().slice(0, 10))
+      if (s.last_message_at) activeDates.add(new Date(s.last_message_at).toISOString().slice(0, 10))
+      const msgs: any[] = Array.isArray(s.messages) ? s.messages : []
+      msgs.filter((m: any) => m.role === 'user').forEach((m: any) => {
+        totalWords += wordCount(m.content)
+        totalMessages++
+      })
+    })
+
+    return {
+      reactionDays,
+      activeDays: activeDates.size,
+      avgWordsPerAnswer: totalMessages > 0 ? Math.round(totalWords / totalMessages) : null,
+      totalMessages,
+    }
+  }
 
   const participants: ParticipantProgress[] = (caseUsers ?? []).map((u: any) => {
     const cells: Record<string, ParticipantModuleCell> = {}
@@ -136,6 +206,10 @@ export async function computeParticipantModuleMatrix(db: any, caseId: string): P
       jobPositionName: u.job_position_id ? positionNameById[u.job_position_id] ?? null : null,
       role: u.role,
       invited: !!u.user_id,
+      isTestAccount: !!u.is_test_account,
+      onboardingResistanceLevel: u.onboarding_resistance_level ?? null,
+      onboardingResistanceNote: u.onboarding_resistance_note ?? null,
+      engagement: computeEngagement(u),
       cells,
     }
   })

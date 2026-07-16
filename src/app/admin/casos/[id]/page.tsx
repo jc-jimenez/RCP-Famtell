@@ -62,7 +62,7 @@ export default async function AdminCasoHubPage({
 
   const { data: participants } = await db
     .from('case_users')
-    .select('id, role, job_title, job_position_id, business_role_id, invitation_email, full_name, permissions_json, activated_at')
+    .select('id, role, job_title, job_position_id, business_role_id, invitation_email, full_name, permissions_json, activated_at, is_test_account')
     .eq('case_id', caseId)
 
   const { data: rawPositions } = await db
