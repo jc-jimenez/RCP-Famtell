@@ -6,6 +6,12 @@ import { buildParticipantBackupPdf } from '@/lib/participantBackup'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+// La auditoría de cobertura (una llamada a IA por módulo, en paralelo)
+// midió ~50s reales con 5 módulos para un participante con transcripciones
+// largas — dejamos margen. Si el plan de Vercel tiene un tope más bajo, esta
+// ruta puede fallar por timeout con participantes muy avanzados; confirmar
+// el límite real del plan si eso llega a pasar en producción.
+export const maxDuration = 120
 
 // GET /api/admin/backup/participante?caseId=xxx&caseUserId=yyy — PDF de
 // TODO lo que este participante haya contestado hasta el momento, completado

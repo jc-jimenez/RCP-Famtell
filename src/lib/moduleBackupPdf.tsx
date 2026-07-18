@@ -55,13 +55,13 @@ function ModuleBackupDocument({ data }: { data: ModuleBackupData }) {
         )}
 
         {data.participants.map((p, i) => (
-          <View key={i} style={styles.participantBlock} wrap={false}>
-            <Text style={styles.participantHeader}>{p.name} · {p.positionName}</Text>
+          <View key={i} style={styles.participantBlock}>
+            <Text style={styles.participantHeader} wrap={false}>{p.name} · {p.positionName}</Text>
             {p.messages.length === 0 ? (
               <Text style={styles.empty}>Sin mensajes registrados.</Text>
             ) : (
               p.messages.map((m, j) => (
-                <View key={j} style={styles.message}>
+                <View key={j} style={styles.message} wrap={false}>
                   <Text style={[styles.roleLabel, m.role === 'user' ? styles.userLabel : styles.novaLabel]}>
                     {m.role === 'user' ? p.name : 'Nova'}
                   </Text>

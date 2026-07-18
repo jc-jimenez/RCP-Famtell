@@ -65,3 +65,68 @@ export async function countQuestionsForPosition(
 
   return total
 }
+
+/**
+ * Mismo criterio de fusión que countQuestionsForPosition, pero devuelve el
+ * texto de las preguntas en vez de solo el conteo — lo necesita el respaldo
+ * PDF por participante para poder auditar cobertura real (pregunta del
+ * catálogo → qué contestó, según la transcripción) en vez de depender del
+ * contador answered_questions (poco confiable, ver auditoría manual de
+ * Gerardo Téllez Alcaraz / David Octavio Sánchez Téllez, jul 2026).
+ */
+export async function getQuestionsForPosition(
+  db: any,
+  caseId: string,
+  moduleCode: string,
+  jobPositionId: string | null,
+): Promise<string[]> {
+  if (!jobPositionId) return []
+
+  const scope = await resolveCatalogScope(db, caseId)
+  const moduleTemplateQuery = db.from('module_templates').select('id').eq('code', moduleCode).eq('is_active', true)
+  const { data: moduleTemplate } = await applyCatalogScope(moduleTemplateQuery, scope, caseId).maybeSingle()
+  if (!moduleTemplate) return []
+
+  const { data: sectionsRaw } = await db
+    .from('sections')
+    .select('id, questions ( id, text, is_active )')
+    .eq('module_template_id', moduleTemplate.id)
+
+  const sectionIds: string[] = (sectionsRaw ?? []).map((s: any) => s.id)
+  if (sectionIds.length === 0) return []
+
+  const { data: overridesRaw } = await db
+    .from('case_question_overrides')
+    .select('question_id, is_active, job_position_ids')
+    .eq('case_id', caseId)
+
+  const overridesMap: Record<string, { is_active: boolean; job_position_ids: string[] }> = {}
+  ;(overridesRaw ?? []).forEach((o: any) => {
+    overridesMap[o.question_id] = { is_active: o.is_active, job_position_ids: o.job_position_ids ?? [] }
+  })
+
+  const { data: customRaw } = await db
+    .from('case_custom_questions')
+    .select('id, section_id, text, is_active, job_position_ids')
+    .eq('case_id', caseId)
+    .in('section_id', sectionIds)
+
+  const texts: string[] = []
+
+  for (const sec of sectionsRaw ?? []) {
+    for (const q of sec.questions ?? []) {
+      const ov = overridesMap[q.id]
+      const isActive = ov !== undefined ? ov.is_active : q.is_active
+      if (!isActive) continue
+      const jobPositionIds = ov?.job_position_ids ?? []
+      if (jobPositionIds.includes(jobPositionId)) texts.push(q.text)
+    }
+  }
+
+  for (const q of customRaw ?? []) {
+    if (!q.is_active) continue
+    if ((q.job_position_ids ?? []).includes(jobPositionId)) texts.push(q.text)
+  }
+
+  return texts
+}

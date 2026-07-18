@@ -12,6 +12,12 @@ export interface BackupMessage {
   content: string
 }
 
+export interface QuestionCoverageRow {
+  question: string
+  answer: string | null
+  covered: boolean
+}
+
 export interface ModuleSection {
   moduleCode: string
   moduleName: string
@@ -19,6 +25,11 @@ export interface ModuleSection {
   answeredQuestions: number
   totalQuestions: number
   messages: BackupMessage[]
+  // Auditoría pregunta-del-catálogo → respuesta real, generada leyendo la
+  // transcripción completa — independiente del contador answered_questions
+  // (ver participantBackupAudit.ts). undefined si no se pudo auditar (p.ej.
+  // sin puesto asignado) — en ese caso el PDF solo muestra la transcripción.
+  qaTable?: QuestionCoverageRow[]
 }
 
 export interface ParticipantBackupData {
@@ -44,6 +55,16 @@ const styles = StyleSheet.create({
   userLabel: { color: '#111111' },
   content: { fontSize: 9.5, lineHeight: 1.4 },
   empty: { fontSize: 9, color: '#999999', fontStyle: 'italic' },
+
+  qaLabel: { fontSize: 9, fontWeight: 700, color: '#444444', marginTop: 4, marginBottom: 6 },
+  qaRow: { flexDirection: 'row', marginBottom: 5, paddingBottom: 5, borderBottom: 0.5, borderColor: '#e5e5e5' },
+  qaMark: { width: 22, fontSize: 8, fontWeight: 700 },
+  qaMarkCovered: { color: '#15803d' },
+  qaMarkMissing: { color: '#b91c1c' },
+  qaQuestion: { flex: 1, fontSize: 8.5, fontWeight: 700, color: '#333333', paddingRight: 10 },
+  qaAnswer: { flex: 1, fontSize: 8.5, color: '#111111' },
+  qaAnswerMissing: { fontSize: 8.5, color: '#999999', fontStyle: 'italic' },
+  transcriptLabel: { fontSize: 9, fontWeight: 700, color: '#444444', marginTop: 10, marginBottom: 8 },
 })
 
 function ParticipantBackupDocument({ data }: { data: ParticipantBackupData }) {
@@ -61,22 +82,47 @@ function ParticipantBackupDocument({ data }: { data: ParticipantBackupData }) {
         )}
 
         {data.modules.map((mod, i) => (
-          <View key={i} style={styles.moduleBlock} wrap={false}>
-            <Text style={styles.moduleHeader}>{mod.moduleCode} · {mod.moduleName}</Text>
+          <View key={i} style={styles.moduleBlock}>
+            <Text style={styles.moduleHeader} wrap={false}>{mod.moduleCode} · {mod.moduleName}</Text>
             <Text style={styles.moduleStatus}>
               {mod.completed ? 'Completado' : `En progreso — ${mod.answeredQuestions}/${mod.totalQuestions} preguntas`}
             </Text>
+
+            {mod.qaTable && mod.qaTable.length > 0 && (
+              <View>
+                <Text style={styles.qaLabel} wrap={false}>
+                  Cobertura del catálogo — {mod.qaTable.filter(r => r.covered).length}/{mod.qaTable.length} preguntas cubiertas en la conversación
+                </Text>
+                {mod.qaTable.map((row, k) => (
+                  <View key={k} style={styles.qaRow} wrap={false}>
+                    <Text style={[styles.qaMark, row.covered ? styles.qaMarkCovered : styles.qaMarkMissing]}>
+                      {row.covered ? 'SI' : 'NO'}
+                    </Text>
+                    <Text style={styles.qaQuestion}>{row.question}</Text>
+                    {row.covered && row.answer ? (
+                      <Text style={styles.qaAnswer}>{row.answer}</Text>
+                    ) : (
+                      <Text style={styles.qaAnswerMissing}>No se cubrió en la conversación.</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
             {mod.messages.length === 0 ? (
               <Text style={styles.empty}>Sin mensajes registrados.</Text>
             ) : (
-              mod.messages.map((m, j) => (
-                <View key={j} style={styles.message}>
-                  <Text style={[styles.roleLabel, m.role === 'user' ? styles.userLabel : styles.novaLabel]}>
-                    {m.role === 'user' ? data.participantName : 'Nova'}
-                  </Text>
-                  <Text style={styles.content}>{m.content}</Text>
-                </View>
-              ))
+              <View>
+                <Text style={styles.transcriptLabel} wrap={false}>Transcripción completa</Text>
+                {mod.messages.map((m, j) => (
+                  <View key={j} style={styles.message} wrap={false}>
+                    <Text style={[styles.roleLabel, m.role === 'user' ? styles.userLabel : styles.novaLabel]}>
+                      {m.role === 'user' ? data.participantName : 'Nova'}
+                    </Text>
+                    <Text style={styles.content}>{m.content}</Text>
+                  </View>
+                ))}
+              </View>
             )}
           </View>
         ))}

@@ -1,6 +1,7 @@
 import { generateParticipantBackupPdf, type ModuleSection } from './participantBackupPdf'
 import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
-import { countQuestionsForPosition } from './moduleQuestions'
+import { countQuestionsForPosition, getQuestionsForPosition } from './moduleQuestions'
+import { auditModuleCoverage } from './participantBackupAudit'
 
 // Respaldo manual bajo demanda de TODO lo que un participante haya
 // contestado hasta el momento — a diferencia del respaldo automático por
@@ -43,16 +44,27 @@ export async function buildParticipantBackupPdf(db: any, caseId: string, caseUse
       const total = caseUser.job_position_id
         ? await countQuestionsForPosition(db, caseId, s.module_code, caseUser.job_position_id)
         : 0
+      const messages = (s.messages ?? []).map((m: any) => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+      }))
+
+      // Auditoría de cobertura real (pregunta del catálogo → respuesta),
+      // no el contador answered_questions — ver participantBackupAudit.ts.
+      let qaTable
+      if (caseUser.job_position_id) {
+        const catalogQuestions = await getQuestionsForPosition(db, caseId, s.module_code, caseUser.job_position_id)
+        qaTable = await auditModuleCoverage(catalogQuestions, messages)
+      }
+
       return {
         moduleCode: s.module_code,
         moduleName: moduleNameByCode[s.module_code] ?? s.module_code,
         completed: !!s.completed,
         answeredQuestions: s.answered_questions ?? 0,
         totalQuestions: total,
-        messages: (s.messages ?? []).map((m: any) => ({
-          role: m.role,
-          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        })),
+        messages,
+        qaTable,
       }
     })
   )
