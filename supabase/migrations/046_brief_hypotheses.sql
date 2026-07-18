@@ -1,0 +1,37 @@
+-- ============================================================
+-- 046: Brief — hipótesis a confirmar
+-- ============================================================
+-- Afirmaciones cualitativas de alto impacto (canales, capacidades,
+-- procesos) que un participante mencionó pero que no tienen sustento
+-- verificable (cifras, evidencia externa, documento) — si se toman al pie
+-- de la letra pueden convertirse en la premisa equivocada de una
+-- iniciativa del plan. Parada obligatoria del consultor, justo después de
+-- que las entrevistas terminan y antes de análisis/diagnósticos clave
+-- (decisión del usuario, jul 2026, motivada por un caso real: un
+-- participante dijo "hacemos marketing por LinkedIn y Facebook", el
+-- consultor sabía de primera mano que esa publicidad era amateur — sin
+-- este paso, esa afirmación habría alimentado una iniciativa del plan
+-- 90 días asumiendo ejecución profesional que no existe).
+ALTER TABLE brief_documents
+  ADD COLUMN IF NOT EXISTS hypotheses JSONB DEFAULT '[]'::jsonb;
+
+-- hypotheses shape:
+-- [{
+--   "id": "hip_1",
+--   "statement": "Famtell ejecuta marketing profesional en LinkedIn y Facebook",
+--   "area": "Comercial",
+--   "module_origin": "M1",
+--   "fundamento": [
+--     { "quote": "por redes sociales, en Linkedin y facebook, por recomendacion tambien",
+--       "participant": "David Octavio Sánchez Téllez", "moduleCode": "M1", "questionIndex": 4 }
+--   ],
+--   "draft_conclusion": "Famtell tiene presencia en LinkedIn y Facebook, pero sin gestión profesional ni inversión formal mencionada — verificar antes de asumir ejecución con agencia.",
+--   "status": "pending",           -- pending | confirmed | rejected
+--   "final_conclusion": null,      -- lo que el consultor confirma/edita; null mientras status=pending
+--   "created_at": "..."
+-- }]
+--
+-- track_status gana una etapa nueva 'hipotesis' (mismo shape que las demás:
+-- { status: 'complete'|'active'|'pending', completed_at }), secuenciada
+-- justo después de 'levantamiento' y antes de 'analisis' — no requiere
+-- columna nueva, ya vive dentro del JSONB de track_status (migración 014).

@@ -33,6 +33,7 @@ interface Props {
 const STEPS = [
   { id: 'interviews',    label: 'Entrevistas',    desc: 'Módulos con sesiones completadas' },
   { id: 'levantamiento', label: 'Levantamiento',  desc: 'Todos los módulos completados' },
+  { id: 'hipotesis',     label: 'Hipótesis',      desc: 'Afirmaciones sin sustento revisadas antes de generar diagnósticos' },
   { id: 'analisis',      label: 'Análisis',       desc: 'Hallazgos por módulo generados' },
   { id: 'jtbd',           label: 'Diagnósticos',   desc: 'Diagnósticos clave aprobados' },
   { id: 'jtbd_comercial', label: 'JTBD Comercial', desc: 'Jobs de clientes validados' },
@@ -217,10 +218,13 @@ export default function BriefConsultorClient({
   const jtbdComercialList = brief?.jtbd_comercial ?? []
   const segmentList       = brief?.segments ?? []
   const priorityList      = brief?.priorities ?? []
+  const hypothesisList    = brief?.hypotheses ?? []
   const approvedJtbd  = jtbdList.filter((j: any) => j.approved).length
   const approvedJtbdC = jtbdComercialList.filter((j: any) => j.approved).length
   const approvedSegs  = segmentList.filter((s: any) => s.approved).length
   const approvedPris  = priorityList.filter((p: any) => p.approved).length
+  const hypothesisGenerated = Array.isArray(brief?.hypotheses)
+  const pendingHypotheses   = hypothesisList.filter((h: any) => h.status === 'pending').length
 
   return (
     <AppShell role="consultant" email={email} caseCompanyName={companyName} tabBar={<CasoTabs caseId={caseId} activeTab="brief" />}>
@@ -358,8 +362,127 @@ export default function BriefConsultorClient({
             </p>
             <button onClick={() => approveStep('levantamiento')} disabled={!canAdvancePastLevantamiento()}
               className="btn-primary text-sm px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
-              Continuar con el análisis →
+              Continuar con hipótesis a confirmar →
             </button>
+          </div>
+        )}
+
+        {/* ── Etapa: Hipótesis a confirmar ──
+            Parada obligatoria antes de análisis/diagnósticos: afirmaciones
+            cualitativas de alto impacto (cualquier módulo, si puede alimentar
+            una iniciativa del plan) sin sustento verificable — el consultor
+            las expone al directivo por fuera de la app y aquí solo anota la
+            conclusión. Quedar en 'pendiente' no bloquea continuar, pero no
+            debe ser la costumbre (decisión del usuario, jul 2026). */}
+        {activeStep === 'hipotesis' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-ink">Hipótesis a confirmar</h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Afirmaciones sin sustento que podrían volverse la base equivocada de una iniciativa del plan
+                  {hypothesisGenerated && ` · ${hypothesisList.length - pendingHypotheses} de ${hypothesisList.length} resueltas`}
+                </p>
+              </div>
+              <button onClick={() => generate('hypotheses')} disabled={!!generating}
+                className="btn-primary text-xs px-3 py-2 disabled:opacity-50">
+                {generating === 'hypotheses' ? '✦ Auditando entrevistas…' : hypothesisGenerated ? '✦ Regenerar con Nova' : '✦ Detectar con Nova'}
+              </button>
+            </div>
+
+            {!hypothesisGenerated ? (
+              <div className="card p-8 text-center space-y-2">
+                <p className="text-sm text-muted">
+                  Nova va a releer todas las entrevistas del caso y a marcar afirmaciones cualitativas de alto impacto
+                  — canales, capacidades, procesos — que no tienen cifras ni evidencia externa que las respalde.
+                </p>
+                <p className="text-xs text-faint">Con varios participantes esto puede tardar unos minutos: audita pregunta por pregunta antes de proponer hipótesis.</p>
+              </div>
+            ) : hypothesisList.length === 0 ? (
+              <div className="card p-6 text-center text-sm text-muted">
+                Nova no encontró afirmaciones de alto impacto sin sustento en este caso. Puedes continuar.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {hypothesisList.map((h: any) => (
+                  <div key={h.id} className={`card p-4 space-y-3 transition-all ${
+                    h.status === 'confirmed' ? 'border-emerald-200 bg-emerald-50/30' :
+                    h.status === 'rejected'  ? 'border-rose-200 bg-rose-50/30' : ''
+                  }`}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <span className="badge text-xs">{h.area}</span>
+                        <span className="text-xs font-mono text-faint">{h.module_origin}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded border ${
+                          h.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          h.status === 'rejected'  ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                          'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {h.status === 'confirmed' ? 'Confirmada' : h.status === 'rejected' ? 'Rechazada' : 'Pendiente'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-sm font-medium text-ink">{h.statement}</p>
+
+                    <div className="bg-surface-2 rounded-lg p-3 space-y-1.5">
+                      <p className="text-[10px] font-semibold text-faint uppercase tracking-wide">Fundamento</p>
+                      {(h.fundamento ?? []).map((f: any, i: number) => (
+                        <p key={i} className="text-xs text-muted leading-relaxed">
+                          "{f.quote}" <span className="text-faint">({f.participant}, {f.moduleCode}, P{f.questionIndex})</span>
+                        </p>
+                      ))}
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-semibold text-faint uppercase tracking-wide mb-1">
+                        Conclusión {h.status === 'pending' ? '(borrador de Nova — ajústala tras confirmar con el directivo)' : ''}
+                      </p>
+                      <textarea rows={2} className="input-field w-full text-sm resize-none"
+                        value={h.final_conclusion ?? h.draft_conclusion ?? ''}
+                        onChange={e => updateItem('hypotheses', h.id, { final_conclusion: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button onClick={() => updateItem('hypotheses', h.id, { status: 'confirmed', final_conclusion: h.final_conclusion ?? h.draft_conclusion })}
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                          h.status === 'confirmed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-subtle hover:border-emerald-400'
+                        }`}>
+                        ✓ Confirmar
+                      </button>
+                      <button onClick={() => updateItem('hypotheses', h.id, { status: 'rejected', final_conclusion: h.final_conclusion ?? h.draft_conclusion })}
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                          h.status === 'rejected' ? 'bg-rose-500 border-rose-500 text-white' : 'border-subtle hover:border-rose-400'
+                        }`}>
+                        ✕ Rechazar
+                      </button>
+                      {h.status !== 'pending' && (
+                        <button onClick={() => updateItem('hypotheses', h.id, { status: 'pending' })}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-subtle text-muted hover:border-amber-400">
+                          Marcar pendiente
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pendingHypotheses > 0 && hypothesisGenerated && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {pendingHypotheses} hipótesis sin resolver. Puedes continuar, pero el Brief hablará con cobertura ("no confirmado") en vez de tratarlas como hecho hasta que las cierres.
+              </p>
+            )}
+
+            {hypothesisGenerated && (
+              <div className="flex gap-2">
+                <button onClick={() => save()} disabled={saving} className="btn-secondary text-sm px-4 py-2">Guardar</button>
+                <button onClick={() => approveStep('hipotesis')} className="btn-primary text-sm px-4 py-2">
+                  Continuar con el análisis →
+                </button>
+              </div>
+            )}
           </div>
         )}
 

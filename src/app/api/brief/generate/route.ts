@@ -4,8 +4,16 @@ import { anthropic, NOVA_MODEL } from '@/lib/anthropic/client'
 import { CREDIT_COSTS, deductCreditsByEmail } from '@/lib/credits'
 import { isCaseFullyComplete } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
+import { buildCaseAnswerUniverse } from '@/lib/hypothesisAudit'
+import { generateHypothesisCandidates } from '@/lib/briefHypotheses'
 
 export const runtime = 'nodejs'
+// 'hypotheses' hace una llamada a IA por cada (participante × módulo con
+// sesión) para auditar cobertura real, más una llamada final para detectar
+// hipótesis — con un caso de varios participantes esto midió varios minutos
+// en pruebas reales. El resto de las secciones son una sola llamada y
+// terminan en segundos; el techo alto no les afecta.
+export const maxDuration = 300
 
 type Section =
   | 'jtbd'
@@ -19,6 +27,7 @@ type Section =
   | 'plan_6m'
   | 'plan_1a'
   | 'plan_3a'
+  | 'hypotheses'
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
@@ -67,6 +76,25 @@ export async function POST(request: Request) {
         pending: m.pending,
       })),
     }, { status: 409 })
+  }
+
+  // 'hypotheses' no sigue el patrón "un prompt, una llamada" del resto de
+  // las secciones — necesita primero auditar cobertura real por
+  // participante×módulo (buildCaseAnswerUniverse) y sobre ESE universo
+  // detectar hipótesis con cita exacta (participante, módulo, #pregunta).
+  // Se resuelve aparte, antes de armar los prompts genéricos de abajo.
+  if (section === 'hypotheses') {
+    const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.BRIEF_SECTION)
+    if (!credit.success) {
+      return NextResponse.json({ error: credit.error, upgrade_url: '/dashboard/creditos' }, { status: 402 })
+    }
+    try {
+      const answerUniverse = await buildCaseAnswerUniverse(db2, caseId)
+      const candidates = await generateHypothesisCandidates(answerUniverse)
+      return NextResponse.json({ result: candidates })
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 500 })
+    }
   }
 
   // Catálogo real de módulos del caso (propio si existe, si no el global) —
@@ -195,9 +223,24 @@ export async function POST(request: Request) {
   const findings = brief?.module_findings ?? {}
   const marketCtx = brief?.market_context ?? {}
 
+  // Hipótesis ya resueltas por el consultor con el directivo (ver etapa
+  // "Hipótesis" del wizard, migración 046) — se inyectan en cada sección que
+  // sintetiza directamente sobre las transcripciones o sobre iniciativas,
+  // para que ninguna lectura ingenua de una afirmación sin sustento
+  // (ej. "hacemos marketing por LinkedIn") se convierta en la premisa de un
+  // diagnóstico, segmento o acción del plan.
+  const hipotesisConfirmadas = (brief?.hypotheses ?? []).filter((h: any) => h.status === 'confirmed')
+  const hipotesisRechazadas  = (brief?.hypotheses ?? []).filter((h: any) => h.status === 'rejected')
+  const hipotesisBlock = (hipotesisConfirmadas.length > 0 || hipotesisRechazadas.length > 0) ? `
+HIPÓTESIS YA VALIDADAS CON EL DIRECTIVO — trátalas como hechos confirmados, NO vuelvas a asumir la lectura literal de la transcripción cuando contradiga esto:
+${hipotesisConfirmadas.map((h: any) => `- ${h.final_conclusion ?? h.draft_conclusion}`).join('\n') || '(ninguna)'}
+${hipotesisRechazadas.length > 0 ? `\nAFIRMACIONES DESCARTADAS — el participante las mencionó pero se comprobó que NO son ciertas o no tienen el alcance que sugieren, no las uses como si fueran hechos:\n${hipotesisRechazadas.map((h: any) => `- ${h.statement}`).join('\n')}` : ''}
+` : ''
+
   // ── Prompts por sección ──────────────────────────────────────────────────
 
-  const prompts: Record<Section, string> = {
+  // 'hypotheses' ya se resolvió y retornó arriba — nunca llega aquí.
+  const prompts: Record<Exclude<Section, 'hypotheses'>, string> = {
 
     jtbd: `Eres un consultor empresarial senior especializado en diagnóstico organizacional y rescate de empresas.
 
@@ -209,6 +252,7 @@ ${moduleListDescription || 'No hay módulos configurados.'}
 TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
 ${tableDataBlocks ? `\nDATOS DE TABLAS CAPTURADAS (mapas de clientes, inventarios, tarifas, talento — datos duros, más confiables que apreciaciones cualitativas cuando estén disponibles, úsalos como evidencia de peso en "evidence"):\n${tableDataBlocks}\n` : ''}
+${hipotesisBlock}
 IER detectado: ${ierSummary}
 
 Estos diagnósticos son problemas INTERNOS de la empresa (no de sus clientes), vistos desde la perspectiva del consultor: cuellos de botella operativos, brechas financieras, debilidades comerciales, riesgos organizacionales, falta de procesos, dependencia de personas clave, etc.
@@ -259,7 +303,7 @@ ${moduleListDescription || 'No hay módulos configurados.'}
 
 TRANSCRIPCIONES DE LOS MÓDULOS:
 ${transcripts || 'No hay transcripciones disponibles aún.'}
-
+${hipotesisBlock}
 Un Job To Be Done comercial es la tarea funcional, emocional o social que un cliente necesita resolver y para la cual contrata (o consideraría contratar) a ${company}. Se expresa desde la perspectiva del cliente, no de la empresa.
 
 Formato de statement: "Cuando [situación del cliente], necesito [job a contratar], para [resultado esperado]"
@@ -303,7 +347,7 @@ ${JSON.stringify(jtbdComercialAprobados, null, 2)}
 
 CONTEXTO DE MERCADO:
 ${JSON.stringify(marketCtx, null, 2)}
-
+${hipotesisBlock}
 IER: ${ierSummary}
 
 Los segmentos deben estar alineados con los JTBD comerciales detectados (a qué clientes sirve mejor) y con la capacidad actual de la empresa según sus diagnósticos (si tiene brechas operativas, no propongas segmentos que las agraven).
@@ -344,7 +388,7 @@ ${JSON.stringify(jtbdAprobados, null, 2)}
 
 SEGMENTOS APROBADOS:
 ${JSON.stringify(segmentosAprobados, null, 2)}
-
+${hipotesisBlock}
 IER: ${ierSummary}
 
 Clasifica cada prioridad como:
@@ -374,6 +418,7 @@ ${moduleListDescription || 'No hay módulos configurados.'}
 TRANSCRIPCIONES DISPONIBLES:
 ${transcripts || 'Genera hallazgos hipotéticos basados en el sector.'}
 ${tableDataBlocks ? `\nDATOS DE TABLAS CAPTURADAS por módulo (úsalos como evidencia dura del hallazgo de ese módulo cuando existan):\n${tableDataBlocks}\n` : ''}
+${hipotesisBlock}
 IER: ${ierSummary}
 
 Responde ÚNICAMENTE con un JSON plano donde cada llave es el código EXACTO de uno de los módulos listados arriba y el valor es su hallazgo:
@@ -440,7 +485,7 @@ ${JSON.stringify((brief?.priorities ?? []).filter((p:any) => p.approved), null, 
 
 SEGMENTOS 90d:
 ${JSON.stringify(segmentosAprobados.filter((s:any) => s.priority === '90d'), null, 2)}
-
+${hipotesisBlock}
 IER: ${ierSummary}
 
 Estructura:
