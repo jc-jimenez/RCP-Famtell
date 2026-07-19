@@ -25,8 +25,15 @@ export async function generateAndStoreModuleBackup(db: any, caseId: string, modu
   const userIds = [...new Set((sessions ?? []).map((s: any) => s.user_id))]
 
   const { data: caseUsers } = userIds.length > 0
-    ? await db.from('case_users').select('user_id, full_name, invitation_email, job_position_id').eq('case_id', caseId).in('user_id', userIds)
+    ? await db.from('case_users').select('user_id, full_name, invitation_email, job_position_id, is_test_account').eq('case_id', caseId).in('user_id', userIds)
     : { data: [] }
+
+  // Cuentas de prueba no representan al ocupante real del puesto — mismo
+  // criterio que computeModuleCompletion (moduleCompletion.ts). Sin este
+  // filtro, el respaldo automático por módulo mezclaba entrevistas de
+  // prueba con las reales (encontrado en vivo: "Demo Director Comercial"
+  // apareciendo en el PDF de M6 del caso Famtell).
+  const testAccountUserIds = new Set((caseUsers ?? []).filter((u: any) => u.is_test_account).map((u: any) => u.user_id))
 
   const positionIds = [...new Set((caseUsers ?? []).map((u: any) => u.job_position_id).filter(Boolean))]
   const { data: positions } = positionIds.length > 0
@@ -44,11 +51,13 @@ export async function generateAndStoreModuleBackup(db: any, caseId: string, modu
     }
   })
 
-  const participants: BackupParticipant[] = (sessions ?? []).map((s: any) => ({
-    name: userInfoById[s.user_id]?.name ?? 'Participante',
-    positionName: userInfoById[s.user_id]?.positionName ?? 'Sin puesto',
-    messages: (s.messages ?? []).map((m: any) => ({ role: m.role, content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) })),
-  }))
+  const participants: BackupParticipant[] = (sessions ?? [])
+    .filter((s: any) => !testAccountUserIds.has(s.user_id))
+    .map((s: any) => ({
+      name: userInfoById[s.user_id]?.name ?? 'Participante',
+      positionName: userInfoById[s.user_id]?.positionName ?? 'Sin puesto',
+      messages: (s.messages ?? []).map((m: any) => ({ role: m.role, content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) })),
+    }))
 
   const pdfBuffer = await generateModuleBackupPdf({
     companyName: caseData.company_name,
