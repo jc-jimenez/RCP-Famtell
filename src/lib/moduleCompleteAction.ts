@@ -150,12 +150,29 @@ export async function completeModuleSession(
       .eq('case_id', caseId)
       .eq('module_code', moduleCode)
 
-    // Desbloquear el siguiente módulo
+    // Desbloquear el siguiente módulo — pero solo si no está ya completado
+    // por su cuenta. Los módulos no siempre se terminan en orden estricto
+    // (distintos puestos avanzan a ritmos distintos: un módulo "de adelante"
+    // puede quedar en verde antes que uno "de atrás"). Sin este chequeo, el
+    // módulo siguiente que ya estaba completed se regresa silenciosamente a
+    // 'active' cuando el módulo actual lo termina de desbloquear tarde — bug
+    // real encontrado en el caso Famtell: M4 se completó el 17 de julio, y
+    // el 19 de julio, al completarse M3 (más lento por otro puesto), este
+    // mismo código pisó el status de M4 de 'completed' de vuelta a 'active'.
     if (nextTemplate) {
-      await db.from('modules')
-        .update({ status: 'active', unlocked_at: new Date().toISOString() })
+      const { data: nextModuleRow } = await db
+        .from('modules')
+        .select('status')
         .eq('case_id', caseId)
         .eq('module_code', nextTemplate.code)
+        .maybeSingle()
+
+      if (nextModuleRow?.status !== 'completed') {
+        await db.from('modules')
+          .update({ status: 'active', unlocked_at: new Date().toISOString() })
+          .eq('case_id', caseId)
+          .eq('module_code', nextTemplate.code)
+      }
     }
 
     // Respaldo en PDF de la transcripción del módulo — requiere service role,

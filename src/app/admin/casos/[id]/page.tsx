@@ -150,26 +150,34 @@ export default async function AdminCasoHubPage({
                 const status = m?.status ?? 'locked'
                 const completion = status === 'active' ? completionMap[code] : undefined
                 const colorStatus = completion?.colorStatus
+                // Un módulo puede quedar realmente completo (todos los puestos
+                // requeridos ya contestaron, colorStatus:'green') mientras su
+                // `status` técnico se quedó en 'active' — pasa cuando otro
+                // módulo se completa después y su desbloqueo pisa el status sin
+                // querer (bug real encontrado en el caso Famtell, corregido en
+                // moduleCompleteAction.ts, jul 2026). Tratarlo como completado
+                // aquí evita mostrar "No iniciado" sobre un módulo ya terminado.
+                const effectiveComplete = status === 'completed' || colorStatus === 'green'
                 return (
                   <div key={code} className={`flex items-start gap-3 p-3 rounded-xl border ${
-                    status === 'completed' ? 'bg-emerald-50/50 border-emerald-100' :
+                    effectiveComplete ? 'bg-emerald-50/50 border-emerald-100' :
                     status === 'active' && colorStatus === 'amber' ? 'bg-amber-50 border-amber-200' :
                     status === 'active' ? 'bg-rose-50 border-rose-200' :
                     'bg-surface-2 border-subtle'
                   }`}>
                     <span className={`text-xs font-bold w-7 text-center pt-0.5 ${
-                      status === 'completed' ? 'text-emerald-600' :
+                      effectiveComplete ? 'text-emerald-600' :
                       status === 'active' && colorStatus === 'amber' ? 'text-amber-600' :
                       status === 'active' ? 'text-rose-600' :
                       'text-faint'
                     }`}>
-                      {status === 'completed' ? '✓' : code}
+                      {effectiveComplete ? '✓' : code}
                     </span>
                     <div className="flex-1 min-w-0">
                       <span className={`text-sm block ${status === 'locked' ? 'text-faint' : 'text-ink'}`}>
                         {moduleLabels[code]}
                       </span>
-                      {status === 'active' && completion && completion.pending.length > 0 && (
+                      {status === 'active' && !effectiveComplete && completion && completion.pending.length > 0 && (
                         <span className={`text-xs block mt-0.5 ${colorStatus === 'amber' ? 'text-amber-700' : 'text-rose-700'}`}>
                           Falta: {completion.pending.map((p: any) => `${p.jobPositionName}${!p.hasOccupant ? ' (sin invitar)' : ''}`).join(', ')}
                         </span>
@@ -177,11 +185,11 @@ export default async function AdminCasoHubPage({
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <span className="text-xs text-faint">
-                        {status === 'completed'
-                          ? (m.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '')
+                        {effectiveComplete
+                          ? (m?.completed_at ? new Date(m.completed_at).toLocaleDateString('es-MX') : '')
                           : status === 'active' ? (colorStatus === 'amber' ? 'Incompleto' : 'No iniciado') : 'Pendiente'}
                       </span>
-                      {status === 'completed' && m.backup_pdf_path && (
+                      {effectiveComplete && m?.backup_pdf_path && (
                         <a
                           href={`/api/modules/backup?caseId=${caseId}&moduleCode=${code}`}
                           target="_blank"
