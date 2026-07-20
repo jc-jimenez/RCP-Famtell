@@ -9,6 +9,14 @@ export const CREDIT_COSTS = {
   WEEKLY_CHECKIN:       3,
   CLOSING_BRIEF:       20,
   BRIEF_SECTION:        2, // por sección generada en Brief de Cierre
+  // "Detectar con Nova" en Hipótesis a Confirmar no es una llamada a IA como
+  // el resto de las secciones — audita cada sesión completada del caso
+  // (una llamada por participante×módulo, cacheada desde sessions.qa_audit_cache
+  // a partir de la segunda corrida) más la síntesis final. Aun con caché, la
+  // primera vez que se genera en un caso cuesta bastante más en cómputo real
+  // que las demás secciones (medido: ~15-25x en un caso de 9 participantes) —
+  // precio plano más alto para no subsidiar esa diferencia.
+  HYPOTHESES_AUDIT:    10,
 }
 
 // ── Core helpers ──────────────────────────────────────────────────────────────

@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   // detectar hipótesis con cita exacta (participante, módulo, #pregunta).
   // Se resuelve aparte, antes de armar los prompts genéricos de abajo.
   if (section === 'hypotheses') {
-    const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.BRIEF_SECTION)
+    const credit = await deductCreditsByEmail(supabase, session.user.email!, CREDIT_COSTS.HYPOTHESES_AUDIT)
     if (!credit.success) {
       return NextResponse.json({ error: credit.error, upgrade_url: '/dashboard/creditos' }, { status: 402 })
     }
