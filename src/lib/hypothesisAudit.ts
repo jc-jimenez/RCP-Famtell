@@ -1,5 +1,5 @@
 import { getQuestionsForPosition } from './moduleQuestions'
-import { auditModuleCoverage } from './participantBackupAudit'
+import { getCachedAuditModuleCoverage } from './participantBackupAudit'
 
 // Universo de respuestas del caso completo (todos los participantes, todos
 // los módulos con sesión), con referencia exacta (participante, módulo,
@@ -35,7 +35,7 @@ export async function buildCaseAnswerUniverse(db: any, caseId: string): Promise<
 
   const { data: sessions } = await db
     .from('sessions')
-    .select('user_id, module_code, messages')
+    .select('id, user_id, module_code, messages')
     .eq('case_id', caseId)
     .in('user_id', userIds)
 
@@ -57,7 +57,7 @@ export async function buildCaseAnswerUniverse(db: any, caseId: string): Promise<
         content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
       }))
 
-      const coverage = await auditModuleCoverage(catalogQuestions, messages)
+      const coverage = await getCachedAuditModuleCoverage(db, s.id, catalogQuestions, messages)
       const participantName = cu.full_name || cu.invitation_email || 'Participante'
 
       coverage.forEach((row, idx) => {

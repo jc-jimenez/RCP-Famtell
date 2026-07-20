@@ -68,3 +68,43 @@ Responde ÚNICAMENTE con un array JSON, un elemento por cada pregunta del catál
     return catalogQuestions.map(q => ({ question: q, answer: null, covered: false }))
   }
 }
+
+// Misma auditoría, pero cacheada en sessions.qa_audit_cache (migración 047).
+// Una sesión completada no vuelve a recibir mensajes, así que el resultado
+// es válido indefinidamente MIENTRAS el catálogo de preguntas no cambie —
+// por eso el caché guarda el catálogo exacto usado y se invalida si ya no
+// coincide con el catálogo actual (el consultor agregó/quitó una pregunta).
+// Usar esta función en vez de auditModuleCoverage() en cualquier lugar que
+// audite sesiones ya cerradas (respaldo PDF, universo de hipótesis) — evita
+// repetir la misma llamada a IA cada vez que se regenera cualquiera de los
+// dos (encontrado en vivo: ~46 llamadas repetidas por corrida en un caso de
+// 9 participantes).
+export async function getCachedAuditModuleCoverage(
+  db: any,
+  sessionId: string,
+  catalogQuestions: string[],
+  transcript: { role: string; content: string }[],
+): Promise<QuestionCoverage[]> {
+  const { data: sessionRow } = await db
+    .from('sessions')
+    .select('qa_audit_cache')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  const cache = sessionRow?.qa_audit_cache as { questions?: string[]; coverage?: QuestionCoverage[] } | null
+  const cacheValid =
+    cache?.questions &&
+    cache.questions.length === catalogQuestions.length &&
+    cache.questions.every((q, i) => q === catalogQuestions[i])
+
+  if (cacheValid && cache?.coverage) return cache.coverage
+
+  const coverage = await auditModuleCoverage(catalogQuestions, transcript)
+
+  await db
+    .from('sessions')
+    .update({ qa_audit_cache: { questions: catalogQuestions, coverage, cached_at: new Date().toISOString() } })
+    .eq('id', sessionId)
+
+  return coverage
+}

@@ -1,7 +1,7 @@
 import { generateParticipantBackupPdf, type ModuleSection } from './participantBackupPdf'
 import { resolveCatalogScope, applyCatalogScope } from './moduleTemplates'
 import { countQuestionsForPosition, getQuestionsForPosition } from './moduleQuestions'
-import { auditModuleCoverage } from './participantBackupAudit'
+import { getCachedAuditModuleCoverage } from './participantBackupAudit'
 
 // Respaldo manual bajo demanda de TODO lo que un participante haya
 // contestado hasta el momento — a diferencia del respaldo automático por
@@ -33,7 +33,7 @@ export async function buildParticipantBackupPdf(db: any, caseId: string, caseUse
   const { data: sessions } = caseUser.user_id
     ? await db
         .from('sessions')
-        .select('module_code, messages, completed, answered_questions')
+        .select('id, module_code, messages, completed, answered_questions')
         .eq('case_id', caseId)
         .eq('user_id', caseUser.user_id)
         .order('module_code', { ascending: true })
@@ -54,7 +54,7 @@ export async function buildParticipantBackupPdf(db: any, caseId: string, caseUse
       let qaTable
       if (caseUser.job_position_id) {
         const catalogQuestions = await getQuestionsForPosition(db, caseId, s.module_code, caseUser.job_position_id)
-        qaTable = await auditModuleCoverage(catalogQuestions, messages)
+        qaTable = await getCachedAuditModuleCoverage(db, s.id, catalogQuestions, messages)
       }
 
       return {
