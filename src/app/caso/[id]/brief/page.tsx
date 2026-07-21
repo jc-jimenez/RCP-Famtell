@@ -7,8 +7,15 @@ import BriefDirectorClient from './BriefDirectorClient'
 import { computeAllModulesCompletion } from '@/lib/moduleCompletion'
 import { resolveCatalogScope, applyCatalogScope } from '@/lib/moduleTemplates'
 
-export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BriefPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ preview?: string }>
+}) {
   const { id } = await params
+  const { preview } = await searchParams
   const supabase = await createSupabaseServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/login')
@@ -68,7 +75,16 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   const modulesQuery = db.from('module_templates').select('code, name').eq('is_active', true)
   const { data: caseModules } = await applyCatalogScope(modulesQuery, catalogScope, id).order('sort_order', { ascending: true })
 
-  if (isConsultant) {
+  // "Ver como directivo" (botón en la etapa Publicado del wizard del
+  // consultor) pedía esta misma URL sin ningún parámetro — como isConsultant
+  // se resolvía primero de forma incondicional, el consultor SIEMPRE volvía
+  // a ver su propio wizard, nunca la vista del directivo. El botón no hacía
+  // nada visible. Con ?preview=director, un consultor dueño del caso puede
+  // ver exactamente lo que ve su directivo, sin necesitar una sesión real
+  // de director — útil también para demos.
+  const wantsDirectorPreview = isConsultant && preview === 'director'
+
+  if (isConsultant && !wantsDirectorPreview) {
     return (
       <BriefConsultorClient
         caseId={id}
@@ -87,7 +103,9 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   const moduleNames: Record<string, string> = {}
   ;(caseModules ?? []).forEach((m: any) => { moduleNames[m.code] = m.name })
 
-  // Director — solo puede ver el brief si está publicado
+  // Director — solo puede ver el brief si está publicado (igual en preview:
+  // el consultor debe ver exactamente lo que vería el directivo hoy, ni más
+  // ni menos, incluyendo el estado "sin publicar" si aún no lo está).
   if (!brief || brief.status !== 'published') {
     return (
       <BriefDirectorClient
@@ -97,6 +115,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
         brief={null}
         role="director"
         moduleNames={moduleNames}
+        previewMode={wantsDirectorPreview}
       />
     )
   }
@@ -109,6 +128,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
       brief={brief}
       role="director"
       moduleNames={moduleNames}
+      previewMode={wantsDirectorPreview}
     />
   )
 }

@@ -12,6 +12,7 @@ interface Props {
   brief: any
   role: string
   moduleNames?: Record<string, string>
+  previewMode?: boolean
 }
 
 // Catálogo global de siempre — se usa como respaldo si moduleNames no trae
@@ -29,16 +30,23 @@ const IER_CONFIG: Record<string, { label: string; emoji: string; color: string }
   mixed:       { label: 'Intención mixta',       emoji: '⚪', color: 'text-muted' },
 }
 
-export default function BriefDirectorClient({ caseId, companyName, email, brief, role, moduleNames = {} }: Props) {
+export default function BriefDirectorClient({ caseId, companyName, email, brief, role, moduleNames = {}, previewMode = false }: Props) {
   const shellRole: UserRole = 'director'
   const publishedDate = brief?.published_at
     ? new Date(brief.published_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
+  const previewBanner = previewMode && (
+    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+      Vista previa — así lo ve tu directivo. Estás viendo esto como consultor, no como director real.
+    </p>
+  )
+
   if (!brief) {
     return (
       <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={<DirectorTabs caseId={caseId} />}>
         <div className="max-w-3xl mx-auto space-y-4">
+          {previewBanner}
           <div className="card p-12 text-center space-y-3">
             <p className="text-3xl">📋</p>
             <p className="text-base font-semibold text-ink">Brief en preparación</p>
@@ -58,6 +66,7 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
   return (
     <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={<DirectorTabs caseId={caseId} />}>
       <div className="max-w-3xl mx-auto space-y-8 pb-16">
+        {previewBanner}
 
         {/* ── Portada ── */}
         <div className="card p-8 text-center space-y-2 border-accent/20 bg-accent-soft">

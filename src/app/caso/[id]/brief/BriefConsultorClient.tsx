@@ -1068,7 +1068,7 @@ export default function BriefConsultorClient({
                 <p className="text-3xl">✅</p>
                 <p className="text-base font-semibold text-emerald-700">Brief publicado al directivo</p>
                 <p className="text-sm text-muted">El directivo puede ver el Brief en su workspace bajo la pestaña "Brief M7".</p>
-                <Link href={`/caso/${caseId}/brief` as any}
+                <Link href={`/caso/${caseId}/brief?preview=director` as any}
                   className="btn-secondary text-sm px-4 py-2 inline-block">
                   Ver como directivo →
                 </Link>
