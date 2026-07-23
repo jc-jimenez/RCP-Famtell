@@ -83,6 +83,9 @@ export default async function AdminCasoAvancePage({
           <Link href={`/admin/casos/${caseId}/respaldos` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">
             Respaldos
           </Link>
+          <Link href={`/admin/casos/${caseId}/brief` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">
+            Brief
+          </Link>
         </nav>
 
         {/* Ribbon de etapas — resumen de todo el proceso, de Preparación a
@@ -114,8 +117,8 @@ export default async function AdminCasoAvancePage({
               tone: briefStatus === 'published' ? 'green' : briefStatus === 'draft' ? 'amber' : 'gray',
               badge: briefStatus === 'published' ? '✓' : briefStatus === 'draft' ? '…' : '🔒',
             },
-          ].map((stage, i, arr) => (
-            <div key={stage.label} className="flex items-center gap-1 flex-1">
+          ].map((stage, i, arr) => {
+            const stageContent = (
               <div className="flex items-center gap-2 min-w-0">
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                   stage.tone === 'green' ? 'bg-emerald-100 text-emerald-700' :
@@ -130,9 +133,18 @@ export default async function AdminCasoAvancePage({
                   <p className="text-[11px] text-muted truncate">{stage.sub}</p>
                 </div>
               </div>
-              {i < arr.length - 1 && <div className="w-4 h-px bg-subtle flex-shrink-0 mx-1" />}
-            </div>
-          ))}
+            )
+            return (
+              <div key={stage.label} className="flex items-center gap-1 flex-1">
+                {stage.label === 'Brief' ? (
+                  <Link href={`/admin/casos/${caseId}/brief` as any} className="hover:opacity-70 transition-opacity min-w-0">
+                    {stageContent}
+                  </Link>
+                ) : stageContent}
+                {i < arr.length - 1 && <div className="w-4 h-px bg-subtle flex-shrink-0 mx-1" />}
+              </div>
+            )
+          })}
         </div>
 
         <AvanceMatrixClient caseId={caseId} moduleOrder={moduleOrder} participants={participants} initialDeadlineDays={deadlineDays} />

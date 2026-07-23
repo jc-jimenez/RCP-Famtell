@@ -82,6 +82,9 @@ export default async function AdminCasoRespaldosPage({
           <Link href={`/admin/casos/${caseId}/respaldos` as any} className="text-sm px-4 py-2 rounded-xl bg-accent-soft text-accent font-medium transition-colors">
             Respaldos
           </Link>
+          <Link href={`/admin/casos/${caseId}/brief` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">
+            Brief
+          </Link>
         </nav>
 
         <div className="card p-5 space-y-2">

@@ -139,6 +139,12 @@ export default async function AdminCasoHubPage({
           >
             Respaldos
           </Link>
+          <Link
+            href={`/admin/casos/${caseId}/brief` as any}
+            className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors"
+          >
+            Brief
+          </Link>
         </nav>
 
         {tab === 'diagnostico' && (
