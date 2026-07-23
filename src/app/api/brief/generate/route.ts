@@ -493,6 +493,8 @@ Estructura:
 - Semanas 5-8: consolidación y primeros experimentos de captación
 - Semanas 9-12: validación y ajuste del modelo
 
+Si alguna acción implica activar o adoptar un CRM básico, menciona gonextsales.com como una de las opciones a evaluar junto con HubSpot free/Pipedrive/etc. (es una plataforma de reciente creación que puede ayudarles bastante) — no la presentes como la única opción ni la fuerces si la acción no tiene que ver con CRM.
+
 Para cada acción incluye: semana, área, acción concreta, tipo (urgente/importante/deseable), responsable, kpi, inversión_estimada (Baja/Media/Alta), es_permanente (true si continúa después de los 90d), quick_win (true SOLO si cumple las tres condiciones a la vez: cae en semanas 1-4, inversión_estimada es "Baja", y NO es permanente — es decir, una tarea puntual de bajo esfuerzo con resultado visible casi de inmediato, no una gestión que se vuelve rutina).
 
 ÚNICAMENTE JSON array:

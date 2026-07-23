@@ -64,6 +64,28 @@ function NovaHintInput({ section, hints, setHints }: {
   )
 }
 
+// Etiqueta editable — la IA la clasifica al generar, pero es criterio del
+// consultor, no un hecho objetivo (a diferencia de module_origin, que es de
+// dónde salió la evidencia). Se ve como badge pero es un <select> real.
+function TagSelect({ value, options, colorMap, prefix, size = 'xs', onChange }: {
+  value: string
+  options: string[]
+  colorMap: Record<string, string>
+  prefix?: string
+  size?: 'xs' | '2xs'
+  onChange: (v: string) => void
+}) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className={`${size === '2xs' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'} rounded border font-medium cursor-pointer ${colorMap[value] ?? ''}`}
+    >
+      {options.map(o => <option key={o} value={o}>{prefix ? `${prefix}${o}` : o}</option>)}
+    </select>
+  )
+}
+
 const PAIN_COLOR: Record<string, string> = {
   alto:  'bg-rose-50 text-rose-700 border-rose-200',
   medio: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -206,6 +228,18 @@ export default function BriefConsultorClient({
       ...p,
       [field]: (p[field] ?? []).map((item: any) =>
         item.id === id ? { ...item, ...changes } : item
+      ),
+    }))
+  }
+
+  // Los ítems de los planes (90d/6m/1a/3a) no traen "id" en el esquema que
+  // genera Nova (a diferencia de jtbd/priorities) — se actualizan por índice
+  // dentro de su propio array (plan_90d, plan_6m, etc.).
+  function updatePlanItem(field: string, index: number, changes: any) {
+    setBrief((p: any) => ({
+      ...p,
+      [field]: (p[field] ?? []).map((item: any, i: number) =>
+        i === index ? { ...item, ...changes } : item
       ),
     }))
   }
@@ -582,14 +616,12 @@ export default function BriefConsultorClient({
                             </span>
                           )}
                           {j.pain_level && (
-                            <span className={`text-xs px-2 py-0.5 rounded border ${PAIN_COLOR[j.pain_level] ?? ''}`}>
-                              Impacto: {j.pain_level}
-                            </span>
+                            <TagSelect value={j.pain_level} options={['alto', 'medio', 'bajo']} colorMap={PAIN_COLOR} prefix="Impacto: "
+                              onChange={v => updateItem('jtbd', j.id, { pain_level: v })} />
                           )}
                           {j.urgency && (
-                            <span className={`text-xs px-2 py-0.5 rounded border ${PAIN_COLOR[j.urgency] ?? 'bg-surface-2 text-muted border-subtle'}`}>
-                              {j.urgency}
-                            </span>
+                            <TagSelect value={j.urgency} options={['urgente', 'importante', 'deseable']} colorMap={URGENCY_COLOR}
+                              onChange={v => updateItem('jtbd', j.id, { urgency: v })} />
                           )}
                           {j.module_origin && (
                             <span className="text-xs px-2 py-0.5 rounded bg-accent-soft text-accent border border-accent/20">
@@ -853,7 +885,8 @@ export default function BriefConsultorClient({
                     </button>
                     <div className="flex-1 space-y-1.5">
                       <div className="flex gap-2 flex-wrap items-center">
-                        <span className={`text-xs px-2 py-0.5 rounded border ${URGENCY_COLOR[p.urgency] ?? ''}`}>{p.urgency}</span>
+                        <TagSelect value={p.urgency} options={['urgente', 'importante', 'deseable']} colorMap={URGENCY_COLOR}
+                          onChange={v => updateItem('priorities', p.id, { urgency: v })} />
                         <span className="badge text-xs">{p.area}</span>
                         <span className="text-xs font-mono text-faint">{p.module_origin}</span>
                         {p.impact && <span className="text-xs text-muted">Impacto: {p.impact}</span>}
@@ -1028,7 +1061,10 @@ export default function BriefConsultorClient({
                               </span>
                             )}
                             {item.area && <span className="badge text-xs">{item.area}</span>}
-                            {item.tipo && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${URGENCY_COLOR[item.tipo] ?? ''}`}>{item.tipo}</span>}
+                            {item.tipo && (
+                              <TagSelect value={item.tipo} options={['urgente', 'importante', 'deseable']} colorMap={URGENCY_COLOR} size="2xs"
+                                onChange={v => updatePlanItem(id, i, { tipo: v })} />
+                            )}
                             {item.quick_win && <span className="text-[10px] text-emerald-700 font-medium ml-auto">⚡ quick win</span>}
                             {!item.quick_win && item.es_permanente && <span className="text-[10px] text-accent ml-auto">↻ permanente</span>}
                           </div>
