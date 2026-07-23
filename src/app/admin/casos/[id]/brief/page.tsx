@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { isSuperAdminEmail } from '@/lib/permissions'
 import AppShell from '@/components/shared/AppShell'
+import PrintButton from '@/components/shared/PrintButton'
 
 const PAIN_COLOR: Record<string, string> = {
   alto: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -76,16 +77,19 @@ export default async function AdminCasoBriefPage({
   return (
     <AppShell role="super_admin" email={session.user.email!}>
       <div className="max-w-4xl mx-auto space-y-4 pb-16">
-        <div>
-          <Link href={`/admin/casos/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
-            ← {caseData.company_name}
-          </Link>
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 inline-block">
-            Modo soporte — vista de solo lectura del Brief de otro consultor
-          </p>
+        <div className="no-print flex items-start justify-between gap-3">
+          <div>
+            <Link href={`/admin/casos/${caseId}` as any} className="text-xs text-muted hover:text-ink mb-1 inline-block">
+              ← {caseData.company_name}
+            </Link>
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 inline-block">
+              Modo soporte — vista de solo lectura del Brief de otro consultor
+            </p>
+          </div>
+          {brief && <PrintButton />}
         </div>
 
-        <nav className="flex gap-1.5">
+        <nav className="no-print flex gap-1.5">
           <Link href={`/admin/casos/${caseId}?tab=diagnostico` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">Diagnóstico</Link>
           <Link href={`/admin/casos/${caseId}?tab=participantes` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">Participantes</Link>
           <Link href={`/admin/casos/${caseId}/plan` as any} className="text-sm px-4 py-2 rounded-xl text-muted hover:bg-surface-2 transition-colors">Módulos</Link>

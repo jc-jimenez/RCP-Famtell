@@ -163,3 +163,38 @@ body {
   .badge-neutral { @apply bg-badge-neutral-bg text-badge-neutral-text; }
   .badge-info    { @apply bg-accent-soft text-accent; }
 }
+
+/* Impresión — pensado para el Brief (vista directivo y vista super-admin),
+   pero aplica en cualquier pantalla con AppShell. El botón "Imprimir" llama
+   window.print(); estas reglas son lo que realmente arregla el resultado:
+   antes el contenido vivía dentro de <main class="overflow-auto">, que el
+   motor de impresión del navegador pagina mal (recorta a la altura visible
+   en pantalla en vez de fluir a varias hojas). */
+@media print {
+  .no-print { display: none !important; }
+
+  aside, header { display: none !important; }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+    height: auto !important;
+  }
+
+  html, body, .bg-canvas {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Cada tarjeta (hallazgo, diagnóstico, prioridad, acción del plan) no debe
+     partirse entre dos hojas — más legible que dejar que el navegador corte
+     donde caiga. */
+  .card {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  a[href]::after { content: none !important; }
+}

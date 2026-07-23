@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import AppShell from '@/components/shared/AppShell'
 import DirectorTabs from '@/components/director/DirectorTabs'
+import PrintButton from '@/components/shared/PrintButton'
 import type { UserRole } from '@/types'
 
 interface Props {
@@ -67,6 +68,10 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
     <AppShell role={shellRole} email={email} caseCompanyName={companyName} tabBar={<DirectorTabs caseId={caseId} />}>
       <div className="max-w-3xl mx-auto space-y-8 pb-16">
         {previewBanner}
+
+        <div className="no-print flex justify-end">
+          <PrintButton />
+        </div>
 
         {/* ── Portada ── */}
         <div className="card p-8 text-center space-y-2 border-accent/20 bg-accent-soft">
