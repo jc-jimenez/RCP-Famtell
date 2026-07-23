@@ -144,8 +144,14 @@ export default function BriefConsultorClient({
   async function approveStep(stepId: StepId) {
     const newTrack = { ...track, [stepId]: { status: 'complete', completed_at: new Date().toISOString() } }
     setBrief((p: any) => ({ ...p, track_status: newTrack }))
-    await save({ track_status: newTrack })
-    // Avanzar al siguiente paso
+    const ok = await save({ track_status: newTrack })
+    // Si no se guardó, no avances de etapa — el error ya quedó visible en el
+    // banner de save(); revertir el track_status optimista evita que la
+    // pantalla diga "completo" cuando en realidad no se guardó nada.
+    if (!ok) {
+      setBrief((p: any) => ({ ...p, track_status: track }))
+      return
+    }
     const idx = STEPS.findIndex(s => s.id === stepId)
     if (idx < STEPS.length - 1) setActiveStep(STEPS[idx + 1].id)
   }
@@ -189,28 +195,49 @@ export default function BriefConsultorClient({
     }
   }
 
-  async function save(extraFields?: any) {
+  // Antes no revisaba res.ok — una sesión expirada (401), un error de RLS o
+  // cualquier falla del servidor se tragaba en silencio: el botón volvía a
+  // "Guardar" sin avisar nada y el consultor creía que había quedado
+  // guardado. Devuelve true/false para que approveStep() sepa si de verdad
+  // avanzar de etapa o no.
+  async function save(extraFields?: any): Promise<boolean> {
     setSaving(true)
-    await fetch('/api/brief', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId, ...brief, ...extraFields }),
-    })
-    setSaving(false)
+    setBlockedError(null)
+    try {
+      const res = await fetch('/api/brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId, ...brief, ...extraFields }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setBlockedError(
+          res.status === 401
+            ? 'No se pudo guardar: tu sesión expiró. Copia tu trabajo si puedes, recarga la página e inicia sesión de nuevo.'
+            : `No se pudo guardar: ${data.error ?? 'error desconocido'}. Vuelve a intentar — si persiste, avisa al equipo.`
+        )
+        return false
+      }
+      return true
+    } catch {
+      setBlockedError('No se pudo guardar: fallo de conexión. Verifica tu internet e intenta de nuevo.')
+      return false
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function publish() {
     const newTrack = { ...track, publicado: { status: 'complete', completed_at: new Date().toISOString() } }
-    await fetch('/api/brief', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        caseId, ...brief,
-        track_status: newTrack,
-        status: 'published',
-        published_at: new Date().toISOString(),
-      }),
+    const ok = await save({
+      track_status: newTrack,
+      status: 'published',
+      published_at: new Date().toISOString(),
     })
+    // Publicar es la acción más visible de todas — si esto falla en silencio
+    // el consultor cree que el directivo ya puede verlo cuando en realidad
+    // sigue en borrador. save() ya deja el error visible en el banner.
+    if (!ok) return
     setBrief((p: any) => ({ ...p, status: 'published', track_status: newTrack }))
   }
 
