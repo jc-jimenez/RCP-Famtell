@@ -200,6 +200,7 @@ export default function BriefDirectorClient({ caseId, companyName, email, brief,
                       )}
                       {item.area && <span className="badge text-xs">{item.area}</span>}
                       {item.prioridad === 'alta' && <span className="text-xs text-rose-600 font-medium">● Alta prioridad</span>}
+                      {item.quick_win && <span className="text-xs text-emerald-700 font-medium">⚡ Quick win</span>}
                     </div>
                     <p className="text-sm font-medium text-ink">
                       {item.accion || item.iniciativa || item.objetivo || item.vision}

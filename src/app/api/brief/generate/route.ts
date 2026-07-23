@@ -493,7 +493,7 @@ Estructura:
 - Semanas 5-8: consolidación y primeros experimentos de captación
 - Semanas 9-12: validación y ajuste del modelo
 
-Para cada acción incluye: semana, área, acción concreta, tipo (urgente/importante/deseable), responsable, kpi, inversión_estimada (Baja/Media/Alta), es_permanente (true si continúa después de los 90d).
+Para cada acción incluye: semana, área, acción concreta, tipo (urgente/importante/deseable), responsable, kpi, inversión_estimada (Baja/Media/Alta), es_permanente (true si continúa después de los 90d), quick_win (true SOLO si cumple las tres condiciones a la vez: cae en semanas 1-4, inversión_estimada es "Baja", y NO es permanente — es decir, una tarea puntual de bajo esfuerzo con resultado visible casi de inmediato, no una gestión que se vuelve rutina).
 
 ÚNICAMENTE JSON array:
 [{
@@ -505,6 +505,7 @@ Para cada acción incluye: semana, área, acción concreta, tipo (urgente/import
   "kpi": "métrica medible",
   "inversion_estimada": "Baja",
   "es_permanente": true,
+  "quick_win": false,
   "jtbd_ids": ["jtbd_1"],
   "prioridad_id": "pri_1"
 }]`,

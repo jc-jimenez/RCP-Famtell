@@ -1017,6 +1017,7 @@ export default function BriefConsultorClient({
                     <div className="space-y-2">
                       {items.map((item: any, i: number) => (
                         <div key={i} className={`rounded-xl border p-3 space-y-1 ${
+                          item.quick_win ? 'border-emerald-200 bg-emerald-50/30' :
                           item.tipo === 'urgente' || item.urgency === 'urgente' ? 'border-rose-200 bg-rose-50/30' :
                           item.es_permanente ? 'border-accent/20 bg-accent-soft/30' : 'border-subtle'
                         }`}>
@@ -1028,7 +1029,8 @@ export default function BriefConsultorClient({
                             )}
                             {item.area && <span className="badge text-xs">{item.area}</span>}
                             {item.tipo && <span className={`text-[10px] px-1.5 py-0.5 rounded border ${URGENCY_COLOR[item.tipo] ?? ''}`}>{item.tipo}</span>}
-                            {item.es_permanente && <span className="text-[10px] text-accent ml-auto">↻ permanente</span>}
+                            {item.quick_win && <span className="text-[10px] text-emerald-700 font-medium ml-auto">⚡ quick win</span>}
+                            {!item.quick_win && item.es_permanente && <span className="text-[10px] text-accent ml-auto">↻ permanente</span>}
                           </div>
                           <p className="text-xs text-ink font-medium">
                             {item.accion || item.iniciativa || item.objetivo || item.vision}
