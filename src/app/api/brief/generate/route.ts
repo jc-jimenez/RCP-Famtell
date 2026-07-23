@@ -586,8 +586,13 @@ SEGMENTOS OBJETIVO: ${JSON.stringify(segmentosAprobados)}
     const response = await anthropic.messages.create({
       model: NOVA_MODEL,
       // 3000 truncaba secciones largas (plan_90d con 12 semanas de acciones detalladas)
-      // a media generación, produciendo JSON cortado que fallaba al parsear.
-      max_tokens: 8000,
+      // a media generación, produciendo JSON cortado que fallaba al parsear. 8000
+      // volvió a ser insuficiente para un caso con muchas prioridades/segmentos
+      // aprobados (respuesta cortada en position 22865, stop_reason 'max_tokens').
+      // 16000 es el techo máximo que este endpoint puede pedir sin streaming
+      // (32000+ obliga a usar streaming según el SDK, y maxDuration=300 no lo
+      // necesita para nada por debajo de eso).
+      max_tokens: 16000,
       system: systemPrompt,
       messages: [{ role: 'user', content: contentBlocks as any }],
     })

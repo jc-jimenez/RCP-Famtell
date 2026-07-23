@@ -152,9 +152,16 @@ export default function BriefConsultorClient({
         setBlockedError(data.error ?? 'No se puede generar: hay entrevistas incompletas.')
         return
       }
-      const { result, error } = await res.json()
+      const { result, error, upgrade_url } = await res.json()
       if (result) setBrief((p: any) => ({ ...p, [section]: result }))
-      if (error) console.error(error)
+      if (error) {
+        console.error(error)
+        setBlockedError(
+          upgrade_url ? error :
+          res.status === 500 ? `No se pudo generar: la IA no devolvió una respuesta válida. Intenta de nuevo — si vuelve a fallar, avisa al equipo (detalle técnico: ${error}).` :
+          error
+        )
+      }
     } finally {
       setGenerating(null)
     }
